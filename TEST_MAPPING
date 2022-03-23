@@ -3,10 +3,5 @@
         {
             "name": "CtsPdfTestCases"
         }
-    ],
-    "hwasan-postsubmit": [
-        {
-            "name": "CtsPdfTestCases"
-        }
     ]
 }
