@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,21 +7,18 @@
 #ifndef XFA_FWL_THEME_CFWL_MONTHCALENDARTP_H_
 #define XFA_FWL_THEME_CFWL_MONTHCALENDARTP_H_
 
-#include "fxjs/gc/heap.h"
 #include "xfa/fwl/theme/cfwl_widgettp.h"
 
 class CFWL_MonthCalendarTP final : public CFWL_WidgetTP {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  CFWL_MonthCalendarTP();
   ~CFWL_MonthCalendarTP() override;
 
-  // CFWL_WidgetTP:
+  // CFWL_WidgetTP
   void DrawBackground(const CFWL_ThemeBackground& pParams) override;
   void DrawText(const CFWL_ThemeText& pParams) override;
 
  private:
-  CFWL_MonthCalendarTP();
-
   void DrawTotalBK(const CFWL_ThemeBackground& pParams,
                    const CFX_Matrix& matrix);
   void DrawHeadBk(const CFWL_ThemeBackground& pParams,
@@ -40,6 +37,7 @@ class CFWL_MonthCalendarTP final : public CFWL_WidgetTP {
                       const CFX_Matrix& matrix);
   void DrawWeekNumSep(const CFWL_ThemeBackground& pParams,
                       const CFX_Matrix& matrix);
+  FWLTHEME_STATE GetState(uint32_t dwFWLStates);
 };
 
 #endif  // XFA_FWL_THEME_CFWL_MONTHCALENDARTP_H_

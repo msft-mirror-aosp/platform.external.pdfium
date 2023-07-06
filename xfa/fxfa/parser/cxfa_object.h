@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,11 @@
 #ifndef XFA_FXFA_PARSER_CXFA_OBJECT_H_
 #define XFA_FXFA_PARSER_CXFA_OBJECT_H_
 
-#include "core/fxcrt/fx_string.h"
-#include "fxjs/gc/heap.h"
-#include "fxjs/xfa/fxjse.h"
-#include "v8/include/cppgc/garbage-collected.h"
-#include "v8/include/cppgc/member.h"
-#include "xfa/fxfa/fxfa_basic.h"
+#include <memory>
 
-namespace cppgc {
-class Visitor;
-}  // namespace cppgc
+#include "core/fxcrt/fx_string.h"
+#include "fxjs/xfa/fxjse.h"
+#include "xfa/fxfa/fxfa_basic.h"
 
 enum class XFA_ObjectType {
   Object,
@@ -39,11 +34,12 @@ class CXFA_Node;
 class CXFA_ThisProxy;
 class CXFA_TreeList;
 
-class CXFA_Object : public cppgc::GarbageCollected<CXFA_Object> {
+class CXFA_Object : public CFXJSE_HostObject {
  public:
-  virtual ~CXFA_Object();
+  ~CXFA_Object() override;
 
-  virtual void Trace(cppgc::Visitor* visitor) const;
+  // CFXJSE_HostObject:
+  CXFA_Object* AsCXFAObject() override;
 
   CXFA_Document* GetDocument() const { return m_pDocument.Get(); }
   XFA_ObjectType GetObjectType() const { return m_objectType; }
@@ -77,8 +73,8 @@ class CXFA_Object : public cppgc::GarbageCollected<CXFA_Object> {
   CXFA_TreeList* AsTreeList();
   CXFA_ThisProxy* AsThisProxy();
 
-  CJX_Object* JSObject() { return m_pJSObject; }
-  const CJX_Object* JSObject() const { return m_pJSObject; }
+  CJX_Object* JSObject() { return m_pJSObject.get(); }
+  const CJX_Object* JSObject() const { return m_pJSObject.get(); }
 
   bool HasCreatedUIWidget() const {
     return m_elementType == XFA_Element::Field ||
@@ -97,14 +93,14 @@ class CXFA_Object : public cppgc::GarbageCollected<CXFA_Object> {
   CXFA_Object(CXFA_Document* pDocument,
               XFA_ObjectType objectType,
               XFA_Element eType,
-              CJX_Object* jsObject);
+              std::unique_ptr<CJX_Object> jsObject);
 
+  UnownedPtr<CXFA_Document> const m_pDocument;
   const XFA_ObjectType m_objectType;
   const XFA_Element m_elementType;
   const ByteStringView m_elementName;
   const uint32_t m_elementNameHash;
-  cppgc::WeakMember<CXFA_Document> m_pDocument;
-  cppgc::Member<CJX_Object> m_pJSObject;
+  std::unique_ptr<CJX_Object> m_pJSObject;
 };
 
 // Helper functions that permit nullptr arguments.

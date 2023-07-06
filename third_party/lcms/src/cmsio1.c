@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System
-//  Copyright (c) 1998-2023 Marti Maria Saguer
+//  Copyright (c) 1998-2017 Marti Maria Saguer
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the "Software"),
@@ -200,7 +200,12 @@ cmsPipeline* BuildGrayInputMatrixPipeline(cmsHPROFILE hProfile)
 
     return Lut;
 
-Error:    
+Error:
+    // memory pointed by GrayTRC is not a new malloc memory, so don't free it here, 
+    // memory pointed by GrayTRC will be freed when hProfile is closed.
+    // test file :0047776_Pocket Medicine_ The Massachusetts General Hospital Handbook of Internal Medicine-2.pdf
+    // Xiaochuan Liu, 20140421
+    //cmsFreeToneCurve(GrayTRC);
     cmsPipelineFree(Lut);
     return NULL;
 }
@@ -260,7 +265,7 @@ Error:
 
 
 
-// Read the DToAX tag, adjusting the encoding of Lab or XYZ if needed
+// Read the DToAX tag, adjusting the encoding of Lab or XYZ if neded
 static
 cmsPipeline* _cmsReadFloatInputTag(cmsHPROFILE hProfile, cmsTagSignature tagFloat)
 {
@@ -306,7 +311,7 @@ Error:
 // Read and create a BRAND NEW MPE LUT from a given profile. All stuff dependent of version, etc
 // is adjusted here in order to create a LUT that takes care of all those details.
 // We add intent = 0xffffffff as a way to read matrix shaper always, no matter of other LUT
-cmsPipeline* CMSEXPORT _cmsReadInputLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent)
+cmsPipeline* _cmsReadInputLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent)
 {
     cmsTagTypeSignature OriginalType;
     cmsTagSignature tag16;
@@ -322,8 +327,10 @@ cmsPipeline* CMSEXPORT _cmsReadInputLUT(cmsHPROFILE hProfile, cmsUInt32Number In
         if (nc == NULL) return NULL;
 
         Lut = cmsPipelineAlloc(ContextID, 0, 0);
-        if (Lut == NULL)            
-            return NULL;        
+        if (Lut == NULL) {
+            cmsFreeNamedColorList(nc);
+            return NULL;
+        }
 
         if (!cmsPipelineInsertStage(Lut, cmsAT_BEGIN, _cmsStageAllocNamedColor(nc, TRUE)) ||
             !cmsPipelineInsertStage(Lut, cmsAT_END, _cmsStageAllocLabV2ToV4(ContextID))) {
@@ -534,7 +541,7 @@ void ChangeInterpolationToTrilinear(cmsPipeline* Lut)
 }
 
 
-// Read the DToAX tag, adjusting the encoding of Lab or XYZ if needed
+// Read the DToAX tag, adjusting the encoding of Lab or XYZ if neded
 static
 cmsPipeline* _cmsReadFloatOutputTag(cmsHPROFILE hProfile, cmsTagSignature tagFloat)
 {
@@ -579,7 +586,7 @@ Error:
 }
 
 // Create an output MPE LUT from agiven profile. Version mismatches are handled here
-cmsPipeline* CMSEXPORT _cmsReadOutputLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent)
+cmsPipeline* _cmsReadOutputLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent)
 {
     cmsTagTypeSignature OriginalType;
     cmsTagSignature tag16;
@@ -659,7 +666,7 @@ Error:
 
 // ---------------------------------------------------------------------------------------------------------------
 
-// Read the AToD0 tag, adjusting the encoding of Lab or XYZ if needed
+// Read the AToD0 tag, adjusting the encoding of Lab or XYZ if neded
 static
 cmsPipeline* _cmsReadFloatDevicelinkTag(cmsHPROFILE hProfile, cmsTagSignature tagFloat)
 {
@@ -702,7 +709,7 @@ Error:
 
 // This one includes abstract profiles as well. Matrix-shaper cannot be obtained on that device class. The
 // tag name here may default to AToB0
-cmsPipeline* CMSEXPORT _cmsReadDevicelinkLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent)
+cmsPipeline* _cmsReadDevicelinkLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent)
 {
     cmsPipeline* Lut;
     cmsTagTypeSignature OriginalType;
@@ -737,7 +744,8 @@ cmsPipeline* CMSEXPORT _cmsReadDevicelinkLUT(cmsHPROFILE hProfile, cmsUInt32Numb
 
         return Lut;
     Error:
-        cmsPipelineFree(Lut);        
+        cmsPipelineFree(Lut);
+        cmsFreeNamedColorList(nc);
         return NULL;
     }
 
@@ -850,10 +858,6 @@ cmsBool  CMSEXPORT cmsIsCLUT(cmsHPROFILE hProfile, cmsUInt32Number Intent, cmsUI
            cmsSignalError(cmsGetProfileContextID(hProfile), cmsERROR_RANGE, "Unexpected direction (%d)", UsedDirection);
            return FALSE;
     }
-
-    // Extended intents are not strictly CLUT-based
-    if (Intent > INTENT_ABSOLUTE_COLORIMETRIC)
-        return FALSE;
 
     return cmsIsTag(hProfile, TagTable[Intent]);
 

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,14 @@
 
 #include "xfa/fxfa/cxfa_ffpushbutton.h"
 
-#include "third_party/base/check.h"
-#include "v8/include/cppgc/visitor.h"
-#include "xfa/fgas/graphics/cfgas_gecolor.h"
-#include "xfa/fgas/graphics/cfgas_gepath.h"
+#include <utility>
+
+#include "core/fxge/render_defines.h"
+#include "third_party/base/ptr_util.h"
 #include "xfa/fwl/cfwl_notedriver.h"
 #include "xfa/fwl/cfwl_pushbutton.h"
 #include "xfa/fwl/cfwl_widgetmgr.h"
 #include "xfa/fxfa/cxfa_ffapp.h"
-#include "xfa/fxfa/cxfa_ffdoc.h"
 #include "xfa/fxfa/cxfa_fffield.h"
 #include "xfa/fxfa/cxfa_ffpageview.h"
 #include "xfa/fxfa/cxfa_ffwidget.h"
@@ -24,23 +23,15 @@
 #include "xfa/fxfa/parser/cxfa_button.h"
 #include "xfa/fxfa/parser/cxfa_caption.h"
 #include "xfa/fxfa/parser/cxfa_edge.h"
+#include "xfa/fxgraphics/cxfa_gecolor.h"
+#include "xfa/fxgraphics/cxfa_gepath.h"
 
 CXFA_FFPushButton::CXFA_FFPushButton(CXFA_Node* pNode, CXFA_Button* button)
     : CXFA_FFField(pNode), button_(button) {}
 
 CXFA_FFPushButton::~CXFA_FFPushButton() = default;
 
-void CXFA_FFPushButton::Trace(cppgc::Visitor* visitor) const {
-  CXFA_FFField::Trace(visitor);
-  visitor->Trace(m_pRolloverTextLayout);
-  visitor->Trace(m_pDownTextLayout);
-  visitor->Trace(m_pRollProvider);
-  visitor->Trace(m_pDownProvider);
-  visitor->Trace(m_pOldDelegate);
-  visitor->Trace(button_);
-}
-
-void CXFA_FFPushButton::RenderWidget(CFGAS_GEGraphics* pGS,
+void CXFA_FFPushButton::RenderWidget(CXFA_Graphics* pGS,
                                      const CFX_Matrix& matrix,
                                      HighlightOption highlight) {
   if (!HasVisibleStatus())
@@ -59,16 +50,15 @@ void CXFA_FFPushButton::RenderWidget(CFGAS_GEGraphics* pGS,
 }
 
 bool CXFA_FFPushButton::LoadWidget() {
-  DCHECK(!IsLoaded());
-
-  CFWL_PushButton* pPushButton = cppgc::MakeGarbageCollected<CFWL_PushButton>(
-      GetFWLApp()->GetHeap()->GetAllocationHandle(), GetFWLApp());
+  ASSERT(!IsLoaded());
+  auto pNew = pdfium::MakeUnique<CFWL_PushButton>(GetFWLApp());
+  CFWL_PushButton* pPushButton = pNew.get();
   m_pOldDelegate = pPushButton->GetDelegate();
   pPushButton->SetDelegate(this);
-  SetNormalWidget(pPushButton);
+  SetNormalWidget(std::move(pNew));
   pPushButton->SetAdapterIface(this);
 
-  CFWL_NoteDriver* pNoteDriver = pPushButton->GetFWLApp()->GetNoteDriver();
+  CFWL_NoteDriver* pNoteDriver = pPushButton->GetOwnerApp()->GetNoteDriver();
   pNoteDriver->RegisterEventTarget(pPushButton, pPushButton);
 
   {
@@ -95,22 +85,22 @@ void CXFA_FFPushButton::UpdateWidgetProperty() {
     default:
       break;
   }
-  GetNormalWidget()->ModifyStyleExts(dwStyleEx, 0xFFFFFFFF);
+  GetNormalWidget()->ModifyStylesEx(dwStyleEx, 0xFFFFFFFF);
 }
 
 bool CXFA_FFPushButton::PerformLayout() {
   CXFA_FFWidget::PerformLayout();
   CFX_RectF rtWidget = GetRectWithoutRotate();
 
-  m_UIRect = rtWidget;
+  m_rtUI = rtWidget;
   CXFA_Margin* margin = m_pNode->GetMarginIfExists();
   XFA_RectWithoutMargin(&rtWidget, margin);
 
-  m_CaptionRect = rtWidget;
+  m_rtCaption = rtWidget;
 
   CXFA_Caption* caption = m_pNode->GetCaptionIfExists();
   CXFA_Margin* captionMargin = caption ? caption->GetMarginIfExists() : nullptr;
-  XFA_RectWithoutMargin(&m_CaptionRect, captionMargin);
+  XFA_RectWithoutMargin(&m_rtCaption, captionMargin);
 
   LayoutHighlightCaption();
   SetFWLRect();
@@ -144,26 +134,25 @@ void CXFA_FFPushButton::LoadHighlightCaption() {
 
   if (m_pNode->HasButtonRollover()) {
     if (!m_pRollProvider) {
-      m_pRollProvider = cppgc::MakeGarbageCollected<CXFA_TextProvider>(
-          GetDoc()->GetHeap()->GetAllocationHandle(), m_pNode.Get(),
-          CXFA_TextProvider::Type::kRollover);
+      m_pRollProvider = pdfium::MakeUnique<CXFA_TextProvider>(
+          m_pNode.Get(), XFA_TEXTPROVIDERTYPE_Rollover);
     }
-    m_pRolloverTextLayout = cppgc::MakeGarbageCollected<CXFA_TextLayout>(
-        GetDoc()->GetHeap()->GetAllocationHandle(), GetDoc(), m_pRollProvider);
+    m_pRolloverTextLayout =
+        pdfium::MakeUnique<CXFA_TextLayout>(GetDoc(), m_pRollProvider.get());
   }
+
   if (m_pNode->HasButtonDown()) {
     if (!m_pDownProvider) {
-      m_pDownProvider = cppgc::MakeGarbageCollected<CXFA_TextProvider>(
-          GetDoc()->GetHeap()->GetAllocationHandle(), m_pNode.Get(),
-          CXFA_TextProvider::Type::kDown);
+      m_pDownProvider = pdfium::MakeUnique<CXFA_TextProvider>(
+          m_pNode.Get(), XFA_TEXTPROVIDERTYPE_Down);
     }
-    m_pDownTextLayout = cppgc::MakeGarbageCollected<CXFA_TextLayout>(
-        GetDoc()->GetHeap()->GetAllocationHandle(), GetDoc(), m_pDownProvider);
+    m_pDownTextLayout =
+        pdfium::MakeUnique<CXFA_TextLayout>(GetDoc(), m_pDownProvider.get());
   }
 }
 
 void CXFA_FFPushButton::LayoutHighlightCaption() {
-  CFX_SizeF sz(m_CaptionRect.width, m_CaptionRect.height);
+  CFX_SizeF sz(m_rtCaption.width, m_rtCaption.height);
   LayoutCaption();
   if (m_pRolloverTextLayout)
     m_pRolloverTextLayout->Layout(sz);
@@ -171,7 +160,7 @@ void CXFA_FFPushButton::LayoutHighlightCaption() {
     m_pDownTextLayout->Layout(sz);
 }
 
-void CXFA_FFPushButton::RenderHighlightCaption(CFGAS_GEGraphics* pGS,
+void CXFA_FFPushButton::RenderHighlightCaption(CXFA_Graphics* pGS,
                                                CFX_Matrix* pMatrix) {
   CXFA_TextLayout* pCapTextLayout = m_pNode->GetCaptionTextLayout();
   CXFA_Caption* caption = m_pNode->GetCaptionIfExists();
@@ -179,9 +168,9 @@ void CXFA_FFPushButton::RenderHighlightCaption(CFGAS_GEGraphics* pGS,
     return;
 
   CFX_RenderDevice* pRenderDevice = pGS->GetRenderDevice();
-  CFX_RectF rtClip = m_CaptionRect;
+  CFX_RectF rtClip = m_rtCaption;
   rtClip.Intersect(GetRectWithoutRotate());
-  CFX_Matrix mt(1, 0, 0, 1, m_CaptionRect.left, m_CaptionRect.top);
+  CFX_Matrix mt(1, 0, 0, 1, m_rtCaption.left, m_rtCaption.top);
   if (pMatrix) {
     rtClip = pMatrix->TransformRect(rtClip);
     mt.Concat(*pMatrix);
@@ -210,35 +199,34 @@ void CXFA_FFPushButton::OnProcessEvent(CFWL_Event* pEvent) {
   CXFA_FFField::OnProcessEvent(pEvent);
 }
 
-void CXFA_FFPushButton::OnDrawWidget(CFGAS_GEGraphics* pGraphics,
+void CXFA_FFPushButton::OnDrawWidget(CXFA_Graphics* pGraphics,
                                      const CFX_Matrix& matrix) {
   auto* pWidget = GetNormalWidget();
-  if (pWidget->GetStyleExts() & XFA_FWL_PSBSTYLEEXT_HiliteInverted) {
+  if (pWidget->GetStylesEx() & XFA_FWL_PSBSTYLEEXT_HiliteInverted) {
     if ((pWidget->GetStates() & FWL_STATE_PSB_Pressed) &&
         (pWidget->GetStates() & FWL_STATE_PSB_Hovered)) {
       CFX_RectF rtFill(0, 0, pWidget->GetWidgetRect().Size());
       float fLineWith = GetLineWidth();
       rtFill.Deflate(fLineWith, fLineWith);
-      CFGAS_GEPath path;
+      CXFA_GEPath path;
       path.AddRectangle(rtFill.left, rtFill.top, rtFill.width, rtFill.height);
-      pGraphics->SetFillColor(CFGAS_GEColor(ArgbEncode(128, 128, 255, 255)));
-      pGraphics->FillPath(path, CFX_FillRenderOptions::FillType::kWinding,
-                          matrix);
+      pGraphics->SetFillColor(CXFA_GEColor(ArgbEncode(128, 128, 255, 255)));
+      pGraphics->FillPath(&path, FXFILL_WINDING, &matrix);
     }
     return;
   }
 
-  if (pWidget->GetStyleExts() & XFA_FWL_PSBSTYLEEXT_HiliteOutLine) {
+  if (pWidget->GetStylesEx() & XFA_FWL_PSBSTYLEEXT_HiliteOutLine) {
     if ((pWidget->GetStates() & FWL_STATE_PSB_Pressed) &&
         (pWidget->GetStates() & FWL_STATE_PSB_Hovered)) {
       float fLineWidth = GetLineWidth();
-      pGraphics->SetStrokeColor(CFGAS_GEColor(ArgbEncode(255, 128, 255, 255)));
+      pGraphics->SetStrokeColor(CXFA_GEColor(ArgbEncode(255, 128, 255, 255)));
       pGraphics->SetLineWidth(fLineWidth);
 
-      CFGAS_GEPath path;
+      CXFA_GEPath path;
       CFX_RectF rect = pWidget->GetWidgetRect();
       path.AddRectangle(0, 0, rect.width, rect.height);
-      pGraphics->StrokePath(path, matrix);
+      pGraphics->StrokePath(&path, &matrix);
     }
   }
 }

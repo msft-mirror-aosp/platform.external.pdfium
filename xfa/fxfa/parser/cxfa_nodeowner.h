@@ -1,4 +1,4 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,27 +7,23 @@
 #ifndef XFA_FXFA_PARSER_CXFA_NODEOWNER_H_
 #define XFA_FXFA_PARSER_CXFA_NODEOWNER_H_
 
+#include <memory>
 #include <vector>
 
-#include "fxjs/gc/heap.h"
-#include "v8/include/cppgc/garbage-collected.h"
-#include "v8/include/cppgc/member.h"
-#include "v8/include/cppgc/visitor.h"
+class CXFA_Node;
 
-class CXFA_List;
-
-class CXFA_NodeOwner : public cppgc::GarbageCollected<CXFA_NodeOwner> {
+class CXFA_NodeOwner {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
-  ~CXFA_NodeOwner();
+  virtual ~CXFA_NodeOwner();
 
-  void Trace(cppgc::Visitor* visitor) const;
-  void PersistList(CXFA_List* list);
+  CXFA_Node* AddOwnedNode(std::unique_ptr<CXFA_Node> node);
+  bool IsBeingDestroyed() const { return is_being_destroyed_; }
 
- private:
+ protected:
   CXFA_NodeOwner();
 
-  std::vector<cppgc::Member<CXFA_List>> lists_;
+  bool is_being_destroyed_ = false;
+  std::vector<std::unique_ptr<CXFA_Node>> nodes_;
 };
 
 #endif  // XFA_FXFA_PARSER_CXFA_NODEOWNER_H_

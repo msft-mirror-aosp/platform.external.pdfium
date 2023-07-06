@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,9 +22,6 @@
 
 #include "fxbarcode/oned/BC_OnedUPCAWriter.h"
 
-#include <math.h>
-
-#include <algorithm>
 #include <vector>
 
 #include "core/fxcrt/fx_extension.h"
@@ -33,18 +30,21 @@
 #include "fxbarcode/BC_Writer.h"
 #include "fxbarcode/oned/BC_OneDimWriter.h"
 #include "fxbarcode/oned/BC_OnedEAN13Writer.h"
+#include "third_party/base/ptr_util.h"
 
 CBC_OnedUPCAWriter::CBC_OnedUPCAWriter() {
   m_bLeftPadding = true;
   m_bRightPadding = true;
 }
 
-CBC_OnedUPCAWriter::~CBC_OnedUPCAWriter() = default;
+CBC_OnedUPCAWriter::~CBC_OnedUPCAWriter() {}
 
 bool CBC_OnedUPCAWriter::CheckContentValidity(WideStringView contents) {
-  return HasValidContentSize(contents) &&
-         std::all_of(contents.begin(), contents.end(),
-                     [](wchar_t c) { return FXSYS_IsDecimalDigit(c); });
+  for (size_t i = 0; i < contents.GetLength(); ++i) {
+    if (contents[i] < '0' || contents[i] > '9')
+      return false;
+  }
+  return true;
 }
 
 WideString CBC_OnedUPCAWriter::FilterContents(WideStringView contents) {
@@ -64,7 +64,7 @@ WideString CBC_OnedUPCAWriter::FilterContents(WideStringView contents) {
 }
 
 void CBC_OnedUPCAWriter::InitEANWriter() {
-  m_subWriter = std::make_unique<CBC_OnedEAN13Writer>();
+  m_subWriter = pdfium::MakeUnique<CBC_OnedEAN13Writer>();
 }
 
 int32_t CBC_OnedUPCAWriter::CalcChecksum(const ByteString& contents) {
@@ -84,104 +84,132 @@ int32_t CBC_OnedUPCAWriter::CalcChecksum(const ByteString& contents) {
   return checksum;
 }
 
-DataVector<uint8_t> CBC_OnedUPCAWriter::Encode(const ByteString& contents) {
+uint8_t* CBC_OnedUPCAWriter::EncodeWithHint(const ByteString& contents,
+                                            BCFORMAT format,
+                                            int32_t& outWidth,
+                                            int32_t& outHeight,
+                                            int32_t hints) {
+  if (format != BCFORMAT_UPC_A)
+    return nullptr;
+
   ByteString toEAN13String = '0' + contents;
   m_iDataLenth = 13;
-  return m_subWriter->Encode(toEAN13String);
+  return m_subWriter->EncodeWithHint(toEAN13String, BCFORMAT_EAN_13, outWidth,
+                                     outHeight, hints);
+}
+
+uint8_t* CBC_OnedUPCAWriter::EncodeImpl(const ByteString& contents,
+                                        int32_t& outLength) {
+  return nullptr;
 }
 
 bool CBC_OnedUPCAWriter::ShowChars(WideStringView contents,
                                    CFX_RenderDevice* device,
-                                   const CFX_Matrix& matrix,
-                                   int32_t barWidth) {
+                                   const CFX_Matrix* matrix,
+                                   int32_t barWidth,
+                                   int32_t multiple) {
   if (!device)
     return false;
 
-  constexpr float kLeftPosition = 17.0f;
+  int32_t leftPadding = 7 * multiple;
+  int32_t leftPosition = 10 * multiple + leftPadding;
   ByteString str = FX_UTF8Encode(contents);
   size_t length = str.GetLength();
   std::vector<TextCharPos> charpos(length);
   ByteString tempStr = str.Substr(1, 5);
-  constexpr float kWidth = 35.0f;
-  float blank = 0.0f;
+  float strWidth = (float)35 * multiple;
+  float blank = 0.0;
 
   length = tempStr.GetLength();
-  int32_t iFontSize = static_cast<int32_t>(fabs(m_fFontSize));
+  int32_t iFontSize = (int32_t)fabs(m_fFontSize);
   int32_t iTextHeight = iFontSize + 1;
 
   CFX_Matrix matr(m_outputHScale, 0.0, 0.0, 1.0, 0.0, 0.0);
-  CFX_FloatRect rect(kLeftPosition, (float)(m_Height - iTextHeight),
-                     kLeftPosition + kWidth - 0.5, (float)m_Height);
-  matr.Concat(matrix);
+  CFX_FloatRect rect((float)leftPosition, (float)(m_Height - iTextHeight),
+                     (float)(leftPosition + strWidth - 0.5), (float)m_Height);
+  matr.Concat(*matrix);
   FX_RECT re = matr.TransformRect(rect).GetOuterRect();
   device->FillRect(re, kBackgroundColor);
   CFX_Matrix matr1(m_outputHScale, 0.0, 0.0, 1.0, 0.0, 0.0);
-  CFX_FloatRect rect1(kLeftPosition + 40, (float)(m_Height - iTextHeight),
-                      kLeftPosition + 40 + kWidth - 0.5, (float)m_Height);
-  matr1.Concat(matrix);
+  CFX_FloatRect rect1((float)(leftPosition + 40 * multiple),
+                      (float)(m_Height - iTextHeight),
+                      (float)((leftPosition + 40 * multiple) + strWidth - 0.5),
+                      (float)m_Height);
+  matr1.Concat(*matrix);
   re = matr1.TransformRect(rect1).GetOuterRect();
   device->FillRect(re, kBackgroundColor);
-  constexpr float kWidth1 = 7.0f;
+  float strWidth1 = (float)multiple * 7;
   CFX_Matrix matr2(m_outputHScale, 0.0, 0.0, 1.0, 0.0, 0.0);
-  CFX_FloatRect rect2(0.0, (float)(m_Height - iTextHeight), kWidth1 - 1,
-                      (float)m_Height);
-  matr2.Concat(matrix);
+  CFX_FloatRect rect2(0.0, (float)(m_Height - iTextHeight),
+                      (float)strWidth1 - 1, (float)m_Height);
+  matr2.Concat(*matrix);
   re = matr2.TransformRect(rect2).GetOuterRect();
   device->FillRect(re, kBackgroundColor);
   CFX_Matrix matr3(m_outputHScale, 0.0, 0.0, 1.0, 0.0, 0.0);
-  CFX_FloatRect rect3(kLeftPosition + 85, (float)(m_Height - iTextHeight),
-                      kLeftPosition + 85 + kWidth1 - 0.5, (float)m_Height);
-  matr3.Concat(matrix);
+  CFX_FloatRect rect3((float)(leftPosition + 85 * multiple),
+                      (float)(m_Height - iTextHeight),
+                      (float)((leftPosition + 85 * multiple) + strWidth1 - 0.5),
+                      (float)m_Height);
+  matr3.Concat(*matrix);
   re = matr3.TransformRect(rect3).GetOuterRect();
   device->FillRect(re, kBackgroundColor);
-  float strWidth = kWidth * m_outputHScale;
+  strWidth = strWidth * m_outputHScale;
 
-  CalcTextInfo(tempStr, &charpos[1], m_pFont, strWidth, iFontSize, blank);
+  CalcTextInfo(tempStr, &charpos[1], m_pFont.Get(), strWidth, iFontSize, blank);
   {
     CFX_Matrix affine_matrix1(1.0, 0.0, 0.0, -1.0,
-                              kLeftPosition * m_outputHScale,
+                              (float)leftPosition * m_outputHScale,
                               (float)(m_Height - iTextHeight + iFontSize));
-    affine_matrix1.Concat(matrix);
-    device->DrawNormalText(pdfium::make_span(charpos).subspan(1, length),
-                           m_pFont, static_cast<float>(iFontSize),
-                           affine_matrix1, m_fontColor, GetTextRenderOptions());
+    if (matrix)
+      affine_matrix1.Concat(*matrix);
+    device->DrawNormalText(length, &charpos[1], m_pFont.Get(),
+                           static_cast<float>(iFontSize), affine_matrix1,
+                           m_fontColor, FXTEXT_CLEARTYPE);
   }
   tempStr = str.Substr(6, 5);
   length = tempStr.GetLength();
-  CalcTextInfo(tempStr, &charpos[6], m_pFont, strWidth, iFontSize, blank);
+  CalcTextInfo(tempStr, &charpos[6], m_pFont.Get(), strWidth, iFontSize, blank);
   {
-    CFX_Matrix affine_matrix1(1.0, 0.0, 0.0, -1.0,
-                              (kLeftPosition + 40) * m_outputHScale,
-                              (float)(m_Height - iTextHeight + iFontSize));
-    affine_matrix1.Concat(matrix);
-    device->DrawNormalText(pdfium::make_span(charpos).subspan(6, length),
-                           m_pFont, static_cast<float>(iFontSize),
-                           affine_matrix1, m_fontColor, GetTextRenderOptions());
+    CFX_Matrix affine_matrix1(
+        1.0, 0.0, 0.0, -1.0,
+        (float)(leftPosition + 40 * multiple) * m_outputHScale,
+        (float)(m_Height - iTextHeight + iFontSize));
+    if (matrix)
+      affine_matrix1.Concat(*matrix);
+    device->DrawNormalText(length, &charpos[6], m_pFont.Get(),
+                           static_cast<float>(iFontSize), affine_matrix1,
+                           m_fontColor, FXTEXT_CLEARTYPE);
   }
   tempStr = str.First(1);
   length = tempStr.GetLength();
-  strWidth = 7 * m_outputHScale;
+  strWidth = (float)multiple * 7;
+  strWidth = strWidth * m_outputHScale;
 
-  CalcTextInfo(tempStr, charpos.data(), m_pFont, strWidth, iFontSize, blank);
+  CalcTextInfo(tempStr, charpos.data(), m_pFont.Get(), strWidth, iFontSize,
+               blank);
   {
     CFX_Matrix affine_matrix1(1.0, 0.0, 0.0, -1.0, 0,
                               (float)(m_Height - iTextHeight + iFontSize));
-    affine_matrix1.Concat(matrix);
-    device->DrawNormalText(pdfium::make_span(charpos).first(length), m_pFont,
+    if (matrix)
+      affine_matrix1.Concat(*matrix);
+    device->DrawNormalText(length, charpos.data(), m_pFont.Get(),
                            static_cast<float>(iFontSize), affine_matrix1,
-                           m_fontColor, GetTextRenderOptions());
+                           m_fontColor, FXTEXT_CLEARTYPE);
   }
   tempStr = str.Substr(11, 1);
   length = tempStr.GetLength();
-  CalcTextInfo(tempStr, &charpos[11], m_pFont, strWidth, iFontSize, blank);
+  CalcTextInfo(tempStr, &charpos[11], m_pFont.Get(), strWidth, iFontSize,
+               blank);
   {
-    CFX_Matrix affine_matrix1(1.0, 0.0, 0.0, -1.0,
-                              (kLeftPosition + 85) * m_outputHScale,
-                              (float)(m_Height - iTextHeight + iFontSize));
-    affine_matrix1.Concat(matrix);
-    device->DrawNormalText(pdfium::make_span(charpos).subspan(11, length),
-                           m_pFont, static_cast<float>(iFontSize),
-                           affine_matrix1, m_fontColor, GetTextRenderOptions());
+    CFX_Matrix affine_matrix1(
+        1.0, 0.0, 0.0, -1.0,
+        (float)(leftPosition + 85 * multiple) * m_outputHScale,
+        (float)(m_Height - iTextHeight + iFontSize));
+    if (matrix)
+      affine_matrix1.Concat(*matrix);
+    device->DrawNormalText(length, &charpos[11], m_pFont.Get(),
+                           static_cast<float>(iFontSize), affine_matrix1,
+                           m_fontColor, FXTEXT_CLEARTYPE);
   }
   return true;
 }

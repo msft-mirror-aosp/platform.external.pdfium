@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@ const JSConstSpec CJS_Zoomtype::ConstSpecs[] = {
     {"pref", JSConstSpec::String, 0, "Preferred"},
     {"refW", JSConstSpec::String, 0, "ReflowWidth"}};
 
-uint32_t CJS_Zoomtype::ObjDefnID = 0;
+int CJS_Zoomtype::ObjDefnID = -1;
 
 // static
 void CJS_Zoomtype::DefineJSObjects(CFXJS_Engine* pEngine) {

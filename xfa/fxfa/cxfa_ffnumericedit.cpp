@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,9 @@
 
 #include "xfa/fxfa/cxfa_ffnumericedit.h"
 
-#include "third_party/base/check.h"
+#include <utility>
+
+#include "third_party/base/ptr_util.h"
 #include "xfa/fwl/cfwl_edit.h"
 #include "xfa/fwl/cfwl_eventvalidate.h"
 #include "xfa/fwl/cfwl_notedriver.h"
@@ -21,22 +23,21 @@ CXFA_FFNumericEdit::CXFA_FFNumericEdit(CXFA_Node* pNode)
 CXFA_FFNumericEdit::~CXFA_FFNumericEdit() = default;
 
 bool CXFA_FFNumericEdit::LoadWidget() {
-  DCHECK(!IsLoaded());
-
-  CFWL_Edit* pWidget = cppgc::MakeGarbageCollected<CFWL_Edit>(
-      GetFWLApp()->GetHeap()->GetAllocationHandle(), GetFWLApp(),
-      CFWL_Widget::Properties(), nullptr);
-  SetNormalWidget(pWidget);
+  ASSERT(!IsLoaded());
+  auto pNewEdit = pdfium::MakeUnique<CFWL_Edit>(
+      GetFWLApp(), pdfium::MakeUnique<CFWL_WidgetProperties>(), nullptr);
+  CFWL_Edit* pWidget = pNewEdit.get();
+  SetNormalWidget(std::move(pNewEdit));
   pWidget->SetAdapterIface(this);
 
-  CFWL_NoteDriver* pNoteDriver = pWidget->GetFWLApp()->GetNoteDriver();
+  CFWL_NoteDriver* pNoteDriver = pWidget->GetOwnerApp()->GetNoteDriver();
   pNoteDriver->RegisterEventTarget(pWidget, pWidget);
   m_pOldDelegate = pWidget->GetDelegate();
   pWidget->SetDelegate(this);
 
   {
     CFWL_Widget::ScopedUpdateLock update_lock(pWidget);
-    pWidget->SetText(m_pNode->GetValue(XFA_ValuePicture::kDisplay));
+    pWidget->SetText(m_pNode->GetValue(XFA_VALUEPICTURE_Display));
     UpdateWidgetProperty();
   }
 
@@ -55,30 +56,29 @@ void CXFA_FFNumericEdit::UpdateWidgetProperty() {
   if (!m_pNode->IsHorizontalScrollPolicyOff())
     dwExtendedStyle |= FWL_STYLEEXT_EDT_AutoHScroll;
 
-  absl::optional<int32_t> numCells = m_pNode->GetNumberOfCells();
-  if (numCells.has_value() && numCells.value() > 0) {
+  Optional<int32_t> numCells = m_pNode->GetNumberOfCells();
+  if (numCells && *numCells > 0) {
     dwExtendedStyle |= FWL_STYLEEXT_EDT_CombText;
-    pWidget->SetLimit(numCells.value());
+    pWidget->SetLimit(*numCells);
   }
   dwExtendedStyle |= GetAlignment();
   if (!m_pNode->IsOpenAccess() || !GetDoc()->GetXFADoc()->IsInteractive())
     dwExtendedStyle |= FWL_STYLEEXT_EDT_ReadOnly;
 
-  GetNormalWidget()->ModifyStyleExts(dwExtendedStyle, 0xFFFFFFFF);
+  GetNormalWidget()->ModifyStylesEx(dwExtendedStyle, 0xFFFFFFFF);
 }
 
 void CXFA_FFNumericEdit::OnProcessEvent(CFWL_Event* pEvent) {
   if (pEvent->GetType() == CFWL_Event::Type::Validate) {
     CFWL_EventValidate* event = static_cast<CFWL_EventValidate*>(pEvent);
-    event->SetValidate(OnValidate(GetNormalWidget(), event->GetInsert()));
+    event->bValidate = OnValidate(GetNormalWidget(), event->wsInsert);
     return;
   }
   CXFA_FFTextEdit::OnProcessEvent(pEvent);
 }
 
-bool CXFA_FFNumericEdit::OnValidate(CFWL_Widget* pWidget,
-                                    const WideString& wsText) {
-  WideString wsPattern = m_pNode->GetPictureContent(XFA_ValuePicture::kEdit);
+bool CXFA_FFNumericEdit::OnValidate(CFWL_Widget* pWidget, WideString& wsText) {
+  WideString wsPattern = m_pNode->GetPictureContent(XFA_VALUEPICTURE_Edit);
   if (!wsPattern.IsEmpty())
     return true;
 

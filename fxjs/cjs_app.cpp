@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,33 +6,24 @@
 
 #include "fxjs/cjs_app.h"
 
-#include <stdint.h>
-
-#include <algorithm>
 #include <utility>
 
-#include "core/fxcrt/fixed_zeroed_data_vector.h"
-#include "core/fxcrt/stl_util.h"
-#include "fpdfsdk/cpdfsdk_formfillenvironment.h"
 #include "fpdfsdk/cpdfsdk_interactiveform.h"
 #include "fxjs/cjs_document.h"
 #include "fxjs/cjs_timerobj.h"
 #include "fxjs/global_timer.h"
 #include "fxjs/ijs_event_context.h"
 #include "fxjs/js_resources.h"
-#include "v8/include/v8-container.h"
+#include "third_party/base/ptr_util.h"
+#include "third_party/base/stl_util.h"
 
-namespace {
-
-constexpr wchar_t kStrViewerType[] = L"pdfium";
-constexpr wchar_t kStrViewerVariation[] = L"Full";
-constexpr wchar_t kStrPlatform[] = L"WIN";
-constexpr wchar_t kStrLanguage[] = L"ENU";
-constexpr int kNumViewerVersion = 8;
-constexpr int kNumViewerVersionXfa = 11;
-constexpr int kNumFormsVersion = 7;
-
-}  // namespace
+#define JS_STR_VIEWERTYPE L"pdfium"
+#define JS_STR_VIEWERVARIATION L"Full"
+#define JS_STR_PLATFORM L"WIN"
+#define JS_STR_LANGUAGE L"ENU"
+#define JS_NUM_VIEWERVERSION 8
+#define JS_NUM_VIEWERVERSION_XFA 11
+#define JS_NUM_FORMSVERSION 7
 
 const JSPropertySpec CJS_App::PropertySpecs[] = {
     {"activeDocs", get_active_docs_static, set_active_docs_static},
@@ -73,12 +64,12 @@ const JSMethodSpec CJS_App::MethodSpecs[] = {
     {"setInterval", setInterval_static},
     {"setTimeOut", setTimeOut_static}};
 
-uint32_t CJS_App::ObjDefnID = 0;
+int CJS_App::ObjDefnID = -1;
 
 const char CJS_App::kName[] = "app";
 
 // static
-uint32_t CJS_App::GetObjDefnID() {
+int CJS_App::GetObjDefnID() {
   return ObjDefnID;
 }
 
@@ -97,7 +88,7 @@ CJS_App::~CJS_App() = default;
 
 CJS_Result CJS_App::get_active_docs(CJS_Runtime* pRuntime) {
   v8::Local<v8::Object> pObj = pRuntime->GetThisObj();
-  auto pJSDocument = JSGetObject<CJS_Document>(pRuntime->GetIsolate(), pObj);
+  auto pJSDocument = JSGetObject<CJS_Document>(pObj);
   if (!pJSDocument)
     return CJS_Result::Failure(JSMessage::kObjectTypeError);
   v8::Local<v8::Array> aDocs = pRuntime->NewArray();
@@ -126,7 +117,7 @@ CJS_Result CJS_App::set_calculate(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_App::get_forms_version(CJS_Runtime* pRuntime) {
-  return CJS_Result::Success(pRuntime->NewNumber(kNumFormsVersion));
+  return CJS_Result::Success(pRuntime->NewNumber(JS_NUM_FORMSVERSION));
 }
 
 CJS_Result CJS_App::set_forms_version(CJS_Runtime* pRuntime,
@@ -135,7 +126,7 @@ CJS_Result CJS_App::set_forms_version(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_App::get_viewer_type(CJS_Runtime* pRuntime) {
-  return CJS_Result::Success(pRuntime->NewString(kStrViewerType));
+  return CJS_Result::Success(pRuntime->NewString(JS_STR_VIEWERTYPE));
 }
 
 CJS_Result CJS_App::set_viewer_type(CJS_Runtime* pRuntime,
@@ -144,7 +135,7 @@ CJS_Result CJS_App::set_viewer_type(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_App::get_viewer_variation(CJS_Runtime* pRuntime) {
-  return CJS_Result::Success(pRuntime->NewString(kStrViewerVariation));
+  return CJS_Result::Success(pRuntime->NewString(JS_STR_VIEWERVARIATION));
 }
 
 CJS_Result CJS_App::set_viewer_variation(CJS_Runtime* pRuntime,
@@ -156,8 +147,8 @@ CJS_Result CJS_App::get_viewer_version(CJS_Runtime* pRuntime) {
   CPDF_Document::Extension* pContext =
       pRuntime->GetFormFillEnv()->GetDocExtension();
   int version = pContext && pContext->ContainsExtensionForm()
-                    ? kNumViewerVersionXfa
-                    : kNumViewerVersion;
+                    ? JS_NUM_VIEWERVERSION_XFA
+                    : JS_NUM_VIEWERVERSION;
   return CJS_Result::Success(pRuntime->NewNumber(version));
 }
 
@@ -173,7 +164,7 @@ CJS_Result CJS_App::get_platform(CJS_Runtime* pRuntime) {
     if (!platform.IsEmpty())
       return CJS_Result::Success(pRuntime->NewString(platform.AsStringView()));
   }
-  return CJS_Result::Success(pRuntime->NewString(kStrPlatform));
+  return CJS_Result::Success(pRuntime->NewString(JS_STR_PLATFORM));
 }
 
 CJS_Result CJS_App::set_platform(CJS_Runtime* pRuntime,
@@ -188,7 +179,7 @@ CJS_Result CJS_App::get_language(CJS_Runtime* pRuntime) {
     if (!language.IsEmpty())
       return CJS_Result::Success(pRuntime->NewString(language.AsStringView()));
   }
-  return CJS_Result::Success(pRuntime->NewString(kStrLanguage));
+  return CJS_Result::Success(pRuntime->NewString(JS_STR_LANGUAGE));
 }
 
 CJS_Result CJS_App::set_language(CJS_Runtime* pRuntime,
@@ -259,7 +250,7 @@ CJS_Result CJS_App::alert(CJS_Runtime* pRuntime,
     swTitle = JSGetStringFromID(JSMessage::kAlert);
 
   pRuntime->BeginBlock();
-  pFormFillEnv->KillFocusAnnot({});
+  pFormFillEnv->KillFocusAnnot(0);
   v8::Local<v8::Value> ret = pRuntime->NewNumber(
       pFormFillEnv->JS_appAlert(swMsg, swTitle, iType, iIcon));
   pRuntime->EndBlock();
@@ -311,7 +302,7 @@ CJS_Result CJS_App::setInterval(
     return CJS_Result::Failure(JSMessage::kInvalidInputError);
 
   uint32_t dwInterval = params.size() > 1 ? pRuntime->ToInt32(params[1]) : 1000;
-  auto timerRef = std::make_unique<GlobalTimer>(
+  auto timerRef = pdfium::MakeUnique<GlobalTimer>(
       this, pRuntime, GlobalTimer::Type::kRepeating, script, dwInterval, 0);
   GlobalTimer* pTimerRef = timerRef.get();
   m_Timers.insert(std::move(timerRef));
@@ -321,8 +312,8 @@ CJS_Result CJS_App::setInterval(
   if (pRetObj.IsEmpty())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
-  auto* pJS_TimerObj = static_cast<CJS_TimerObj*>(
-      CFXJS_Engine::GetObjectPrivate(pRuntime->GetIsolate(), pRetObj));
+  auto* pJS_TimerObj =
+      static_cast<CJS_TimerObj*>(CFXJS_Engine::GetObjectPrivate(pRetObj));
 
   pJS_TimerObj->SetTimer(pTimerRef);
   return CJS_Result::Success(pRetObj);
@@ -339,9 +330,9 @@ CJS_Result CJS_App::setTimeOut(
     return CJS_Result::Failure(JSMessage::kInvalidInputError);
 
   uint32_t dwTimeOut = params.size() > 1 ? pRuntime->ToInt32(params[1]) : 1000;
-  auto timerRef =
-      std::make_unique<GlobalTimer>(this, pRuntime, GlobalTimer::Type::kOneShot,
-                                    script, dwTimeOut, dwTimeOut);
+  auto timerRef = pdfium::MakeUnique<GlobalTimer>(this, pRuntime,
+                                                  GlobalTimer::Type::kOneShot,
+                                                  script, dwTimeOut, dwTimeOut);
   GlobalTimer* pTimerRef = timerRef.get();
   m_Timers.insert(std::move(timerRef));
 
@@ -350,8 +341,8 @@ CJS_Result CJS_App::setTimeOut(
   if (pRetObj.IsEmpty())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
-  auto* pJS_TimerObj = static_cast<CJS_TimerObj*>(
-      CFXJS_Engine::GetObjectPrivate(pRuntime->GetIsolate(), pRetObj));
+  auto* pJS_TimerObj =
+      static_cast<CJS_TimerObj*>(CFXJS_Engine::GetObjectPrivate(pRetObj));
 
   pJS_TimerObj->SetTimer(pTimerRef);
   return CJS_Result::Success(pRetObj);
@@ -383,7 +374,7 @@ void CJS_App::ClearTimerCommon(CJS_Runtime* pRuntime,
     return;
 
   v8::Local<v8::Object> pObj = pRuntime->ToObject(param);
-  auto pTimer = JSGetObject<CJS_TimerObj>(pRuntime->GetIsolate(), pObj);
+  auto pTimer = JSGetObject<CJS_TimerObj>(pObj);
   if (!pTimer)
     return;
 
@@ -403,7 +394,7 @@ void CJS_App::TimerProc(GlobalTimer* pTimer) {
 }
 
 void CJS_App::CancelProc(GlobalTimer* pTimer) {
-  m_Timers.erase(fxcrt::MakeFakeUniquePtr(pTimer));
+  m_Timers.erase(pdfium::FakeUniquePtr<GlobalTimer>(pTimer));
 }
 
 void CJS_App::RunJsScript(CJS_Runtime* pRuntime, const WideString& wsScript) {
@@ -462,8 +453,8 @@ CJS_Result CJS_App::mailMsg(CJS_Runtime* pRuntime,
     cMsg = pRuntime->ToWideString(newParams[5]);
 
   pRuntime->BeginBlock();
-  pRuntime->GetFormFillEnv()->JS_docmailForm(pdfium::span<const uint8_t>(), bUI,
-                                             cTo, cSubject, cCc, cBcc, cMsg);
+  pRuntime->GetFormFillEnv()->JS_docmailForm(nullptr, 0, bUI, cTo, cSubject,
+                                             cCc, cBcc, cMsg);
   pRuntime->EndBlock();
   return CJS_Result::Success();
 }
@@ -550,20 +541,18 @@ CJS_Result CJS_App::response(CJS_Runtime* pRuntime,
   if (IsExpandedParamKnown(newParams[4]))
     swLabel = pRuntime->ToWideString(newParams[4]);
 
-  constexpr int kMaxWideChars = 1024;
-  constexpr int kMaxBytes = kMaxWideChars * sizeof(uint16_t);
-  FixedZeroedDataVector<uint16_t> buffer(kMaxWideChars);
-  pdfium::span<uint16_t> buffer_span = buffer.writable_span();
-  int byte_length = pRuntime->GetFormFillEnv()->JS_appResponse(
-      swQuestion, swTitle, swDefault, swLabel, bPassword,
-      pdfium::as_writable_bytes(buffer_span));
-  if (byte_length < 0 || byte_length > kMaxBytes)
+  const int MAX_INPUT_BYTES = 2048;
+  std::vector<uint8_t> pBuff(MAX_INPUT_BYTES + 2);
+  int nLengthBytes = pRuntime->GetFormFillEnv()->JS_appResponse(
+      swQuestion, swTitle, swDefault, swLabel, bPassword, pBuff.data(),
+      MAX_INPUT_BYTES);
+
+  if (nLengthBytes < 0 || nLengthBytes > MAX_INPUT_BYTES)
     return CJS_Result::Failure(JSMessage::kParamTooLongError);
 
-  buffer_span = buffer_span.first(
-      std::min<size_t>(kMaxWideChars, byte_length / sizeof(uint16_t)));
   return CJS_Result::Success(pRuntime->NewString(
-      WideString::FromUTF16LE(buffer_span.data(), buffer_span.size())
+      WideString::FromUTF16LE(reinterpret_cast<uint16_t*>(pBuff.data()),
+                              nLengthBytes / sizeof(uint16_t))
           .AsStringView()));
 }
 

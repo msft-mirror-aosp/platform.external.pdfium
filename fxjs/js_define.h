@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 #ifndef FXJS_JS_DEFINE_H_
 #define FXJS_JS_DEFINE_H_
 
-#include <memory>
 #include <vector>
 
 #include "core/fxcrt/unowned_ptr.h"
@@ -15,10 +14,11 @@
 #include "fxjs/cjs_result.h"
 #include "fxjs/cjs_runtime.h"
 #include "fxjs/js_resources.h"
+#include "third_party/base/ptr_util.h"
 
 class CJS_Object;
 
-double JS_DateParse(v8::Isolate* pIsolate, const WideString& str);
+double JS_DateParse(const WideString& str);
 
 // Some JS methods have the bizarre convention that they may also be called
 // with a single argument which is an object containing the actual arguments
@@ -42,22 +42,20 @@ bool IsExpandedParamKnown(v8::Local<v8::Value> value);
 // to construct native object state.
 
 template <class T>
-static void JSConstructor(CFXJS_Engine* pEngine,
-                          v8::Local<v8::Object> obj,
-                          v8::Local<v8::Object> proxy) {
+static void JSConstructor(CFXJS_Engine* pEngine, v8::Local<v8::Object> obj) {
   pEngine->SetObjectPrivate(
-      obj, std::make_unique<T>(proxy, static_cast<CJS_Runtime*>(pEngine)));
+      obj, pdfium::MakeUnique<T>(obj, static_cast<CJS_Runtime*>(pEngine)));
 }
 
 // CJS_Object has virtual dtor, template not required.
 void JSDestructor(v8::Local<v8::Object> obj);
 
 template <class C>
-UnownedPtr<C> JSGetObject(v8::Isolate* isolate, v8::Local<v8::Object> obj) {
+UnownedPtr<C> JSGetObject(v8::Local<v8::Object> obj) {
   if (CFXJS_Engine::GetObjDefnID(obj) != C::GetObjDefnID())
     return nullptr;
 
-  CJS_Object* pJSObj = CFXJS_Engine::GetObjectPrivate(isolate, obj);
+  CJS_Object* pJSObj = CFXJS_Engine::GetObjectPrivate(obj);
   if (!pJSObj)
     return nullptr;
 
@@ -69,7 +67,7 @@ void JSPropGetter(const char* prop_name_string,
                   const char* class_name_string,
                   v8::Local<v8::String> property,
                   const v8::PropertyCallbackInfo<v8::Value>& info) {
-  auto pObj = JSGetObject<C>(info.GetIsolate(), info.Holder());
+  auto pObj = JSGetObject<C>(info.Holder());
   if (!pObj)
     return;
 
@@ -77,7 +75,7 @@ void JSPropGetter(const char* prop_name_string,
   if (!pRuntime)
     return;
 
-  CJS_Result result = (pObj.get()->*M)(pRuntime);
+  CJS_Result result = (pObj.Get()->*M)(pRuntime);
   if (result.HasError()) {
     pRuntime->Error(JSFormatErrorString(class_name_string, prop_name_string,
                                         result.Error()));
@@ -94,7 +92,7 @@ void JSPropSetter(const char* prop_name_string,
                   v8::Local<v8::String> property,
                   v8::Local<v8::Value> value,
                   const v8::PropertyCallbackInfo<void>& info) {
-  auto pObj = JSGetObject<C>(info.GetIsolate(), info.Holder());
+  auto pObj = JSGetObject<C>(info.Holder());
   if (!pObj)
     return;
 
@@ -102,7 +100,7 @@ void JSPropSetter(const char* prop_name_string,
   if (!pRuntime)
     return;
 
-  CJS_Result result = (pObj.get()->*M)(pRuntime, value);
+  CJS_Result result = (pObj.Get()->*M)(pRuntime, value);
   if (result.HasError()) {
     pRuntime->Error(JSFormatErrorString(class_name_string, prop_name_string,
                                         result.Error()));
@@ -115,7 +113,7 @@ template <class C,
 void JSMethod(const char* method_name_string,
               const char* class_name_string,
               const v8::FunctionCallbackInfo<v8::Value>& info) {
-  auto pObj = JSGetObject<C>(info.GetIsolate(), info.Holder());
+  auto pObj = JSGetObject<C>(info.Holder());
   if (!pObj)
     return;
 
@@ -127,7 +125,7 @@ void JSMethod(const char* method_name_string,
   for (unsigned int i = 0; i < (unsigned int)info.Length(); i++)
     parameters.push_back(info[i]);
 
-  CJS_Result result = (pObj.get()->*M)(pRuntime, parameters);
+  CJS_Result result = (pObj.Get()->*M)(pRuntime, parameters);
   if (result.HasError()) {
     pRuntime->Error(JSFormatErrorString(class_name_string, method_name_string,
                                         result.Error()));

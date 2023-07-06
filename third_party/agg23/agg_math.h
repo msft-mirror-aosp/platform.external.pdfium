@@ -19,8 +19,6 @@
 #ifndef AGG_MATH_INCLUDED
 #define AGG_MATH_INCLUDED
 #include "agg_basics.h"
-namespace pdfium
-{
 namespace agg
 {
 const float intersection_epsilon = 1.0e-30f;
@@ -62,5 +60,4 @@ AGG_INLINE bool calc_intersection(float ax, float ay, float bx, float by,
     return true;
 }
 }
-}  // namespace pdfium
 #endif

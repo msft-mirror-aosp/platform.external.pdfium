@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,14 +14,15 @@ class CPDF_Document;
 
 class CPDF_BookmarkTree {
  public:
-  explicit CPDF_BookmarkTree(const CPDF_Document* doc);
+  explicit CPDF_BookmarkTree(CPDF_Document* pDoc);
   ~CPDF_BookmarkTree();
 
-  CPDF_Bookmark GetFirstChild(const CPDF_Bookmark& parent) const;
-  CPDF_Bookmark GetNextSibling(const CPDF_Bookmark& bookmark) const;
+  CPDF_Bookmark GetFirstChild(CPDF_Bookmark* parent) const;
+  CPDF_Bookmark GetNextSibling(CPDF_Bookmark* bookmark) const;
+  CPDF_Document* GetDocument() const { return m_pDocument.Get(); }
 
  private:
-  UnownedPtr<const CPDF_Document> const document_;
+  UnownedPtr<CPDF_Document> const m_pDocument;
 };
 
 #endif  // CORE_FPDFDOC_CPDF_BOOKMARKTREE_H_

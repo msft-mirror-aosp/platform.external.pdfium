@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "fxjs/cjs_annot.h"
 
 #include "constants/annotation_flags.h"
+#include "fpdfsdk/cpdfsdk_baannot.h"
 #include "fxjs/cjs_event_context.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/js_define.h"
@@ -17,12 +18,12 @@ const JSPropertySpec CJS_Annot::PropertySpecs[] = {
     {"name", get_name_static, set_name_static},
     {"type", get_type_static, set_type_static}};
 
-uint32_t CJS_Annot::ObjDefnID = 0;
+int CJS_Annot::ObjDefnID = -1;
 
 const char CJS_Annot::kName[] = "Annot";
 
 // static
-uint32_t CJS_Annot::GetObjDefnID() {
+int CJS_Annot::GetObjDefnID() {
   return ObjDefnID;
 }
 
@@ -46,7 +47,7 @@ CJS_Result CJS_Annot::get_hidden(CJS_Runtime* pRuntime) {
   if (!m_pAnnot)
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
-  CPDF_Annot* pPDFAnnot = m_pAnnot->GetPDFAnnot();
+  CPDF_Annot* pPDFAnnot = m_pAnnot->AsBAAnnot()->GetPDFAnnot();
   return CJS_Result::Success(pRuntime->NewBoolean(pPDFAnnot->IsHidden()));
 }
 
@@ -55,7 +56,7 @@ CJS_Result CJS_Annot::set_hidden(CJS_Runtime* pRuntime,
   // May invalidate m_pAnnot.
   bool bHidden = pRuntime->ToBoolean(vp);
 
-  CPDFSDK_BAAnnot* pBAAnnot = m_pAnnot.Get();
+  CPDFSDK_BAAnnot* pBAAnnot = ToBAAnnot(m_pAnnot.Get());
   if (!pBAAnnot)
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -76,7 +77,7 @@ CJS_Result CJS_Annot::set_hidden(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Annot::get_name(CJS_Runtime* pRuntime) {
-  CPDFSDK_BAAnnot* pBAAnnot = m_pAnnot.Get();
+  CPDFSDK_BAAnnot* pBAAnnot = ToBAAnnot(m_pAnnot.Get());
   if (!pBAAnnot)
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -88,7 +89,7 @@ CJS_Result CJS_Annot::set_name(CJS_Runtime* pRuntime, v8::Local<v8::Value> vp) {
   // May invalidate m_pAnnot.
   WideString annotName = pRuntime->ToWideString(vp);
 
-  CPDFSDK_BAAnnot* pBAAnnot = m_pAnnot.Get();
+  CPDFSDK_BAAnnot* pBAAnnot = ToBAAnnot(m_pAnnot.Get());
   if (!pBAAnnot)
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -97,12 +98,14 @@ CJS_Result CJS_Annot::set_name(CJS_Runtime* pRuntime, v8::Local<v8::Value> vp) {
 }
 
 CJS_Result CJS_Annot::get_type(CJS_Runtime* pRuntime) {
-  CPDFSDK_BAAnnot* pBAAnnot = m_pAnnot.Get();
+  CPDFSDK_BAAnnot* pBAAnnot = ToBAAnnot(m_pAnnot.Get());
   if (!pBAAnnot)
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
   return CJS_Result::Success(pRuntime->NewString(
-      CPDF_Annot::AnnotSubtypeToString(pBAAnnot->GetAnnotSubtype())
+      WideString::FromDefANSI(
+          CPDF_Annot::AnnotSubtypeToString(pBAAnnot->GetAnnotSubtype())
+              .AsStringView())
           .AsStringView()));
 }
 

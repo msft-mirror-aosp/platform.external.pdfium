@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "xfa/fxfa/parser/cxfa_variables.h"
 
 #include "fxjs/xfa/cjx_container.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -19,23 +19,14 @@ const CXFA_Node::AttributeData kVariablesAttributeData[] = {
 
 }  // namespace
 
-// static
-CXFA_Variables* CXFA_Variables::FromNode(CXFA_Node* pNode) {
-  return pNode && pNode->GetElementType() == XFA_Element::Variables
-             ? static_cast<CXFA_Variables*>(pNode)
-             : nullptr;
-}
-
 CXFA_Variables::CXFA_Variables(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::ContainerNode,
                 XFA_Element::Variables,
                 {},
                 kVariablesAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Container>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Container>(this)) {}
 
 CXFA_Variables::~CXFA_Variables() = default;

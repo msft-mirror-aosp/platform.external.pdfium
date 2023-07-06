@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,11 @@
 #ifndef CORE_FXCRT_CFX_FILEACCESS_WINDOWS_H_
 #define CORE_FXCRT_CFX_FILEACCESS_WINDOWS_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include "build/build_config.h"
 #include "core/fxcrt/fileaccess_iface.h"
-#include "core/fxcrt/fx_types.h"
+#include "core/fxcrt/fx_system.h"
 
-#if !BUILDFLAG(IS_WIN)
+#if !defined(OS_WIN)
 #error "Included on the wrong platform"
 #endif
 
@@ -24,7 +21,8 @@ class CFX_FileAccess_Windows final : public FileAccessIface {
   ~CFX_FileAccess_Windows() override;
 
   // FileAccessIface
-  bool Open(ByteStringView fileName) override;
+  bool Open(ByteStringView fileName, uint32_t dwMode) override;
+  bool Open(WideStringView fileName, uint32_t dwMode) override;
   void Close() override;
   FX_FILESIZE GetSize() const override;
   FX_FILESIZE GetPosition() const override;
@@ -39,7 +37,7 @@ class CFX_FileAccess_Windows final : public FileAccessIface {
   bool Truncate(FX_FILESIZE szFile) override;
 
  private:
-  void* m_hFile = nullptr;
+  void* m_hFile;
 };
 
 #endif  // CORE_FXCRT_CFX_FILEACCESS_WINDOWS_H_

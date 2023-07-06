@@ -1,7 +1,9 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+#include <string>
 #include <vector>
 
 #include "core/fxcrt/fx_memory.h"
@@ -30,12 +32,12 @@ TEST_F(FPDFJavaScriptEmbedderTest, CountNoJS) {
 
 TEST_F(FPDFJavaScriptEmbedderTest, GetJS) {
   ASSERT_TRUE(OpenDocument("js.pdf"));
-  EXPECT_EQ(5, FPDFDoc_GetJavaScriptActionCount(document()));
+  EXPECT_EQ(6, FPDFDoc_GetJavaScriptActionCount(document()));
 
   ScopedFPDFJavaScriptAction js;
   js.reset(FPDFDoc_GetJavaScriptAction(document(), -1));
   EXPECT_FALSE(js);
-  js.reset(FPDFDoc_GetJavaScriptAction(document(), 5));
+  js.reset(FPDFDoc_GetJavaScriptAction(document(), 6));
   EXPECT_FALSE(js);
   js.reset(FPDFDoc_GetJavaScriptAction(nullptr, -1));
   EXPECT_FALSE(js);
@@ -47,16 +49,20 @@ TEST_F(FPDFJavaScriptEmbedderTest, GetJS) {
   EXPECT_FALSE(js);
   js.reset(FPDFDoc_GetJavaScriptAction(nullptr, 5));
   EXPECT_FALSE(js);
+  js.reset(FPDFDoc_GetJavaScriptAction(nullptr, 6));
+  EXPECT_FALSE(js);
 
   js.reset(FPDFDoc_GetJavaScriptAction(document(), 0));
   EXPECT_TRUE(js);
   js.reset(FPDFDoc_GetJavaScriptAction(document(), 1));
   EXPECT_TRUE(js);
   js.reset(FPDFDoc_GetJavaScriptAction(document(), 2));
-  EXPECT_FALSE(js);
+  EXPECT_TRUE(js);
   js.reset(FPDFDoc_GetJavaScriptAction(document(), 3));
   EXPECT_FALSE(js);
   js.reset(FPDFDoc_GetJavaScriptAction(document(), 4));
+  EXPECT_FALSE(js);
+  js.reset(FPDFDoc_GetJavaScriptAction(document(), 5));
   EXPECT_FALSE(js);
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,7 @@
 
 #include <string>
 
-#include "third_party/base/span.h"
-
 std::string CryptToBase16(const uint8_t* digest);
-std::string GenerateMD5Base16(pdfium::span<const uint8_t> data);
+std::string GenerateMD5Base16(const uint8_t* data, uint32_t size);
 
 #endif  // TESTING_UTILS_HASH_H_

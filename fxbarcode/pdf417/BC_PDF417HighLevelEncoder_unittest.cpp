@@ -1,10 +1,8 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "fxbarcode/pdf417/BC_PDF417HighLevelEncoder.h"
-
-#include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -39,11 +37,11 @@ TEST(PDF417HighLevelEncoderTest, EncodeHighLevel) {
       {L"0000000000000", L"\x0386\x000f\x00d9\x017b\x000b\x0064", 6},
   };
 
-  for (size_t i = 0; i < std::size(kEncodeHighLevelCases); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kEncodeHighLevelCases); ++i) {
     const EncodeHighLevelCase& testcase = kEncodeHighLevelCases[i];
     WideStringView input(testcase.input);
     WideString expected(testcase.expected, testcase.expected_length);
-    absl::optional<WideString> result =
+    Optional<WideString> result =
         CBC_PDF417HighLevelEncoder::EncodeHighLevel(input);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(expected, result.value()) << " for case number " << i;
@@ -83,7 +81,7 @@ TEST(PDF417HighLevelEncoderTest, EncodeBinary) {
        L"\u039c\u00c9\u031f\u012a\u00d2\u02d0", 6},
   };
 
-  for (size_t i = 0; i < std::size(kEncodeBinaryCases); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kEncodeBinaryCases); ++i) {
     const EncodeBinaryCase& testcase = kEncodeBinaryCases[i];
     std::vector<uint8_t> input_array;
     size_t input_length = strlen(testcase.input);
@@ -150,7 +148,7 @@ TEST(PDF417HighLevelEncoderTest, EncodeNumeric) {
        18},
   };
 
-  for (size_t i = 0; i < std::size(kEncodeNumericCases); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kEncodeNumericCases); ++i) {
     const EncodeNumericCase& testcase = kEncodeNumericCases[i];
     WideString input(testcase.input);
     WideString expected(testcase.expected, testcase.expected_length);
@@ -195,7 +193,7 @@ TEST(PDF417HighLevelEncoderTest, ConsecutiveDigitCount) {
       {L"123FOO45678", 6, 5},
   };
 
-  for (size_t i = 0; i < std::size(kConsecutiveDigitCases); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kConsecutiveDigitCases); ++i) {
     const ConsecutiveDigitCase& testcase = kConsecutiveDigitCases[i];
     WideString input(testcase.input);
     int actual_count =
@@ -255,7 +253,7 @@ TEST(PDF417HighLevelEncoderTest, ConsecutiveTextCount) {
       {L"XXX121XXX12345678901234", 0, 9},
   };
 
-  for (size_t i = 0; i < std::size(kConsecutiveTextCases); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kConsecutiveTextCases); ++i) {
     const ConsecutiveTextCase& testcase = kConsecutiveTextCases[i];
     WideString input(testcase.input);
     int actual_count =

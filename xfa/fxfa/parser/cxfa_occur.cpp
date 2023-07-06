@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #include "xfa/fxfa/parser/cxfa_occur.h"
 
 #include "fxjs/xfa/cjx_occur.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kOccurPropertyData[] = {
-    {XFA_Element::Extras, 1, {}},
+    {XFA_Element::Extras, 1, 0},
 };
 
 const CXFA_Node::AttributeData kOccurAttributeData[] = {
@@ -29,37 +29,32 @@ const CXFA_Node::AttributeData kOccurAttributeData[] = {
 CXFA_Occur::CXFA_Occur(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::Node,
                 XFA_Element::Occur,
                 kOccurPropertyData,
                 kOccurAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Occur>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Occur>(this)) {}
 
 CXFA_Occur::~CXFA_Occur() = default;
 
 int32_t CXFA_Occur::GetMax() {
-  absl::optional<int32_t> max =
-      JSObject()->TryInteger(XFA_Attribute::Max, true);
-  return max.has_value() ? max.value() : GetMin();
+  Optional<int32_t> max = JSObject()->TryInteger(XFA_Attribute::Max, true);
+  return max ? *max : GetMin();
 }
 
 int32_t CXFA_Occur::GetMin() {
-  absl::optional<int32_t> min =
-      JSObject()->TryInteger(XFA_Attribute::Min, true);
-  return min.has_value() && min.value() >= 0 ? min.value() : 1;
+  Optional<int32_t> min = JSObject()->TryInteger(XFA_Attribute::Min, true);
+  return min && *min >= 0 ? *min : 1;
 }
 
 std::tuple<int32_t, int32_t, int32_t> CXFA_Occur::GetOccurInfo() {
   int32_t iMin = GetMin();
   int32_t iMax = GetMax();
 
-  absl::optional<int32_t> init =
+  Optional<int32_t> init =
       JSObject()->TryInteger(XFA_Attribute::Initial, false);
-  return {iMin, iMax,
-          init.has_value() && init.value() >= iMin ? init.value() : iMin};
+  return {iMin, iMax, init && *init >= iMin ? *init : iMin};
 }
 
 void CXFA_Occur::SetMax(int32_t iMax) {

@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# Copyright 2017 The PDFium Authors
+#!/usr/bin/env python
+# Copyright 2017 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Compares the performance of two versions of the pdfium code."""
@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 
+# pylint: disable=relative-import
 from common import GetBooleanGnArg
 from common import PrintErr
 from common import RunCommandPropagateErr
@@ -32,7 +33,7 @@ def RunSingleTestCaseParallel(this, run_label, build_dir, test_case):
   return (test_case, result)
 
 
-class CompareRun:
+class CompareRun(object):
   """A comparison between two branches of pdfium."""
 
   def __init__(self, args):
@@ -526,7 +527,8 @@ class CompareRun:
       output_filename = (
           'callgrind.out.%s.%s' % (test_case.replace('/', '_'), run_label))
       return os.path.join(self.args.output_dir, output_filename)
-    return None
+    else:
+      return None
 
   def _DrawConclusions(self, times_before_branch, times_after_branch):
     """Draws conclusions comparing results of test runs in two branches.
@@ -562,7 +564,7 @@ class CompareRun:
           ComparisonConclusions.GetOutputDict().
     """
     if self.args.machine_readable:
-      print(json.dumps(conclusions_dict))
+      print json.dumps(conclusions_dict)
     else:
       PrintConclusionsDictHumanReadable(
           conclusions_dict, colored=True, key=self.args.case_order)

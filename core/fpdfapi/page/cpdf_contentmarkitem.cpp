@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,23 +13,28 @@
 CPDF_ContentMarkItem::CPDF_ContentMarkItem(ByteString name)
     : m_MarkName(std::move(name)) {}
 
-CPDF_ContentMarkItem::~CPDF_ContentMarkItem() = default;
+CPDF_ContentMarkItem::~CPDF_ContentMarkItem() {}
 
-RetainPtr<const CPDF_Dictionary> CPDF_ContentMarkItem::GetParam() const {
+const CPDF_Dictionary* CPDF_ContentMarkItem::GetParam() const {
   switch (m_ParamType) {
     case kPropertiesDict:
       return m_pPropertiesHolder->GetDictFor(m_PropertyName);
     case kDirectDict:
-      return m_pDirectDict;
+      return m_pDirectDict.Get();
     case kNone:
     default:
       return nullptr;
   }
 }
 
-RetainPtr<CPDF_Dictionary> CPDF_ContentMarkItem::GetParam() {
-  return pdfium::WrapRetain(
-      const_cast<CPDF_Dictionary*>(std::as_const(*this).GetParam().Get()));
+CPDF_Dictionary* CPDF_ContentMarkItem::GetParam() {
+  return const_cast<CPDF_Dictionary*>(
+      static_cast<const CPDF_ContentMarkItem*>(this)->GetParam());
+}
+
+bool CPDF_ContentMarkItem::HasMCID() const {
+  const CPDF_Dictionary* pDict = GetParam();
+  return pDict && pDict->KeyExist("MCID");
 }
 
 void CPDF_ContentMarkItem::SetDirectDict(RetainPtr<CPDF_Dictionary> pDict) {
@@ -38,9 +43,9 @@ void CPDF_ContentMarkItem::SetDirectDict(RetainPtr<CPDF_Dictionary> pDict) {
 }
 
 void CPDF_ContentMarkItem::SetPropertiesHolder(
-    RetainPtr<CPDF_Dictionary> pHolder,
+    CPDF_Dictionary* pHolder,
     const ByteString& property_name) {
   m_ParamType = kPropertiesDict;
-  m_pPropertiesHolder = std::move(pHolder);
+  m_pPropertiesHolder.Reset(pHolder);
   m_PropertyName = property_name;
 }

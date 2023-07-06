@@ -1,12 +1,9 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "fxbarcode/oned/BC_OnedEAN8Writer.h"
 
-#include <string.h>
-
-#include "core/fxcrt/data_vector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -14,15 +11,35 @@ namespace {
 TEST(OnedEAN8WriterTest, Encode) {
   CBC_OnedEAN8Writer writer;
   writer.InitEANWriter();
+  int32_t width;
+  int32_t height;
+  uint8_t* encoded;
+  const char* expected;
 
   // EAN-8 barcodes encode 8-digit numbers into 67 modules in a unidimensional
   // disposition.
-  EXPECT_TRUE(writer.Encode("").empty());
-  EXPECT_TRUE(writer.Encode("123").empty());
-  EXPECT_TRUE(writer.Encode("1234567").empty());
-  EXPECT_TRUE(writer.Encode("123456789").empty());
+  encoded = writer.Encode("", BCFORMAT_EAN_8, width, height);
+  EXPECT_EQ(nullptr, encoded);
+  FX_Free(encoded);
 
-  static const char kExpected1[] =
+  encoded = writer.Encode("123", BCFORMAT_EAN_8, width, height);
+  EXPECT_EQ(nullptr, encoded);
+  FX_Free(encoded);
+
+  encoded = writer.Encode("1234567", BCFORMAT_EAN_8, width, height);
+  EXPECT_EQ(nullptr, encoded);
+  FX_Free(encoded);
+
+  encoded = writer.Encode("123456789", BCFORMAT_EAN_8, width, height);
+  EXPECT_EQ(nullptr, encoded);
+  FX_Free(encoded);
+
+  encoded = writer.Encode("12345670", BCFORMAT_EAN_8, width, height);
+  EXPECT_NE(nullptr, encoded);
+  EXPECT_EQ(1, height);
+  EXPECT_EQ(67, width);
+
+  expected =
       "# #"      // Start
       "  ##  #"  // 1 L
       "  #  ##"  // 2 L
@@ -34,12 +51,17 @@ TEST(OnedEAN8WriterTest, Encode) {
       "#   #  "  // 7 R
       "###  # "  // 0 R
       "# #";     // End
-  DataVector<uint8_t> encoded = writer.Encode("12345670");
-  ASSERT_EQ(strlen(kExpected1), encoded.size());
-  for (size_t i = 0; i < strlen(kExpected1); i++)
-    EXPECT_EQ(kExpected1[i] != ' ', !!encoded[i]) << i;
+  for (int i = 0; i < 67; i++) {
+    EXPECT_EQ(expected[i] != ' ', !!encoded[i]) << i;
+  }
+  FX_Free(encoded);
 
-  static const char kExpected2[] =
+  encoded = writer.Encode("99441104", BCFORMAT_EAN_8, width, height);
+  EXPECT_NE(nullptr, encoded);
+  EXPECT_EQ(1, height);
+  EXPECT_EQ(67, width);
+
+  expected =
       "# #"      // Start
       "   # ##"  // 9 L
       "   # ##"  // 9 L
@@ -51,10 +73,10 @@ TEST(OnedEAN8WriterTest, Encode) {
       "###  # "  // 0 R
       "# ###  "  // 4 R
       "# #";     // End
-  encoded = writer.Encode("99441104");
-  ASSERT_EQ(strlen(kExpected2), encoded.size());
-  for (size_t i = 0; i < strlen(kExpected2); i++)
-    EXPECT_EQ(kExpected2[i] != ' ', !!encoded[i]) << i;
+  for (int i = 0; i < 67; i++) {
+    EXPECT_EQ(expected[i] != ' ', !!encoded[i]) << i;
+  }
+  FX_Free(encoded);
 }
 
 TEST(OnedEAN8WriterTest, Checksum) {

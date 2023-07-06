@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 
 CPWL_PushButton::CPWL_PushButton(
     const CreateParams& cp,
-    std::unique_ptr<IPWL_FillerNotify::PerWindowData> pAttachedData)
+    std::unique_ptr<IPWL_SystemHandler::PerWindowData> pAttachedData)
     : CPWL_Button(cp, std::move(pAttachedData)) {}
 
 CPWL_PushButton::~CPWL_PushButton() = default;
@@ -25,13 +25,12 @@ CFX_FloatRect CPWL_PushButton::GetFocusRect() const {
 
 CPWL_CheckBox::CPWL_CheckBox(
     const CreateParams& cp,
-    std::unique_ptr<IPWL_FillerNotify::PerWindowData> pAttachedData)
+    std::unique_ptr<IPWL_SystemHandler::PerWindowData> pAttachedData)
     : CPWL_Button(cp, std::move(pAttachedData)) {}
 
 CPWL_CheckBox::~CPWL_CheckBox() = default;
 
-bool CPWL_CheckBox::OnLButtonUp(Mask<FWL_EVENTFLAG> nFlag,
-                                const CFX_PointF& point) {
+bool CPWL_CheckBox::OnLButtonUp(const CFX_PointF& point, uint32_t nFlag) {
   if (IsReadOnly())
     return false;
 
@@ -39,23 +38,19 @@ bool CPWL_CheckBox::OnLButtonUp(Mask<FWL_EVENTFLAG> nFlag,
   return true;
 }
 
-bool CPWL_CheckBox::OnChar(uint16_t nChar, Mask<FWL_EVENTFLAG> nFlag) {
-  if (IsReadOnly())
-    return false;
-
+bool CPWL_CheckBox::OnChar(uint16_t nChar, uint32_t nFlag) {
   SetCheck(!IsChecked());
   return true;
 }
 
 CPWL_RadioButton::CPWL_RadioButton(
     const CreateParams& cp,
-    std::unique_ptr<IPWL_FillerNotify::PerWindowData> pAttachedData)
+    std::unique_ptr<IPWL_SystemHandler::PerWindowData> pAttachedData)
     : CPWL_Button(cp, std::move(pAttachedData)) {}
 
 CPWL_RadioButton::~CPWL_RadioButton() = default;
 
-bool CPWL_RadioButton::OnLButtonUp(Mask<FWL_EVENTFLAG> nFlag,
-                                   const CFX_PointF& point) {
+bool CPWL_RadioButton::OnLButtonUp(const CFX_PointF& point, uint32_t nFlag) {
   if (IsReadOnly())
     return false;
 
@@ -63,10 +58,7 @@ bool CPWL_RadioButton::OnLButtonUp(Mask<FWL_EVENTFLAG> nFlag,
   return true;
 }
 
-bool CPWL_RadioButton::OnChar(uint16_t nChar, Mask<FWL_EVENTFLAG> nFlag) {
-  if (IsReadOnly())
-    return false;
-
+bool CPWL_RadioButton::OnChar(uint16_t nChar, uint32_t nFlag) {
   SetCheck(true);
   return true;
 }

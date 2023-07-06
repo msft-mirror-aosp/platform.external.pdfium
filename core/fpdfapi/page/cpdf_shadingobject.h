@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@ class CPDF_ShadingPattern;
 class CPDF_ShadingObject final : public CPDF_PageObject {
  public:
   CPDF_ShadingObject(int32_t content_stream,
-                     RetainPtr<CPDF_ShadingPattern> pattern,
+                     CPDF_ShadingPattern* pattern,
                      const CFX_Matrix& matrix);
   ~CPDF_ShadingObject() override;
 

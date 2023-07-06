@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,28 +23,34 @@
 
 #include <memory>
 
-#include "core/fxcrt/fx_coordinates.h"
+#include "core/fxcrt/fx_memory_wrappers.h"
 #include "fxbarcode/oned/BC_OnedCode39Writer.h"
+#include "third_party/base/ptr_util.h"
 
 CBC_Code39::CBC_Code39()
-    : CBC_OneCode(std::make_unique<CBC_OnedCode39Writer>()) {}
+    : CBC_OneCode(pdfium::MakeUnique<CBC_OnedCode39Writer>()) {}
 
-CBC_Code39::~CBC_Code39() = default;
+CBC_Code39::~CBC_Code39() {}
 
 bool CBC_Code39::Encode(WideStringView contents) {
-  auto* pWriter = GetOnedCode39Writer();
-  if (!pWriter->CheckContentValidity(contents))
+  if (contents.IsEmpty() || contents.GetLength() > kMaxInputLengthBytes)
     return false;
 
+  BCFORMAT format = BCFORMAT_CODE_39;
+  int32_t outWidth = 0;
+  int32_t outHeight = 0;
+  auto* pWriter = GetOnedCode39Writer();
   WideString filtercontents = pWriter->FilterContents(contents);
   m_renderContents = pWriter->RenderTextContents(contents);
   ByteString byteString = filtercontents.ToUTF8();
-  return pWriter->RenderResult(m_renderContents.AsStringView(),
-                               pWriter->Encode(byteString));
+  std::unique_ptr<uint8_t, FxFreeDeleter> data(
+      pWriter->Encode(byteString, format, outWidth, outHeight));
+  return data && pWriter->RenderResult(m_renderContents.AsStringView(),
+                                       data.get(), outWidth);
 }
 
 bool CBC_Code39::RenderDevice(CFX_RenderDevice* device,
-                              const CFX_Matrix& matrix) {
+                              const CFX_Matrix* matrix) {
   auto* pWriter = GetOnedCode39Writer();
   WideString renderCon;
   if (!pWriter->encodedContents(m_renderContents.AsStringView(), &renderCon))
@@ -53,7 +59,7 @@ bool CBC_Code39::RenderDevice(CFX_RenderDevice* device,
 }
 
 BC_TYPE CBC_Code39::GetType() {
-  return BC_TYPE::kCode39;
+  return BC_CODE39;
 }
 
 CBC_OnedCode39Writer* CBC_Code39::GetOnedCode39Writer() {

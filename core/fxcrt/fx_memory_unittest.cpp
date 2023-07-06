@@ -1,4 +1,4 @@
-// Copyright 2015 The PDFium Authors
+// Copyright 2015 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,13 +11,11 @@
 
 namespace {
 
-constexpr size_t kMaxByteAlloc = std::numeric_limits<size_t>::max();
-constexpr size_t kMaxIntAlloc = kMaxByteAlloc / sizeof(int);
-constexpr size_t kOverflowIntAlloc = kMaxIntAlloc + 100;
-constexpr size_t kWidth = 640;
-constexpr size_t kOverflowIntAlloc2D = kMaxIntAlloc / kWidth + 10;
-constexpr size_t kCloseToMaxIntAlloc = kMaxIntAlloc - 100;
-constexpr size_t kCloseToMaxByteAlloc = kMaxByteAlloc - 100;
+const size_t kMaxByteAlloc = std::numeric_limits<size_t>::max();
+const size_t kMaxIntAlloc = kMaxByteAlloc / sizeof(int);
+const size_t kOverflowIntAlloc = kMaxIntAlloc + 100;
+const size_t kWidth = 640;
+const size_t kOverflowIntAlloc2D = kMaxIntAlloc / kWidth + 10;
 
 }  // namespace
 
@@ -30,13 +28,14 @@ TEST(fxcrt, FX_AllocZero) {
   FX_Free(ptr);
 }
 
-TEST(fxcrt, FXAllocOOM) {
-  EXPECT_DEATH_IF_SUPPORTED((void)FX_Alloc(int, kCloseToMaxIntAlloc), "");
+// TODO(tsepez): re-enable OOM tests if we can find a way to
+// prevent it from hosing the bots.
+TEST(fxcrt, DISABLED_FX_AllocOOM) {
+  EXPECT_DEATH_IF_SUPPORTED((void)FX_Alloc(int, kMaxIntAlloc), "");
 
   int* ptr = FX_Alloc(int, 1);
   EXPECT_TRUE(ptr);
-  EXPECT_DEATH_IF_SUPPORTED((void)FX_Realloc(int, ptr, kCloseToMaxIntAlloc),
-                            "");
+  EXPECT_DEATH_IF_SUPPORTED((void)FX_Realloc(int, ptr, kMaxIntAlloc), "");
   FX_Free(ptr);
 }
 
@@ -61,12 +60,12 @@ TEST(fxcrt, FX_AllocOverflow2D) {
       << ptr;
 }
 
-TEST(fxcrt, FXTryAllocOOM) {
-  EXPECT_FALSE(FX_TryAlloc(int, kCloseToMaxIntAlloc));
+TEST(fxcrt, DISABLED_FX_TryAllocOOM) {
+  EXPECT_FALSE(FX_TryAlloc(int, kMaxIntAlloc));
 
   int* ptr = FX_Alloc(int, 1);
   EXPECT_TRUE(ptr);
-  EXPECT_FALSE(FX_TryRealloc(int, ptr, kCloseToMaxIntAlloc));
+  EXPECT_FALSE(FX_TryRealloc(int, ptr, kMaxIntAlloc));
   FX_Free(ptr);
 }
 
@@ -86,21 +85,13 @@ TEST(fxcrt, FX_TryAllocOverflow) {
 }
 #endif
 
-TEST(fxcrt, FXMEMDefaultOOM) {
-  EXPECT_FALSE(FXMEM_DefaultAlloc(kCloseToMaxByteAlloc));
+TEST(fxcrt, DISABLED_FXMEM_DefaultOOM) {
+  EXPECT_FALSE(FXMEM_DefaultAlloc(kMaxByteAlloc));
 
   void* ptr = FXMEM_DefaultAlloc(1);
   EXPECT_TRUE(ptr);
-  EXPECT_FALSE(FXMEM_DefaultRealloc(ptr, kCloseToMaxByteAlloc));
+  EXPECT_FALSE(FXMEM_DefaultRealloc(ptr, kMaxByteAlloc));
   FXMEM_DefaultFree(ptr);
-}
-
-TEST(fxcrt, AllocZeroesMemory) {
-  uint8_t* ptr = FX_Alloc(uint8_t, 32);
-  ASSERT_TRUE(ptr);
-  for (size_t i = 0; i < 32; ++i)
-    EXPECT_EQ(0, ptr[i]);
-  FX_Free(ptr);
 }
 
 TEST(fxcrt, FXAlign) {

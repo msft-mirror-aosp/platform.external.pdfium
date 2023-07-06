@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,25 +9,21 @@
 
 #include <memory>
 
-#include "core/fxcrt/unowned_ptr.h"
-#include "fxjs/gc/heap.h"
 #include "third_party/base/span.h"
-#include "v8/include/cppgc/garbage-collected.h"
-#include "xfa/fxfa/parser/gced_locale_iface.h"
+#include "xfa/fgas/crt/locale_iface.h"
 
 class CFX_XMLDocument;
 class CFX_XMLElement;
 
-class CXFA_XMLLocale final : public GCedLocaleIface {
+class CXFA_XMLLocale final : public LocaleIface {
  public:
-  // Object is created on cppgc heap.
-  static CXFA_XMLLocale* Create(cppgc::Heap* heap, pdfium::span<uint8_t> data);
+  static std::unique_ptr<CXFA_XMLLocale> Create(pdfium::span<uint8_t> data);
 
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CXFA_XMLLocale(std::unique_ptr<CFX_XMLDocument> root,
+                          CFX_XMLElement* locale);
   ~CXFA_XMLLocale() override;
 
-  // GCedLocaleIface:
-  void Trace(cppgc::Visitor* visitor) const override;
+  // LocaleIface
   WideString GetName() const override;
   WideString GetDecimalSymbol() const override;
   WideString GetGroupingSymbol() const override;
@@ -38,17 +34,14 @@ class CXFA_XMLLocale final : public GCedLocaleIface {
   WideString GetMonthName(int32_t nMonth, bool bAbbr) const override;
   WideString GetDayName(int32_t nWeek, bool bAbbr) const override;
   WideString GetMeridiemName(bool bAM) const override;
-  int GetTimeZoneInMinutes() const override;
+  FX_TIMEZONE GetTimeZone() const override;
   WideString GetEraName(bool bAD) const override;
 
-  WideString GetDatePattern(DateTimeSubcategory eType) const override;
-  WideString GetTimePattern(DateTimeSubcategory eType) const override;
-  WideString GetNumPattern(NumSubcategory eType) const override;
+  WideString GetDatePattern(FX_LOCALEDATETIMESUBCATEGORY eType) const override;
+  WideString GetTimePattern(FX_LOCALEDATETIMESUBCATEGORY eType) const override;
+  WideString GetNumPattern(FX_LOCALENUMSUBCATEGORY eType) const override;
 
  private:
-  CXFA_XMLLocale(std::unique_ptr<CFX_XMLDocument> root,
-                 const CFX_XMLElement* locale);
-
   WideString GetPattern(CFX_XMLElement* pElement,
                         WideStringView bsTag,
                         WideStringView wsName) const;
@@ -57,7 +50,7 @@ class CXFA_XMLLocale final : public GCedLocaleIface {
                                bool bAbbr) const;
 
   std::unique_ptr<CFX_XMLDocument> xml_doc_;
-  UnownedPtr<const CFX_XMLElement> locale_;
+  UnownedPtr<CFX_XMLElement> locale_;
 };
 
 #endif  // XFA_FXFA_PARSER_CXFA_XMLLOCALE_H_

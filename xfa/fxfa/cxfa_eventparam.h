@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,11 @@
 #ifndef XFA_FXFA_CXFA_EVENTPARAM_H_
 #define XFA_FXFA_CXFA_EVENTPARAM_H_
 
+#include "core/fxcrt/fx_string.h"
 #include "core/fxcrt/unowned_ptr.h"
-#include "core/fxcrt/widestring.h"
-#include "v8/include/cppgc/macros.h"
 #include "xfa/fxfa/fxfa_basic.h"
+
+class CXFA_Node;
 
 enum XFA_EVENTTYPE : uint8_t {
   XFA_EVENT_Click,
@@ -53,7 +54,7 @@ class CXFA_EventParam {
   ~CXFA_EventParam();
 
   CXFA_EventParam& operator=(const CXFA_EventParam& other);
-  CXFA_EventParam& operator=(CXFA_EventParam&& other) noexcept;
+  CXFA_EventParam& operator=(CXFA_EventParam&& other);
 
   WideString GetNewText() const;
 
@@ -64,10 +65,10 @@ class CXFA_EventParam {
   bool m_bReenter = false;
   bool m_bShift = false;
   bool m_bIsFormReady = false;
-  bool m_bTargeted = true;
   int32_t m_iCommitKey = 0;
   int32_t m_iSelEnd = 0;
   int32_t m_iSelStart = 0;
+  UnownedPtr<CXFA_Node> m_pTarget;
   WideString m_wsResult;
   WideString m_wsChange;
   WideString m_wsFullText;

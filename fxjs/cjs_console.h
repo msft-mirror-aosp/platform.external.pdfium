@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@
 
 class CJS_Console final : public CJS_Object {
  public:
-  static uint32_t GetObjDefnID();
+  static int GetObjDefnID();
   static void DefineJSObjects(CFXJS_Engine* pEngine);
 
   CJS_Console(v8::Local<v8::Object> pObject, CJS_Runtime* pRuntime);
@@ -26,7 +26,7 @@ class CJS_Console final : public CJS_Object {
   JS_STATIC_METHOD(show, CJS_Console)
 
  private:
-  static uint32_t ObjDefnID;
+  static int ObjDefnID;
   static const char kName[];
   static const JSMethodSpec MethodSpecs[];
 
