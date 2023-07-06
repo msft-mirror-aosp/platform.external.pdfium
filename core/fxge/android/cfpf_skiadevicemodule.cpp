@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "core/fxge/android/cfpf_skiafontmgr.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -22,9 +23,9 @@ CFPF_SkiaDeviceModule* CFPF_GetSkiaDeviceModule() {
   return gs_pPFModule;
 }
 
-CFPF_SkiaDeviceModule::CFPF_SkiaDeviceModule() = default;
+CFPF_SkiaDeviceModule::CFPF_SkiaDeviceModule() {}
 
-CFPF_SkiaDeviceModule::~CFPF_SkiaDeviceModule() = default;
+CFPF_SkiaDeviceModule::~CFPF_SkiaDeviceModule() {}
 
 void CFPF_SkiaDeviceModule::Destroy() {
   delete gs_pPFModule;
@@ -33,7 +34,7 @@ void CFPF_SkiaDeviceModule::Destroy() {
 
 CFPF_SkiaFontMgr* CFPF_SkiaDeviceModule::GetFontMgr() {
   if (!m_pFontMgr) {
-    auto pNewMgr = std::make_unique<CFPF_SkiaFontMgr>();
+    auto pNewMgr = pdfium::MakeUnique<CFPF_SkiaFontMgr>();
     if (!pNewMgr->InitFTLibrary())
       return nullptr;
     m_pFontMgr = std::move(pNewMgr);

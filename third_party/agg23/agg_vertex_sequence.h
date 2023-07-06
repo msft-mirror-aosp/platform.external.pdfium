@@ -22,8 +22,6 @@
 #include "agg_basics.h"
 #include "agg_array.h"
 #include "agg_math.h"
-namespace pdfium
-{
 namespace agg
 {
 template<class T, unsigned S = 6>
@@ -99,5 +97,4 @@ struct vertex_dist_cmd : public vertex_dist {
     }
 };
 }
-}  // namespace pdfium
 #endif

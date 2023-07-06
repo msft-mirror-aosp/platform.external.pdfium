@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "xfa/fxfa/parser/cxfa_effectiveinputpolicy.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -24,13 +24,11 @@ CXFA_EffectiveInputPolicy::CXFA_EffectiveInputPolicy(CXFA_Document* doc,
                                                      XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                XFA_XDPPACKET::kConnectionSet,
+                XFA_XDPPACKET_ConnectionSet,
                 XFA_ObjectType::Node,
                 XFA_Element::EffectiveInputPolicy,
                 {},
                 kEffectiveInputPolicyAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_EffectiveInputPolicy::~CXFA_EffectiveInputPolicy() = default;

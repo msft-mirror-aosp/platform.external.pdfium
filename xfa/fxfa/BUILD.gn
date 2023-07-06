@@ -1,4 +1,4 @@
-# Copyright 2018 The PDFium Authors
+# Copyright 2018 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -71,12 +71,22 @@ source_set("fxfa") {
     "cxfa_fwltheme.h",
     "cxfa_imagerenderer.cpp",
     "cxfa_imagerenderer.h",
+    "cxfa_loadercontext.cpp",
+    "cxfa_loadercontext.h",
+    "cxfa_pieceline.cpp",
+    "cxfa_pieceline.h",
     "cxfa_readynodeiterator.cpp",
     "cxfa_readynodeiterator.h",
+    "cxfa_rendercontext.cpp",
+    "cxfa_rendercontext.h",
     "cxfa_textlayout.cpp",
     "cxfa_textlayout.h",
+    "cxfa_textparsecontext.cpp",
+    "cxfa_textparsecontext.h",
     "cxfa_textparser.cpp",
     "cxfa_textparser.h",
+    "cxfa_textpiece.cpp",
+    "cxfa_textpiece.h",
     "cxfa_textprovider.cpp",
     "cxfa_textprovider.h",
     "cxfa_texttabstopscontext.cpp",
@@ -85,7 +95,6 @@ source_set("fxfa") {
     "fxfa_basic.h",
   ]
   deps = [
-    "../../constants",
     "../../core/fpdfapi/parser",
     "../../core/fpdfdoc",
     "../../core/fxcodec",
@@ -94,12 +103,11 @@ source_set("fxfa") {
     "../../core/fxge",
     "../../fxbarcode",
     "../../fxjs",
-    "../../fxjs:gc",
     "../fde",
-    "../fgas/font",
-    "../fgas/graphics",
+    "../fgas",
     "../fgas/layout",
     "../fwl",
+    "../fxgraphics",
     "layout",
     "parser",
   ]
@@ -109,8 +117,7 @@ source_set("fxfa") {
     "parser",
   ]
   configs += [
-    "../../:pdfium_strict_config",
-    "../../:pdfium_noshorten_config",
+    "../../:pdfium_core_config",
     "../:xfa_warnings",
   ]
   visibility = [ "../../*" ]
@@ -122,9 +129,6 @@ pdfium_unittest_source_set("unittests") {
     "cxfa_textparser_unittest.cpp",
     "fxfa_basic_unittest.cpp",
   ]
-  deps = [
-    ":fxfa",
-    "../../fxjs:gc",
-  ]
+  deps = [ ":fxfa" ]
   pdfium_root_dir = "../../"
 }

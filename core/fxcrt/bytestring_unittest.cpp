@@ -1,21 +1,17 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "core/fxcrt/bytestring.h"
 
-#include <limits.h>
-
 #include <algorithm>
-#include <functional>
 #include <iterator>
-#include <set>
 #include <vector>
 
 #include "core/fxcrt/fx_string.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/base/containers/contains.h"
 #include "third_party/base/span.h"
+#include "third_party/base/stl_util.h"
 
 namespace fxcrt {
 
@@ -116,26 +112,6 @@ TEST(ByteString, Assign) {
     }
     EXPECT_EQ(1, string1.ReferenceCountForTesting());
   }
-  {
-    // From char*.
-    ByteString string1 = "abc";
-    EXPECT_EQ("abc", string1);
-    string1 = nullptr;
-    EXPECT_TRUE(string1.IsEmpty());
-    string1 = "def";
-    EXPECT_EQ("def", string1);
-    string1 = "";
-    EXPECT_TRUE(string1.IsEmpty());
-  }
-  {
-    // From ByteStringView.
-    ByteString string1(ByteStringView("abc"));
-    EXPECT_EQ("abc", string1);
-    string1 = ByteStringView("");
-    EXPECT_TRUE(string1.IsEmpty());
-    string1 = ByteStringView("def");
-    EXPECT_EQ("def", string1);
-  }
 }
 
 TEST(ByteString, OperatorLT) {
@@ -231,19 +207,6 @@ TEST(ByteString, OperatorLT) {
   EXPECT_FALSE(def < c_abc);
   EXPECT_TRUE(abc < v_def);
   EXPECT_FALSE(def < v_abc);
-
-  EXPECT_TRUE(v_empty < a);
-  EXPECT_TRUE(v_empty < c_a);
-
-  std::set<ByteString, std::less<>> str_set;
-  bool inserted = str_set.insert(ByteString("hello")).second;
-  ASSERT_TRUE(inserted);
-  EXPECT_TRUE(pdfium::Contains(str_set, ByteString("hello")));
-  EXPECT_TRUE(pdfium::Contains(str_set, ByteStringView("hello")));
-  EXPECT_TRUE(pdfium::Contains(str_set, "hello"));
-  EXPECT_FALSE(pdfium::Contains(str_set, ByteString("goodbye")));
-  EXPECT_FALSE(pdfium::Contains(str_set, ByteStringView("goodbye")));
-  EXPECT_FALSE(pdfium::Contains(str_set, "goodbye"));
 }
 
 TEST(ByteString, OperatorEQ) {
@@ -543,16 +506,7 @@ TEST(ByteString, RemoveCopies) {
 }
 
 TEST(ByteString, Replace) {
-  ByteString empty;
-  empty.Replace("", "CLAMS");
-  empty.Replace("xx", "CLAMS");
-  EXPECT_EQ("", empty);
-
   ByteString fred("FRED");
-  fred.Replace("", "");
-  EXPECT_EQ("FRED", fred);
-  fred.Replace("", "CLAMS");
-  EXPECT_EQ("FRED", fred);
   fred.Replace("FR", "BL");
   EXPECT_EQ("BLED", fred);
   fred.Replace("D", "DDY");
@@ -563,20 +517,10 @@ TEST(ByteString, Replace) {
   EXPECT_EQ("BY", fred);
   fred.Replace("BY", "HI");
   EXPECT_EQ("HI", fred);
-  fred.Replace("I", "IHIHI");
-  EXPECT_EQ("HIHIHI", fred);
-  fred.Replace("HI", "HO");
-  EXPECT_EQ("HOHOHO", fred);
-  fred.Replace("HO", "");
+  fred.Replace("", "CLAMS");
+  EXPECT_EQ("HI", fred);
+  fred.Replace("HI", "");
   EXPECT_EQ("", fred);
-
-  ByteString five_xs("xxxxx");
-  five_xs.Replace("xx", "xxx");
-  EXPECT_EQ("xxxxxxx", five_xs);
-
-  ByteString five_ys("yyyyy");
-  five_ys.Replace("yy", "y");
-  EXPECT_EQ("yyy", five_ys);
 }
 
 TEST(ByteString, Insert) {
@@ -659,20 +603,7 @@ TEST(ByteString, Delete) {
   EXPECT_EQ("", empty);
 }
 
-TEST(ByteString, OneArgSubstr) {
-  ByteString fred("FRED");
-  EXPECT_EQ("FRED", fred.Substr(0));
-  EXPECT_EQ("RED", fred.Substr(1));
-  EXPECT_EQ("ED", fred.Substr(2));
-  EXPECT_EQ("D", fred.Substr(3));
-  EXPECT_EQ("", fred.Substr(4));
-
-  ByteString empty;
-  EXPECT_EQ("", empty.Substr(0));
-  EXPECT_EQ("", empty.Substr(1));
-}
-
-TEST(ByteString, TwoArgSubstr) {
+TEST(ByteString, Substr) {
   ByteString fred("FRED");
   EXPECT_EQ("", fred.Substr(0, 0));
   EXPECT_EQ("", fred.Substr(3, 0));
@@ -734,8 +665,9 @@ TEST(ByteString, Find) {
   EXPECT_FALSE(empty_string.Find('a').has_value());
   EXPECT_FALSE(empty_string.Find('\0').has_value());
 
+  Optional<size_t> result;
   ByteString single_string("a");
-  absl::optional<size_t> result = single_string.Find('a');
+  result = single_string.Find('a');
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(0u, result.value());
   EXPECT_FALSE(single_string.Find('b').has_value());
@@ -782,8 +714,9 @@ TEST(ByteString, ReverseFind) {
   EXPECT_FALSE(empty_string.ReverseFind('a').has_value());
   EXPECT_FALSE(empty_string.ReverseFind('\0').has_value());
 
+  Optional<size_t> result;
   ByteString single_string("a");
-  absl::optional<size_t> result = single_string.ReverseFind('a');
+  result = single_string.ReverseFind('a');
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(0u, result.value());
   EXPECT_FALSE(single_string.ReverseFind('b').has_value());
@@ -818,17 +751,6 @@ TEST(ByteString, UpperLower) {
   EXPECT_EQ("", empty);
   empty.MakeUpper();
   EXPECT_EQ("", empty);
-
-  ByteString empty_with_buffer("x");
-  empty_with_buffer.Delete(0);
-
-  ByteString additional_empty_with_buffer_ref = empty_with_buffer;
-  additional_empty_with_buffer_ref.MakeLower();
-  EXPECT_EQ("", additional_empty_with_buffer_ref);
-
-  additional_empty_with_buffer_ref = empty_with_buffer;
-  additional_empty_with_buffer_ref.MakeUpper();
-  EXPECT_EQ("", additional_empty_with_buffer_ref);
 }
 
 TEST(ByteString, Trim) {
@@ -1286,7 +1208,7 @@ TEST(ByteStringView, FromVector) {
   cleared_vec.pop_back();
   ByteStringView cleared_string(cleared_vec);
   EXPECT_EQ(0u, cleared_string.GetLength());
-  EXPECT_FALSE(cleared_string.raw_str());
+  EXPECT_EQ(nullptr, cleared_string.raw_str());
 }
 
 TEST(ByteStringView, GetID) {
@@ -1312,8 +1234,9 @@ TEST(ByteStringView, Find) {
   EXPECT_FALSE(empty_string.Find('a').has_value());
   EXPECT_FALSE(empty_string.Find('\0').has_value());
 
+  Optional<size_t> result;
   ByteStringView single_string("a");
-  absl::optional<size_t> result = single_string.Find('a');
+  result = single_string.Find('a');
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(0u, result.value());
   EXPECT_FALSE(single_string.Find('b').has_value());
@@ -1337,28 +1260,7 @@ TEST(ByteStringView, Find) {
   EXPECT_EQ(2u, result.value());
 }
 
-TEST(ByteStringView, OneArgSubstr) {
-  ByteStringView null_string;
-  EXPECT_EQ(null_string, null_string.Substr(0));
-  EXPECT_EQ(null_string, null_string.Substr(1));
-
-  ByteStringView empty_string("");
-  EXPECT_EQ("", empty_string.Substr(0));
-  EXPECT_EQ("", empty_string.Substr(1));
-
-  ByteStringView single_character("a");
-  EXPECT_EQ(single_character, single_character.Substr(0));
-  EXPECT_EQ("", single_character.Substr(1));
-
-  ByteStringView longer_string("abcdef");
-  EXPECT_EQ(longer_string, longer_string.Substr(0));
-  EXPECT_EQ("", longer_string.Substr(187));
-
-  ByteStringView trailing_substring("ef");
-  EXPECT_EQ(trailing_substring, longer_string.Substr(4));
-}
-
-TEST(ByteStringView, TwoArgSubstr) {
+TEST(ByteStringView, Substr) {
   ByteStringView null_string;
   EXPECT_EQ(null_string, null_string.Substr(0, 1));
   EXPECT_EQ(null_string, null_string.Substr(1, 1));
@@ -1701,9 +1603,9 @@ TEST(ByteStringView, AnyAllNoneOf) {
   EXPECT_TRUE(std::any_of(str.begin(), str.end(),
                           [](const char& c) { return c == 'a'; }));
 
-  EXPECT_TRUE(pdfium::Contains(str, 'a'));
-  EXPECT_TRUE(pdfium::Contains(str, 'b'));
-  EXPECT_FALSE(pdfium::Contains(str, 'z'));
+  EXPECT_TRUE(pdfium::ContainsValue(str, 'a'));
+  EXPECT_TRUE(pdfium::ContainsValue(str, 'b'));
+  EXPECT_FALSE(pdfium::ContainsValue(str, 'z'));
 }
 
 TEST(ByteString, FormatWidth) {
@@ -1728,19 +1630,19 @@ TEST(ByteString, Empty) {
   EXPECT_EQ(0u, empty_str.GetLength());
 
   const char* cstr = empty_str.c_str();
-  EXPECT_TRUE(cstr);
+  EXPECT_NE(nullptr, cstr);
   EXPECT_EQ(0u, strlen(cstr));
 
   const uint8_t* rstr = empty_str.raw_str();
-  EXPECT_FALSE(rstr);
+  EXPECT_EQ(nullptr, rstr);
 
   pdfium::span<const char> cspan = empty_str.span();
   EXPECT_TRUE(cspan.empty());
-  EXPECT_FALSE(cspan.data());
+  EXPECT_EQ(nullptr, cspan.data());
 
   pdfium::span<const uint8_t> rspan = empty_str.raw_span();
   EXPECT_TRUE(rspan.empty());
-  EXPECT_FALSE(rspan.data());
+  EXPECT_EQ(nullptr, rspan.data());
 }
 
 TEST(ByteString, InitializerList) {
@@ -1818,9 +1720,9 @@ TEST(ByteString, AnyAllNoneOf) {
   EXPECT_TRUE(std::any_of(str.begin(), str.end(),
                           [](const char& c) { return c == 'a'; }));
 
-  EXPECT_TRUE(pdfium::Contains(str, 'a'));
-  EXPECT_TRUE(pdfium::Contains(str, 'b'));
-  EXPECT_FALSE(pdfium::Contains(str, 'z'));
+  EXPECT_TRUE(pdfium::ContainsValue(str, 'a'));
+  EXPECT_TRUE(pdfium::ContainsValue(str, 'b'));
+  EXPECT_FALSE(pdfium::ContainsValue(str, 'z'));
 }
 
 TEST(CFX_BytrString, EqualNoCase) {
@@ -1972,21 +1874,21 @@ TEST(ByteString, FormatInteger) {
 }
 
 TEST(ByteString, FX_HashCode_Ascii) {
-  EXPECT_EQ(0u, FX_HashCode_GetA(""));
-  EXPECT_EQ(65u, FX_HashCode_GetA("A"));
-  EXPECT_EQ(97u, FX_HashCode_GetLoweredA("A"));
-  EXPECT_EQ(31 * 65u + 66u, FX_HashCode_GetA("AB"));
-  EXPECT_EQ(31u * 65u + 255u, FX_HashCode_GetA("A\xff"));
-  EXPECT_EQ(31u * 97u + 255u, FX_HashCode_GetLoweredA("A\xff"));
+  EXPECT_EQ(0u, FX_HashCode_GetA("", false));
+  EXPECT_EQ(65u, FX_HashCode_GetA("A", false));
+  EXPECT_EQ(97u, FX_HashCode_GetA("A", true));
+  EXPECT_EQ(31 * 65u + 66u, FX_HashCode_GetA("AB", false));
+  EXPECT_EQ(31u * 65u + 255u, FX_HashCode_GetA("A\xff", false));
+  EXPECT_EQ(31u * 97u + 255u, FX_HashCode_GetA("A\xff", true));
 }
 
 TEST(ByteString, FX_HashCode_Wide) {
-  EXPECT_EQ(0u, FX_HashCode_GetAsIfW(""));
-  EXPECT_EQ(65u, FX_HashCode_GetAsIfW("A"));
-  EXPECT_EQ(97u, FX_HashCode_GetLoweredAsIfW("A"));
-  EXPECT_EQ(1313u * 65u + 66u, FX_HashCode_GetAsIfW("AB"));
-  EXPECT_EQ(1313u * 65u + 255u, FX_HashCode_GetAsIfW("A\xff"));
-  EXPECT_EQ(1313u * 97u + 255u, FX_HashCode_GetLoweredAsIfW("A\xff"));
+  EXPECT_EQ(0u, FX_HashCode_GetAsIfW("", false));
+  EXPECT_EQ(65u, FX_HashCode_GetAsIfW("A", false));
+  EXPECT_EQ(97u, FX_HashCode_GetAsIfW("A", true));
+  EXPECT_EQ(1313u * 65u + 66u, FX_HashCode_GetAsIfW("AB", false));
+  EXPECT_EQ(1313u * 65u + 255u, FX_HashCode_GetAsIfW("A\xff", false));
+  EXPECT_EQ(1313u * 97u + 255u, FX_HashCode_GetAsIfW("A\xff", true));
 }
 
 }  // namespace fxcrt

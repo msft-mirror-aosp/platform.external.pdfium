@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,20 +6,17 @@
 
 #include "xfa/fxfa/parser/cxfa_stroke.h"
 
-#include <math.h>
-
 #include <utility>
 
 #include "fxjs/xfa/cjx_object.h"
-#include "xfa/fgas/graphics/cfgas_gegraphics.h"
 #include "xfa/fxfa/cxfa_ffwidget.h"
 #include "xfa/fxfa/parser/cxfa_color.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
 #include "xfa/fxfa/parser/cxfa_measurement.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
 #include "xfa/fxfa/parser/xfa_utils.h"
+#include "xfa/fxgraphics/cxfa_graphics.h"
 
-void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
+void XFA_StrokeTypeSetLineDash(CXFA_Graphics* pGraphics,
                                XFA_AttributeValue iStrokeType,
                                XFA_AttributeValue iCapType) {
   switch (iStrokeType) {
@@ -29,7 +26,7 @@ void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
         dashArray[1] = 2;
         dashArray[3] = 2;
       }
-      pGraphics->SetLineDash(0, dashArray);
+      pGraphics->SetLineDash(0, dashArray, FX_ArraySize(dashArray));
       break;
     }
     case XFA_AttributeValue::DashDotDot: {
@@ -39,7 +36,7 @@ void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
         dashArray[3] = 2;
         dashArray[5] = 2;
       }
-      pGraphics->SetLineDash(0, dashArray);
+      pGraphics->SetLineDash(0, dashArray, FX_ArraySize(dashArray));
       break;
     }
     case XFA_AttributeValue::Dashed: {
@@ -47,7 +44,7 @@ void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
       if (iCapType != XFA_AttributeValue::Butt)
         dashArray[1] = 2;
 
-      pGraphics->SetLineDash(0, dashArray);
+      pGraphics->SetLineDash(0, dashArray, FX_ArraySize(dashArray));
       break;
     }
     case XFA_AttributeValue::Dotted: {
@@ -55,7 +52,7 @@ void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
       if (iCapType != XFA_AttributeValue::Butt)
         dashArray[1] = 2;
 
-      pGraphics->SetLineDash(0, dashArray);
+      pGraphics->SetLineDash(0, dashArray, FX_ArraySize(dashArray));
       break;
     }
     default:
@@ -66,12 +63,12 @@ void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
 
 CXFA_Stroke::CXFA_Stroke(CXFA_Document* pDoc,
                          XFA_PacketType ePacket,
-                         Mask<XFA_XDPPACKET> validPackets,
+                         uint32_t validPackets,
                          XFA_ObjectType oType,
                          XFA_Element eType,
                          pdfium::span<const PropertyData> properties,
                          pdfium::span<const AttributeData> attributes,
-                         CJX_Object* js_node)
+                         std::unique_ptr<CJX_Object> js_node)
     : CXFA_Node(pDoc,
                 ePacket,
                 validPackets,
@@ -79,7 +76,7 @@ CXFA_Stroke::CXFA_Stroke(CXFA_Document* pDoc,
                 eType,
                 properties,
                 attributes,
-                js_node) {}
+                std::move(js_node)) {}
 
 CXFA_Stroke::~CXFA_Stroke() = default;
 
@@ -110,12 +107,12 @@ void CXFA_Stroke::SetMSThickness(CXFA_Measurement msThinkness) {
   JSObject()->SetMeasure(XFA_Attribute::Thickness, msThinkness, false);
 }
 
-FX_ARGB CXFA_Stroke::GetColor() const {
-  const auto* pNode = GetChild<CXFA_Color>(0, XFA_Element::Color, false);
+FX_ARGB CXFA_Stroke::GetColor() {
+  CXFA_Color* pNode = GetChild<CXFA_Color>(0, XFA_Element::Color, false);
   if (!pNode)
     return 0xFF000000;
 
-  return CXFA_Color::StringToFXARGB(
+  return StringToFXARGB(
       pNode->JSObject()->GetCData(XFA_Attribute::Value).AsStringView());
 }
 
@@ -131,7 +128,8 @@ void CXFA_Stroke::SetColor(FX_ARGB argb) {
   int b;
   std::tie(a, r, g, b) = ArgbDecode(argb);
   pNode->JSObject()->SetCData(XFA_Attribute::Value,
-                              WideString::Format(L"%d,%d,%d", r, g, b));
+                              WideString::Format(L"%d,%d,%d", r, g, b), false,
+                              false);
 }
 
 XFA_AttributeValue CXFA_Stroke::GetJoinType() {
@@ -149,13 +147,12 @@ float CXFA_Stroke::GetRadius() const {
       .ToUnit(XFA_Unit::Pt);
 }
 
-bool CXFA_Stroke::SameStyles(CXFA_Stroke* stroke,
-                             Mask<SameStyleOption> dwFlags) {
+bool CXFA_Stroke::SameStyles(CXFA_Stroke* stroke, uint32_t dwFlags) {
   if (this == stroke)
     return true;
   if (fabs(GetThickness() - stroke->GetThickness()) >= 0.01f)
     return false;
-  if (!(dwFlags & SameStyleOption::kNoPresence) &&
+  if ((dwFlags & XFA_STROKE_SAMESTYLE_NoPresence) == 0 &&
       IsVisible() != stroke->IsVisible()) {
     return false;
   }
@@ -163,15 +160,15 @@ bool CXFA_Stroke::SameStyles(CXFA_Stroke* stroke,
     return false;
   if (GetColor() != stroke->GetColor())
     return false;
-  if ((dwFlags & CXFA_Stroke::SameStyleOption::kCorner) &&
+  if ((dwFlags & XFA_STROKE_SAMESTYLE_Corner) != 0 &&
       fabs(GetRadius() - stroke->GetRadius()) >= 0.01f) {
     return false;
   }
   return true;
 }
 
-void CXFA_Stroke::Stroke(CFGAS_GEGraphics* pGS,
-                         const CFGAS_GEPath& pPath,
+void CXFA_Stroke::Stroke(CXFA_GEPath* pPath,
+                         CXFA_Graphics* pGS,
                          const CFX_Matrix& matrix) {
   if (!IsVisible())
     return;
@@ -180,14 +177,15 @@ void CXFA_Stroke::Stroke(CFGAS_GEGraphics* pGS,
   if (fThickness < 0.001f)
     return;
 
-  CFGAS_GEGraphics::StateRestorer restorer(pGS);
+  pGS->SaveGraphState();
   if (IsCorner() && fThickness > 2 * GetRadius())
     fThickness = 2 * GetRadius();
 
   pGS->SetLineWidth(fThickness);
   pGS->EnableActOnDash();
-  pGS->SetLineCap(CFX_GraphStateData::LineCap::kButt);
+  pGS->SetLineCap(CFX_GraphStateData::LineCapButt);
   XFA_StrokeTypeSetLineDash(pGS, GetStrokeType(), XFA_AttributeValue::Butt);
-  pGS->SetStrokeColor(CFGAS_GEColor(GetColor()));
-  pGS->StrokePath(pPath, matrix);
+  pGS->SetStrokeColor(CXFA_GEColor(GetColor()));
+  pGS->StrokePath(pPath, &matrix);
+  pGS->RestoreGraphState();
 }

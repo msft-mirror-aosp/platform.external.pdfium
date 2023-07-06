@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,16 +14,15 @@
 
 class CPDF_DeviceCS final : public CPDF_ColorSpace {
  public:
-  CONSTRUCT_VIA_MAKE_RETAIN;
+  template <typename T, typename... Args>
+  friend RetainPtr<T> pdfium::MakeRetain(Args&&... args);
+
   ~CPDF_DeviceCS() override;
 
   // CPDF_ColorSpace:
-  bool GetRGB(pdfium::span<const float> pBuf,
-              float* R,
-              float* G,
-              float* B) const override;
-  void TranslateImageLine(pdfium::span<uint8_t> dest_span,
-                          pdfium::span<const uint8_t> src_span,
+  bool GetRGB(const float* pBuf, float* R, float* G, float* B) const override;
+  void TranslateImageLine(uint8_t* pDestBuf,
+                          const uint8_t* pSrcBuf,
                           int pixels,
                           int image_width,
                           int image_height,
@@ -33,7 +32,7 @@ class CPDF_DeviceCS final : public CPDF_ColorSpace {
                   std::set<const CPDF_Object*>* pVisited) override;
 
  private:
-  explicit CPDF_DeviceCS(Family family);
+  explicit CPDF_DeviceCS(int family);
 };
 
 #endif  // CORE_FPDFAPI_PAGE_CPDF_DEVICECS_H_

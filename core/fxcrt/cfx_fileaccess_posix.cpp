@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@
 #include <memory>
 
 #include "core/fxcrt/fx_stream.h"
-#include "third_party/base/numerics/safe_conversions.h"
+#include "third_party/base/ptr_util.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -23,9 +23,27 @@
 #define O_LARGEFILE 0
 #endif  // O_LARGEFILE
 
+namespace {
+
+void GetFileMode(uint32_t dwModes, int32_t& nFlags, int32_t& nMasks) {
+  nFlags = O_BINARY | O_LARGEFILE;
+  if (dwModes & FX_FILEMODE_ReadOnly) {
+    nFlags |= O_RDONLY;
+    nMasks = 0;
+  } else {
+    nFlags |= O_RDWR | O_CREAT;
+    if (dwModes & FX_FILEMODE_Truncate) {
+      nFlags |= O_TRUNC;
+    }
+    nMasks = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+  }
+}
+
+}  // namespace
+
 // static
 std::unique_ptr<FileAccessIface> FileAccessIface::Create() {
-  return std::make_unique<CFX_FileAccess_Posix>();
+  return pdfium::MakeUnique<CFX_FileAccess_Posix>();
 }
 
 CFX_FileAccess_Posix::CFX_FileAccess_Posix() : m_nFD(-1) {}
@@ -34,14 +52,21 @@ CFX_FileAccess_Posix::~CFX_FileAccess_Posix() {
   Close();
 }
 
-bool CFX_FileAccess_Posix::Open(ByteStringView fileName) {
+bool CFX_FileAccess_Posix::Open(ByteStringView fileName, uint32_t dwMode) {
   if (m_nFD > -1)
     return false;
 
+  int32_t nFlags;
+  int32_t nMasks;
+  GetFileMode(dwMode, nFlags, nMasks);
+
   // TODO(tsepez): check usage of c_str() below.
-  m_nFD =
-      open(fileName.unterminated_c_str(), O_BINARY | O_LARGEFILE | O_RDONLY);
+  m_nFD = open(fileName.unterminated_c_str(), nFlags, nMasks);
   return m_nFD > -1;
+}
+
+bool CFX_FileAccess_Posix::Open(WideStringView fileName, uint32_t dwMode) {
+  return Open(FX_UTF8Encode(fileName).AsStringView(), dwMode);
 }
 
 void CFX_FileAccess_Posix::Close() {
@@ -58,7 +83,7 @@ FX_FILESIZE CFX_FileAccess_Posix::GetSize() const {
   struct stat s;
   memset(&s, 0, sizeof(s));
   fstat(m_nFD, &s);
-  return pdfium::base::checked_cast<FX_FILESIZE>(s.st_size);
+  return s.st_size;
 }
 FX_FILESIZE CFX_FileAccess_Posix::GetPosition() const {
   if (m_nFD < 0) {

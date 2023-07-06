@@ -21,8 +21,6 @@
 #define AGG_CLIP_LIANG_BARSKY_INCLUDED
 #include "agg_basics.h"
 #include "third_party/base/numerics/safe_math.h"
-namespace pdfium
-{
 namespace agg
 {
 template<class T>
@@ -135,5 +133,4 @@ inline unsigned clip_liang_barsky(T x1, T y1, T x2, T y2,
     return np;
 }
 }
-}  // namespace pdfium
 #endif

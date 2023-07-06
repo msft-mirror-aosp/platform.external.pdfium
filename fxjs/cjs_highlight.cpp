@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@ const JSConstSpec CJS_Highlight::ConstSpecs[] = {
     {"p", JSConstSpec::String, 0, "push"},
     {"o", JSConstSpec::String, 0, "outline"}};
 
-uint32_t CJS_Highlight::ObjDefnID = 0;
+int CJS_Highlight::ObjDefnID = -1;
 
 // static
 void CJS_Highlight::DefineJSObjects(CFXJS_Engine* pEngine) {

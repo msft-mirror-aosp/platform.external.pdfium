@@ -18,8 +18,6 @@
 #include "agg_basics.h"
 #include "agg_renderer_base.h"
 #include "agg_render_scanlines.h"
-namespace pdfium
-{
 namespace agg
 {
 template<class BaseRenderer, class SpanGenerator> class renderer_scanline_aa 
@@ -92,5 +90,4 @@ private:
     SpanGenerator* m_span_gen;
 };
 }
-}  // namespace pdfium
 #endif

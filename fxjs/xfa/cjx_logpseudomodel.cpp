@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,14 +23,14 @@ CJX_LogPseudoModel::CJX_LogPseudoModel(CScript_LogPseudoModel* model)
   DefineMethods(MethodSpecs);
 }
 
-CJX_LogPseudoModel::~CJX_LogPseudoModel() = default;
+CJX_LogPseudoModel::~CJX_LogPseudoModel() {}
 
 bool CJX_LogPseudoModel::DynamicTypeIs(TypeTag eType) const {
   return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
 }
 
 CJS_Result CJX_LogPseudoModel::message(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   // Uncomment to allow using xfa.log.message(""); from JS.
   // fprintf(stderr, "LOG\n");
@@ -43,25 +43,25 @@ CJS_Result CJX_LogPseudoModel::message(
 }
 
 CJS_Result CJX_LogPseudoModel::traceEnabled(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   return CJS_Result::Success();
 }
 
 CJS_Result CJX_LogPseudoModel::traceActivate(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   return CJS_Result::Success();
 }
 
 CJS_Result CJX_LogPseudoModel::traceDeactivate(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   return CJS_Result::Success();
 }
 
 CJS_Result CJX_LogPseudoModel::trace(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   return CJS_Result::Success();
 }

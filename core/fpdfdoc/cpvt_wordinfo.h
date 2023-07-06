@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,20 +7,18 @@
 #ifndef CORE_FPDFDOC_CPVT_WORDINFO_H_
 #define CORE_FPDFDOC_CPVT_WORDINFO_H_
 
-#include <stdint.h>
-
-#include "core/fxcrt/fx_codepage_forward.h"
+#include "core/fxcrt/fx_system.h"
 
 struct CPVT_WordInfo {
   CPVT_WordInfo();
-  CPVT_WordInfo(uint16_t word, FX_Charset charset, int32_t fontIndex);
+  CPVT_WordInfo(uint16_t word, int32_t charset, int32_t fontIndex);
   CPVT_WordInfo(const CPVT_WordInfo& word);
   ~CPVT_WordInfo();
 
   CPVT_WordInfo& operator=(const CPVT_WordInfo& word);
 
   uint16_t Word;
-  FX_Charset nCharset;
+  int32_t nCharset;
   float fWordX;
   float fWordY;
   float fWordTail;

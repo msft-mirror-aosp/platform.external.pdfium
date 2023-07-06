@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,14 @@
 
 #include "fxjs/cjs_globalconsts.h"
 
-#include "fxjs/fxv8.h"
-
-#define GLOBAL_STRING(rt, name, value)                              \
-  (rt)->DefineGlobalConst(                                          \
-      (name), [](const v8::FunctionCallbackInfo<v8::Value>& info) { \
-        info.GetReturnValue().Set(                                  \
-            fxv8::NewStringHelper(info.GetIsolate(), (value)));     \
+#define GLOBAL_STRING(rt, name, value)                                        \
+  (rt)->DefineGlobalConst(                                                    \
+      (name), [](const v8::FunctionCallbackInfo<v8::Value>& info) {           \
+        const char* pStr = (value);                                           \
+        info.GetReturnValue().Set(                                            \
+            v8::String::NewFromUtf8(info.GetIsolate(), pStr,                  \
+                                    v8::NewStringType::kNormal, strlen(pStr)) \
+                .ToLocalChecked());                                           \
       })
 
 // static

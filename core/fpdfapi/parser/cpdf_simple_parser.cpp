@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,7 @@ ByteStringView CPDF_SimpleParser::GetWord() {
   uint8_t ch;
 
   // Skip whitespace and comment lines.
-  while (true) {
+  while (1) {
     if (data_.size() <= cur_pos_)
       return ByteStringView();
 
@@ -31,7 +31,7 @@ ByteStringView CPDF_SimpleParser::GetWord() {
     if (ch != '%')
       break;
 
-    while (true) {
+    while (1) {
       if (data_.size() <= cur_pos_)
         return ByteStringView();
 
@@ -46,7 +46,7 @@ ByteStringView CPDF_SimpleParser::GetWord() {
   if (PDFCharIsDelimiter(ch)) {
     // Find names
     if (ch == '/') {
-      while (true) {
+      while (1) {
         if (data_.size() <= cur_pos_)
           break;
 

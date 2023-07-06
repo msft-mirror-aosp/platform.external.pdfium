@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,94 +6,105 @@
 
 #include "core/fpdfdoc/cpdf_action.h"
 
-#include <iterator>
-#include <utility>
-
 #include "constants/stream_dict_common.h"
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
 #include "core/fpdfapi/parser/cpdf_name.h"
-#include "core/fpdfapi/parser/fpdf_parser_utility.h"
 #include "core/fpdfdoc/cpdf_filespec.h"
+#include "core/fpdfdoc/cpdf_nametree.h"
 
 namespace {
 
-const char* const kActionTypeStrings[] = {
-    "GoTo",       "GoToR",     "GoToE",      "Launch",     "Thread",
-    "URI",        "Sound",     "Movie",      "Hide",       "Named",
-    "SubmitForm", "ResetForm", "ImportData", "JavaScript", "SetOCGState",
-    "Rendition",  "Trans",     "GoTo3DView"};
+const char* const g_sATypes[] = {
+    "Unknown",     "GoTo",       "GoToR",     "GoToE",      "Launch",
+    "Thread",      "URI",        "Sound",     "Movie",      "Hide",
+    "Named",       "SubmitForm", "ResetForm", "ImportData", "JavaScript",
+    "SetOCGState", "Rendition",  "Trans",     "GoTo3DView", nullptr};
 
 }  // namespace
 
-CPDF_Action::CPDF_Action(RetainPtr<const CPDF_Dictionary> pDict)
-    : m_pDict(std::move(pDict)) {}
+CPDF_Action::CPDF_Action(const CPDF_Dictionary* pDict) : m_pDict(pDict) {}
 
 CPDF_Action::CPDF_Action(const CPDF_Action& that) = default;
 
 CPDF_Action::~CPDF_Action() = default;
 
-CPDF_Action::Type CPDF_Action::GetType() const {
-  // See ISO 32000-1:2008 spec, table 193.
-  if (!ValidateDictOptionalType(m_pDict.Get(), "Action"))
-    return Type::kUnknown;
+CPDF_Action::ActionType CPDF_Action::GetType() const {
+  if (!m_pDict)
+    return Unknown;
 
-  ByteString csType = m_pDict->GetNameFor("S");
-  if (csType.IsEmpty())
-    return Type::kUnknown;
-
-  static_assert(
-      std::size(kActionTypeStrings) == static_cast<size_t>(Type::kLast),
-      "Type mismatch");
-  for (size_t i = 0; i < std::size(kActionTypeStrings); ++i) {
-    if (csType == kActionTypeStrings[i])
-      return static_cast<Type>(i + 1);
+  // Validate |m_pDict|. Type is optional, but must be valid if present.
+  const CPDF_Object* pType = m_pDict->GetObjectFor("Type");
+  if (pType) {
+    const CPDF_Name* pName = pType->AsName();
+    if (!pName || pName->GetString() != "Action")
+      return Unknown;
   }
-  return Type::kUnknown;
+
+  ByteString csType = m_pDict->GetStringFor("S");
+  if (csType.IsEmpty())
+    return Unknown;
+
+  for (int i = 0; g_sATypes[i]; ++i) {
+    if (csType == g_sATypes[i])
+      return static_cast<ActionType>(i);
+  }
+  return Unknown;
 }
 
 CPDF_Dest CPDF_Action::GetDest(CPDF_Document* pDoc) const {
-  Type type = GetType();
-  if (type != Type::kGoTo && type != Type::kGoToR && type != Type::kGoToE) {
-    return CPDF_Dest(nullptr);
+  ActionType type = GetType();
+  if (type != GoTo && type != GoToR)
+    return CPDF_Dest();
+
+  const CPDF_Object* pDest = m_pDict->GetDirectObjectFor("D");
+  if (!pDest)
+    return CPDF_Dest();
+  if (pDest->IsString() || pDest->IsName()) {
+    CPDF_NameTree name_tree(pDoc, "Dests");
+    return CPDF_Dest(name_tree.LookupNamedDest(pDoc, pDest->GetUnicodeText()));
   }
-  return CPDF_Dest::Create(pDoc, m_pDict->GetDirectObjectFor("D"));
+  if (const CPDF_Array* pArray = pDest->AsArray())
+    return CPDF_Dest(pArray);
+
+  return CPDF_Dest();
 }
 
 WideString CPDF_Action::GetFilePath() const {
-  Type type = GetType();
-  if (type != Type::kGoToR && type != Type::kGoToE && type != Type::kLaunch &&
-      type != Type::kSubmitForm && type != Type::kImportData) {
+  ActionType type = GetType();
+  if (type != GoToR && type != Launch && type != SubmitForm &&
+      type != ImportData) {
     return WideString();
   }
 
-  RetainPtr<const CPDF_Object> pFile =
-      m_pDict->GetDirectObjectFor(pdfium::stream::kF);
+  const CPDF_Object* pFile = m_pDict->GetDirectObjectFor(pdfium::stream::kF);
   if (pFile)
-    return CPDF_FileSpec(std::move(pFile)).GetFileName();
+    return CPDF_FileSpec(pFile).GetFileName();
 
-  if (type != Type::kLaunch)
+  if (type != Launch)
     return WideString();
 
-  RetainPtr<const CPDF_Dictionary> pWinDict = m_pDict->GetDictFor("Win");
+  const CPDF_Dictionary* pWinDict = m_pDict->GetDictFor("Win");
   if (!pWinDict)
     return WideString();
 
   return WideString::FromDefANSI(
-      pWinDict->GetByteStringFor(pdfium::stream::kF).AsStringView());
+      pWinDict->GetStringFor(pdfium::stream::kF).AsStringView());
 }
 
 ByteString CPDF_Action::GetURI(const CPDF_Document* pDoc) const {
-  if (GetType() != Type::kURI)
+  ActionType type = GetType();
+  if (type != URI)
     return ByteString();
 
-  ByteString csURI = m_pDict->GetByteStringFor("URI");
-  RetainPtr<const CPDF_Dictionary> pURI = pDoc->GetRoot()->GetDictFor("URI");
+  ByteString csURI = m_pDict->GetStringFor("URI");
+  const CPDF_Dictionary* pRoot = pDoc->GetRoot();
+  const CPDF_Dictionary* pURI = pRoot->GetDictFor("URI");
   if (pURI) {
     auto result = csURI.Find(":");
     if (!result.has_value() || result.value() == 0) {
-      RetainPtr<const CPDF_Object> pBase = pURI->GetDirectObjectFor("Base");
+      auto* pBase = pURI->GetDirectObjectFor("Base");
       if (pBase && (pBase->IsString() || pBase->IsStream()))
         csURI = pBase->GetString() + csURI;
     }
@@ -106,55 +117,46 @@ bool CPDF_Action::GetHideStatus() const {
 }
 
 ByteString CPDF_Action::GetNamedAction() const {
-  return m_pDict->GetByteStringFor("N");
+  return m_pDict->GetStringFor("N");
 }
 
 uint32_t CPDF_Action::GetFlags() const {
   return m_pDict->GetIntegerFor("Flags");
 }
 
-bool CPDF_Action::HasFields() const {
-  return m_pDict->KeyExist("Fields");
-}
-
-std::vector<RetainPtr<const CPDF_Object>> CPDF_Action::GetAllFields() const {
-  std::vector<RetainPtr<const CPDF_Object>> result;
+std::vector<const CPDF_Object*> CPDF_Action::GetAllFields() const {
+  std::vector<const CPDF_Object*> result;
   if (!m_pDict)
     return result;
 
-  ByteString csType = m_pDict->GetByteStringFor("S");
-  RetainPtr<const CPDF_Object> pFields = csType == "Hide"
-                                             ? m_pDict->GetDirectObjectFor("T")
-                                             : m_pDict->GetArrayFor("Fields");
+  ByteString csType = m_pDict->GetStringFor("S");
+  const CPDF_Object* pFields = csType == "Hide"
+                                   ? m_pDict->GetDirectObjectFor("T")
+                                   : m_pDict->GetArrayFor("Fields");
   if (!pFields)
     return result;
 
   if (pFields->IsDictionary() || pFields->IsString()) {
-    result.push_back(std::move(pFields));
-    return result;
-  }
-
-  const CPDF_Array* pArray = pFields->AsArray();
-  if (!pArray)
-    return result;
-
-  for (size_t i = 0; i < pArray->size(); ++i) {
-    RetainPtr<const CPDF_Object> pObj = pArray->GetDirectObjectAt(i);
-    if (pObj)
-      result.push_back(std::move(pObj));
+    result.push_back(pFields);
+  } else if (const CPDF_Array* pArray = pFields->AsArray()) {
+    for (size_t i = 0; i < pArray->size(); ++i) {
+      const CPDF_Object* pObj = pArray->GetDirectObjectAt(i);
+      if (pObj)
+        result.push_back(pObj);
+    }
   }
   return result;
 }
 
-absl::optional<WideString> CPDF_Action::MaybeGetJavaScript() const {
-  RetainPtr<const CPDF_Object> pObject = GetJavaScriptObject();
+Optional<WideString> CPDF_Action::MaybeGetJavaScript() const {
+  const CPDF_Object* pObject = GetJavaScriptObject();
   if (!pObject)
-    return absl::nullopt;
+    return pdfium::nullopt;
   return pObject->GetUnicodeText();
 }
 
 WideString CPDF_Action::GetJavaScript() const {
-  RetainPtr<const CPDF_Object> pObject = GetJavaScriptObject();
+  const CPDF_Object* pObject = GetJavaScriptObject();
   return pObject ? pObject->GetUnicodeText() : WideString();
 }
 
@@ -162,7 +164,7 @@ size_t CPDF_Action::GetSubActionsCount() const {
   if (!m_pDict || !m_pDict->KeyExist("Next"))
     return 0;
 
-  RetainPtr<const CPDF_Object> pNext = m_pDict->GetDirectObjectFor("Next");
+  const CPDF_Object* pNext = m_pDict->GetDirectObjectFor("Next");
   if (!pNext)
     return 0;
   if (pNext->IsDictionary())
@@ -175,24 +177,20 @@ CPDF_Action CPDF_Action::GetSubAction(size_t iIndex) const {
   if (!m_pDict || !m_pDict->KeyExist("Next"))
     return CPDF_Action(nullptr);
 
-  RetainPtr<const CPDF_Object> pNext = m_pDict->GetDirectObjectFor("Next");
-  if (!pNext)
-    return CPDF_Action(nullptr);
-
-  if (const CPDF_Array* pArray = pNext->AsArray())
+  const CPDF_Object* pNext = m_pDict->GetDirectObjectFor("Next");
+  if (const CPDF_Array* pArray = ToArray(pNext))
     return CPDF_Action(pArray->GetDictAt(iIndex));
-
-  if (const CPDF_Dictionary* pDict = pNext->AsDictionary()) {
+  if (const CPDF_Dictionary* pDict = ToDictionary(pNext)) {
     if (iIndex == 0)
-      return CPDF_Action(pdfium::WrapRetain(pDict));
+      return CPDF_Action(pDict);
   }
   return CPDF_Action(nullptr);
 }
 
-RetainPtr<const CPDF_Object> CPDF_Action::GetJavaScriptObject() const {
+const CPDF_Object* CPDF_Action::GetJavaScriptObject() const {
   if (!m_pDict)
     return nullptr;
 
-  RetainPtr<const CPDF_Object> pJS = m_pDict->GetDirectObjectFor("JS");
+  const CPDF_Object* pJS = m_pDict->GetDirectObjectFor("JS");
   return (pJS && (pJS->IsString() || pJS->IsStream())) ? pJS : nullptr;
 }

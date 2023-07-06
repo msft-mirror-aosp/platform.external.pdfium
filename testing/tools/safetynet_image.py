@@ -1,4 +1,4 @@
-# Copyright 2017 The PDFium Authors
+# Copyright 2017 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Compares pairs of page images and generates an HTML to look at differences.
@@ -13,6 +13,7 @@ import subprocess
 import sys
 import webbrowser
 
+# pylint: disable=relative-import
 from common import DirectoryFinder
 
 
@@ -20,7 +21,7 @@ def GenerateOneDiffParallel(image_comparison, image):
   return image_comparison.GenerateOneDiff(image)
 
 
-class ImageComparison:
+class ImageComparison(object):
   """Compares pairs of page images and generates an HTML to look at differences.
 
   The images are all assumed to have the same name and be in two directories:
@@ -62,7 +63,7 @@ class ImageComparison:
     # pylint: disable=attribute-defined-outside-init
 
     if len(self.two_labels) != 2:
-      print('two_labels must be a tuple of length 2', file=sys.stderr)
+      print >> sys.stderr, 'two_labels must be a tuple of length 2'
       return 1
 
     finder = DirectoryFinder(self.build_dir)
@@ -87,7 +88,7 @@ class ImageComparison:
       for image in self.image_locations.Images():
         diff = difference[image]
         if diff is None:
-          print('Failed to compare image %s' % image, file=sys.stderr)
+          print >> sys.stderr, 'Failed to compare image %s' % image
         elif diff > self.threshold:
           self._WriteImageRows(f, image, diff)
         else:
@@ -169,7 +170,7 @@ class ImageComparison:
     except subprocess.CalledProcessError as e:
       return image, percentage_change
     else:
-      print('Warning: Should have failed the previous diff.', file=sys.stderr)
+      print >> sys.stderr, 'Warning: Should have failed the previous diff.'
       return image, 0
 
   def _GetRelativePath(self, absolute_path):
@@ -238,7 +239,7 @@ class ImageComparison:
       f.write('</td></tr>')
 
 
-class ImageLocations:
+class ImageLocations(object):
   """Contains the locations of input and output image files.
   """
 

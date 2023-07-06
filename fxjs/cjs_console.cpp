@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "fxjs/cjs_event_context.h"
+#include "fxjs/cjs_eventrecorder.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/js_define.h"
 
@@ -17,11 +18,11 @@ const JSMethodSpec CJS_Console::MethodSpecs[] = {{"clear", clear_static},
                                                  {"println", println_static},
                                                  {"show", show_static}};
 
-uint32_t CJS_Console::ObjDefnID = 0;
+int CJS_Console::ObjDefnID = -1;
 const char CJS_Console::kName[] = "console";
 
 // static
-uint32_t CJS_Console::GetObjDefnID() {
+int CJS_Console::GetObjDefnID() {
   return ObjDefnID;
 }
 

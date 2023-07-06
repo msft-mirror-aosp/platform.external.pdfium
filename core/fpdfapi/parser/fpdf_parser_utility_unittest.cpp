@@ -1,21 +1,20 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "core/fpdfapi/parser/fpdf_parser_utility.h"
 
-#include <memory>
-
+#include "core/fpdfapi/page/cpdf_docpagedata.h"
 #include "core/fpdfapi/page/cpdf_pagemodule.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
 #include "core/fpdfapi/parser/cpdf_name.h"
 #include "core/fpdfapi/parser/cpdf_reference.h"
 #include "core/fpdfapi/parser/cpdf_string.h"
-#include "core/fpdfapi/parser/cpdf_test_document.h"
+#include "core/fpdfapi/render/cpdf_docrenderdata.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-TEST(ParserUtilityTest, NameDecode) {
+TEST(fpdf_parser_utility, PDF_NameDecode) {
   EXPECT_EQ("", PDF_NameDecode(""));
   EXPECT_EQ("A", PDF_NameDecode("A"));
   EXPECT_EQ("#", PDF_NameDecode("#"));
@@ -24,7 +23,7 @@ TEST(ParserUtilityTest, NameDecode) {
   EXPECT_EQ("A1", PDF_NameDecode("#411"));
 }
 
-TEST(ParserUtilityTest, NameEncode) {
+TEST(fpdf_parser_utility, PDF_NameEncode) {
   EXPECT_EQ("", PDF_NameEncode(""));
   EXPECT_EQ("A", PDF_NameEncode("A"));
   EXPECT_EQ("#23", PDF_NameEncode("#"));
@@ -34,7 +33,7 @@ TEST(ParserUtilityTest, NameEncode) {
   EXPECT_EQ("f#C2#A5", PDF_NameEncode("f\xc2\xa5"));
 }
 
-TEST(ParserUtilityTest, ValidateDictType) {
+TEST(fpdf_parser_utility, ValidateDictType) {
   auto dict = pdfium::MakeRetain<CPDF_Dictionary>();
 
   // No type.
@@ -52,7 +51,7 @@ TEST(ParserUtilityTest, ValidateDictType) {
   EXPECT_FALSE(ValidateDictType(dict.Get(), "bar"));
 }
 
-TEST(ParserUtilityTest, ValidateDictAllResourcesOfType) {
+TEST(fpdf_parser_utility, ValidateDictAllResourcesOfType) {
   CPDF_PageModule::Create();
 
   {
@@ -68,7 +67,7 @@ TEST(ParserUtilityTest, ValidateDictAllResourcesOfType) {
     EXPECT_FALSE(ValidateDictAllResourcesOfType(nullptr, "bar"));
 
     // Add two correct dictionary entries and one string entry.
-    auto new_dict = dict->SetNewFor<CPDF_Dictionary>("f1");
+    CPDF_Dictionary* new_dict = dict->SetNewFor<CPDF_Dictionary>("f1");
     new_dict->SetNewFor<CPDF_Name>("Type", "foo");
     new_dict = dict->SetNewFor<CPDF_Dictionary>("f2");
     new_dict->SetNewFor<CPDF_Name>("Type", "foo");
@@ -90,11 +89,14 @@ TEST(ParserUtilityTest, ValidateDictAllResourcesOfType) {
 
   {
     // Indirect dictionary.
-    auto doc = std::make_unique<CPDF_TestDocument>();
+    auto doc = pdfium::MakeUnique<CPDF_Document>(
+        pdfium::MakeUnique<CPDF_DocRenderData>(),
+        pdfium::MakeUnique<CPDF_DocPageData>());
+
     auto dict = doc->New<CPDF_Dictionary>();
 
     // Add a correct dictionary entry.
-    auto new_dict = doc->NewIndirect<CPDF_Dictionary>();
+    CPDF_Dictionary* new_dict = doc->NewIndirect<CPDF_Dictionary>();
     new_dict->SetNewFor<CPDF_Name>("Type", "foo");
     dict->SetNewFor<CPDF_Reference>("f1", doc.get(), new_dict->GetObjNum());
 
@@ -103,22 +105,4 @@ TEST(ParserUtilityTest, ValidateDictAllResourcesOfType) {
   }
 
   CPDF_PageModule::Destroy();
-}
-
-TEST(ParserUtilityTest, ValidateDictOptionalType) {
-  auto dict = pdfium::MakeRetain<CPDF_Dictionary>();
-
-  // No type is ok.
-  EXPECT_TRUE(ValidateDictOptionalType(dict.Get(), "foo"));
-  EXPECT_TRUE(ValidateDictOptionalType(dict.Get(), "bar"));
-
-  // Add the wrong object type.
-  dict->SetNewFor<CPDF_String>("Type", L"foo");
-  EXPECT_FALSE(ValidateDictOptionalType(dict.Get(), "foo"));
-  EXPECT_FALSE(ValidateDictOptionalType(dict.Get(), "bar"));
-
-  // Add the correct object type.
-  dict->SetNewFor<CPDF_Name>("Type", "foo");
-  EXPECT_TRUE(ValidateDictOptionalType(dict.Get(), "foo"));
-  EXPECT_FALSE(ValidateDictOptionalType(dict.Get(), "bar"));
 }

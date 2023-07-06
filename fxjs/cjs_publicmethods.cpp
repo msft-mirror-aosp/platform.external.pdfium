@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include "fxjs/cjs_publicmethods.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
+#include <cwctype>
 #include <iomanip>
 #include <iterator>
 #include <limits>
@@ -18,16 +18,15 @@
 #include <vector>
 
 #include "build/build_config.h"
-#include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfdoc/cpdf_formcontrol.h"
 #include "core/fpdfdoc/cpdf_interactiveform.h"
 #include "core/fxcrt/fx_extension.h"
-#include "core/fxcrt/fx_string_wrappers.h"
 #include "core/fxge/cfx_color.h"
 #include "fpdfsdk/cpdfsdk_formfillenvironment.h"
 #include "fpdfsdk/cpdfsdk_interactiveform.h"
 #include "fxjs/cjs_color.h"
 #include "fxjs/cjs_event_context.h"
+#include "fxjs/cjs_eventrecorder.h"
 #include "fxjs/cjs_field.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/cjs_runtime.h"
@@ -35,10 +34,7 @@
 #include "fxjs/fx_date_helpers.h"
 #include "fxjs/js_define.h"
 #include "fxjs/js_resources.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/base/check.h"
-#include "third_party/base/numerics/safe_conversions.h"
-#include "v8/include/v8-container.h"
+#include "third_party/base/optional.h"
 
 // static
 const JSMethodSpec CJS_PublicMethods::GlobalFunctionSpecs[] = {
@@ -68,7 +64,7 @@ const JSMethodSpec CJS_PublicMethods::GlobalFunctionSpecs[] = {
 
 namespace {
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !defined(OS_ANDROID)
 constexpr double kDoubleCorrect = 0.000000000000001;
 #endif
 
@@ -97,17 +93,14 @@ T StrTrim(const T& str) {
   return result;
 }
 
-void AlertIfPossible(CJS_EventContext* pContext,
-                     const WideString& wsCaller,
-                     const WideString& wsMsg) {
+void AlertIfPossible(CJS_EventContext* pContext, const WideString& swMsg) {
   CPDFSDK_FormFillEnvironment* pFormFillEnv = pContext->GetFormFillEnv();
-  if (pFormFillEnv) {
-    pFormFillEnv->JS_appAlert(wsMsg, wsCaller, JSPLATFORM_ALERT_BUTTON_OK,
+  if (pFormFillEnv)
+    pFormFillEnv->JS_appAlert(swMsg, WideString(), JSPLATFORM_ALERT_BUTTON_OK,
                               JSPLATFORM_ALERT_ICON_STATUS);
-  }
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !defined(OS_ANDROID)
 ByteString CalculateString(double dValue,
                            int iDec,
                            int* iDec2,
@@ -119,17 +112,16 @@ ByteString CalculateString(double dValue,
   // Make sure the number of precision characters will fit.
   iDec = std::min(iDec, std::numeric_limits<double>::digits10);
 
-  fxcrt::ostringstream ss;
+  std::stringstream ss;
   ss << std::fixed << std::setprecision(iDec) << dValue;
-  fxcrt::string value = ss.str();
+  std::string value = ss.str();
   size_t pos = value.find('.');
-  *iDec2 = pdfium::base::checked_cast<int>(
-      pos == fxcrt::string::npos ? value.size() : pos);
+  *iDec2 = pos == std::string::npos ? value.size() : static_cast<int>(pos);
   return ByteString(value.c_str());
 }
 #endif
 
-WideString CalcMergedString(const CJS_EventContext* event,
+WideString CalcMergedString(const CJS_EventRecorder* event,
                             const WideString& value,
                             const WideString& change) {
   WideString prefix = value.First(event->SelStart());
@@ -144,8 +136,7 @@ template <CJS_Result (*F)(CJS_Runtime*,
                           const std::vector<v8::Local<v8::Value>>&)>
 void JSGlobalFunc(const char* func_name_string,
                   const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CJS_Object* pObj =
-      CFXJS_Engine::GetObjectPrivate(info.GetIsolate(), info.Holder());
+  CJS_Object* pObj = CFXJS_Engine::GetObjectPrivate(info.Holder());
   if (!pObj)
     return;
 
@@ -180,13 +171,13 @@ bool IsDigitSeparatorOrDecimalMark(int c) {
   return c == '.' || c == ',';
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !defined(OS_ANDROID)
 bool IsStyleWithDigitSeparator(int style) {
   return style == 0 || style == 2;
 }
 
 char DigitSeparatorForStyle(int style) {
-  DCHECK(IsStyleWithDigitSeparator(style));
+  ASSERT(IsStyleWithDigitSeparator(style));
   return style == 0 ? ',' : '.';
 }
 
@@ -203,7 +194,7 @@ char DecimalMarkForStyle(int style) {
   return IsStyleWithCommaDecimalMark(style) ? ',' : '.';
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !defined(OS_ANDROID)
 void NormalizeDecimalMark(ByteString* str) {
   str->Replace(",", ".");
 }
@@ -213,20 +204,20 @@ void NormalizeDecimalMarkW(WideString* str) {
   str->Replace(L",", L".");
 }
 
-absl::optional<double> ApplyNamedOperation(const WideString& wsFunction,
-                                           double dValue1,
-                                           double dValue2) {
-  if (wsFunction.EqualsASCIINoCase("AVG") ||
-      wsFunction.EqualsASCIINoCase("SUM")) {
+Optional<double> ApplyNamedOperation(const wchar_t* sFunction,
+                                     double dValue1,
+                                     double dValue2) {
+  if (FXSYS_wcsicmp(sFunction, L"AVG") == 0 ||
+      FXSYS_wcsicmp(sFunction, L"SUM") == 0) {
     return dValue1 + dValue2;
   }
-  if (wsFunction.EqualsASCIINoCase("PRD"))
+  if (FXSYS_wcsicmp(sFunction, L"PRD") == 0)
     return dValue1 * dValue2;
-  if (wsFunction.EqualsASCIINoCase("MIN"))
+  if (FXSYS_wcsicmp(sFunction, L"MIN") == 0)
     return std::min(dValue1, dValue2);
-  if (wsFunction.EqualsASCIINoCase("MAX"))
+  if (FXSYS_wcsicmp(sFunction, L"MAX") == 0)
     return std::max(dValue1, dValue2);
-  return absl::nullopt;
+  return {};
 }
 
 }  // namespace
@@ -322,13 +313,14 @@ bool CJS_PublicMethods::IsReservedMaskChar(wchar_t ch) {
 v8::Local<v8::Array> CJS_PublicMethods::AF_MakeArrayFromList(
     CJS_Runtime* pRuntime,
     v8::Local<v8::Value> val) {
-  DCHECK(!val.IsEmpty());
+  ASSERT(!val.IsEmpty());
   if (val->IsArray())
     return pRuntime->ToArray(val);
 
-  DCHECK(val->IsString());
-  ByteString bsVal = pRuntime->ToByteString(val);
-  const char* p = bsVal.c_str();
+  ASSERT(val->IsString());
+  WideString wsStr = pRuntime->ToWideString(val);
+  ByteString t = wsStr.ToDefANSI();
+  const char* p = t.c_str();
 
   int nIndex = 0;
   v8::Local<v8::Array> StrArray = pRuntime->NewArray();
@@ -351,8 +343,7 @@ v8::Local<v8::Array> CJS_PublicMethods::AF_MakeArrayFromList(
   return StrArray;
 }
 
-double CJS_PublicMethods::ParseDate(v8::Isolate* isolate,
-                                    const WideString& value,
+double CJS_PublicMethods::ParseDate(const WideString& value,
                                     bool* bWrongFormat) {
   double dt = FX_GetDateTime();
   int nYear = FX_GetYearFromTime(dt);
@@ -426,28 +417,26 @@ double CJS_PublicMethods::ParseDate(v8::Isolate* isolate,
   }
 
   // TODO(thestig): Should we set |bWrongFormat| to false here too?
-  return JS_DateParse(
-      isolate, WideString::Format(L"%d/%d/%d %d:%d:%d", nMonth, nDay, nYear,
-                                  nHour, nMin, nSec));
+  return JS_DateParse(WideString::Format(L"%d/%d/%d %d:%d:%d", nMonth, nDay,
+                                         nYear, nHour, nMin, nSec));
 }
 
-double CJS_PublicMethods::ParseDateUsingFormat(v8::Isolate* isolate,
-                                               const WideString& value,
+double CJS_PublicMethods::ParseDateUsingFormat(const WideString& value,
                                                const WideString& format,
                                                bool* bWrongFormat) {
-  double dRet = nan("");
+  double dRet = std::nan("");
   fxjs::ConversionStatus status = FX_ParseDateUsingFormat(value, format, &dRet);
   if (status == fxjs::ConversionStatus::kSuccess)
     return dRet;
 
   if (status == fxjs::ConversionStatus::kBadDate) {
-    dRet = JS_DateParse(isolate, value);
-    if (!isnan(dRet))
+    dRet = JS_DateParse(value);
+    if (!std::isnan(dRet))
       return dRet;
   }
 
   bool bBadFormat = false;
-  dRet = ParseDate(isolate, value, &bBadFormat);
+  dRet = ParseDate(value, &bBadFormat);
   if (bWrongFormat)
     *bWrongFormat = bBadFormat;
 
@@ -486,23 +475,23 @@ WideString CJS_PublicMethods::PrintDateUsingFormat(double dDate,
               sPart += c;
               break;
             case 'm':
-              sPart = WideString::FormatInteger(nMonth);
+              sPart = WideString::Format(L"%d", nMonth);
               break;
             case 'd':
-              sPart = WideString::FormatInteger(nDay);
+              sPart = WideString::Format(L"%d", nDay);
               break;
             case 'H':
-              sPart = WideString::FormatInteger(nHour);
+              sPart = WideString::Format(L"%d", nHour);
               break;
             case 'h':
               sPart =
-                  WideString::FormatInteger(nHour > 12 ? nHour - 12 : nHour);
+                  WideString::Format(L"%d", nHour > 12 ? nHour - 12 : nHour);
               break;
             case 'M':
-              sPart = WideString::FormatInteger(nMin);
+              sPart = WideString::Format(L"%d", nMin);
               break;
             case 's':
-              sPart = WideString::FormatInteger(nSec);
+              sPart = WideString::Format(L"%d", nSec);
               break;
             case 't':
               sPart += nHour > 12 ? 'p' : 'a';
@@ -593,16 +582,17 @@ WideString CJS_PublicMethods::PrintDateUsingFormat(double dDate,
 CJS_Result CJS_PublicMethods::AFNumber_Format(
     CJS_Runtime* pRuntime,
     const std::vector<v8::Local<v8::Value>>& params) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !defined(OS_ANDROID)
   if (params.size() != 6)
     return CJS_Result::Failure(JSMessage::kParamError);
 
   CJS_EventContext* pEventContext = pRuntime->GetCurrentEventContext();
-  if (!pEventContext->HasValue())
+  CJS_EventRecorder* pEvent = pEventContext->GetEventRecorder();
+  if (!pEvent->HasValue())
     return CJS_Result::Failure(WideString::FromASCII("No event handler"));
 
-  WideString& Value = pEventContext->Value();
-  ByteString strValue = StrTrim(Value.ToUTF8());
+  WideString& Value = pEvent->Value();
+  ByteString strValue = StrTrim(Value.ToDefANSI());
   if (strValue.IsEmpty())
     return CJS_Result::Success();
 
@@ -631,7 +621,7 @@ CJS_Result CJS_PublicMethods::AFNumber_Format(
       iDec2 = 1;
     }
   }
-  DCHECK(iDec2 >= 0);
+  ASSERT(iDec2 >= 0);
 
   // Processing separator style
   if (static_cast<size_t>(iDec2) < strValue.GetLength()) {
@@ -648,7 +638,7 @@ CJS_Result CJS_PublicMethods::AFNumber_Format(
   }
 
   // Processing currency string
-  Value = WideString::FromUTF8(strValue.AsStringView());
+  Value = WideString::FromDefANSI(strValue.AsStringView());
   if (bCurrencyPrepend)
     Value = wstrCurrency + Value;
   else
@@ -704,23 +694,24 @@ CJS_Result CJS_PublicMethods::AFNumber_Keystroke(
     return CJS_Result::Failure(JSMessage::kParamError);
 
   CJS_EventContext* pContext = pRuntime->GetCurrentEventContext();
-  if (!pContext->HasValue())
+  CJS_EventRecorder* pEvent = pContext->GetEventRecorder();
+  if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
-  WideString& val = pContext->Value();
-  WideString& wstrChange = pContext->Change();
+  WideString& val = pEvent->Value();
+  WideString& wstrChange = pEvent->Change();
   WideString wstrValue = val;
 
-  if (pContext->WillCommit()) {
+  if (pEvent->WillCommit()) {
     WideString swTemp = StrTrim(wstrValue);
     if (swTemp.IsEmpty())
       return CJS_Result::Success();
 
     NormalizeDecimalMarkW(&swTemp);
     if (!IsNumber(swTemp)) {
-      pContext->Rc() = false;
+      pEvent->Rc() = false;
       WideString sError = JSGetStringFromID(JSMessage::kInvalidInputError);
-      AlertIfPossible(pContext, L"AFNumber_Keystroke", sError);
+      AlertIfPossible(pContext, sError);
       return CJS_Result::Failure(sError);
     }
     // It happens after the last keystroke and before validating,
@@ -728,16 +719,16 @@ CJS_Result CJS_PublicMethods::AFNumber_Keystroke(
   }
 
   WideString wstrSelected;
-  if (pContext->SelStart() != -1) {
-    wstrSelected = wstrValue.Substr(pContext->SelStart(),
-                                    pContext->SelEnd() - pContext->SelStart());
+  if (pEvent->SelStart() != -1) {
+    wstrSelected = wstrValue.Substr(pEvent->SelStart(),
+                                    pEvent->SelEnd() - pEvent->SelStart());
   }
 
   bool bHasSign = wstrValue.Contains(L'-') && !wstrSelected.Contains(L'-');
   if (bHasSign) {
     // can't insert "change" in front of sign position.
-    if (!wstrSelected.IsEmpty() && pContext->SelStart() == 0) {
-      pContext->Rc() = false;
+    if (!wstrSelected.IsEmpty() && pEvent->SelStart() == 0) {
+      pEvent->Rc() = false;
       return CJS_Result::Success();
     }
   }
@@ -749,7 +740,7 @@ CJS_Result CJS_PublicMethods::AFNumber_Keystroke(
   for (size_t i = 0; i < wstrChange.GetLength(); ++i) {
     if (wstrChange[i] == cSep) {
       if (bHasSep) {
-        pContext->Rc() = false;
+        pEvent->Rc() = false;
         return CJS_Result::Success();
       }
       bHasSep = true;
@@ -757,16 +748,16 @@ CJS_Result CJS_PublicMethods::AFNumber_Keystroke(
     }
     if (wstrChange[i] == L'-') {
       if (bHasSign) {
-        pContext->Rc() = false;
+        pEvent->Rc() = false;
         return CJS_Result::Success();
       }
       // sign's position is not correct
       if (i != 0) {
-        pContext->Rc() = false;
+        pEvent->Rc() = false;
         return CJS_Result::Success();
       }
-      if (pContext->SelStart() != 0) {
-        pContext->Rc() = false;
+      if (pEvent->SelStart() != 0) {
+        pEvent->Rc() = false;
         return CJS_Result::Success();
       }
       bHasSign = true;
@@ -774,12 +765,12 @@ CJS_Result CJS_PublicMethods::AFNumber_Keystroke(
     }
 
     if (!FXSYS_IsDecimalDigit(wstrChange[i])) {
-      pContext->Rc() = false;
+      pEvent->Rc() = false;
       return CJS_Result::Success();
     }
   }
 
-  val = CalcMergedString(pContext, wstrValue, wstrChange);
+  val = CalcMergedString(pEvent, wstrValue, wstrChange);
   return CJS_Result::Success();
 }
 
@@ -787,11 +778,12 @@ CJS_Result CJS_PublicMethods::AFNumber_Keystroke(
 CJS_Result CJS_PublicMethods::AFPercent_Format(
     CJS_Runtime* pRuntime,
     const std::vector<v8::Local<v8::Value>>& params) {
-#if !BUILDFLAG(IS_ANDROID)
+#if !defined(OS_ANDROID)
   if (params.size() < 2)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -807,7 +799,8 @@ CJS_Result CJS_PublicMethods::AFPercent_Format(
 
   // When the |iDec| value is too big, Acrobat will just return "%".
   static constexpr int kDecLimit = 512;
-  // This count must be in sync with |kDecLimit|.
+  // TODO(thestig): Calculate this once C++14 can be used to declare variables
+  // in constexpr functions.
   static constexpr size_t kDigitsInDecLimit = 3;
   WideString& Value = pEvent->Value();
   if (iDec > kDecLimit) {
@@ -815,7 +808,7 @@ CJS_Result CJS_PublicMethods::AFPercent_Format(
     return CJS_Result::Success();
   }
 
-  ByteString strValue = StrTrim(Value.ToUTF8());
+  ByteString strValue = StrTrim(Value.ToDefANSI());
   if (strValue.IsEmpty())
     strValue = "0";
 
@@ -846,7 +839,7 @@ CJS_Result CJS_PublicMethods::AFPercent_Format(
   strValue.ReleaseBuffer(szNewSize);
 
   // for processing separator style
-  absl::optional<size_t> mark_pos = strValue.Find('.');
+  Optional<size_t> mark_pos = strValue.Find('.');
   if (mark_pos.has_value()) {
     char mark = DecimalMarkForStyle(iSepStyle);
     if (mark != '.')
@@ -866,7 +859,7 @@ CJS_Result CJS_PublicMethods::AFPercent_Format(
     strValue.InsertAtFront('%');
   else
     strValue.InsertAtBack('%');
-  Value = WideString::FromUTF8(strValue.AsStringView());
+  Value = WideString::FromDefANSI(strValue.AsStringView());
 #endif
   return CJS_Result::Success();
 }
@@ -885,7 +878,8 @@ CJS_Result CJS_PublicMethods::AFDate_FormatEx(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventContext* pContext = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent = pContext->GetEventRecorder();
   if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -898,16 +892,15 @@ CJS_Result CJS_PublicMethods::AFDate_FormatEx(
   double dDate;
   if (strValue.Contains(L"GMT")) {
     // e.g. "Tue Aug 11 14:24:16 GMT+08002009"
-    dDate = ParseDateAsGMT(pRuntime->GetIsolate(), strValue);
+    dDate = ParseDateAsGMT(strValue);
   } else {
-    dDate = ParseDateUsingFormat(pRuntime->GetIsolate(), strValue, sFormat,
-                                 nullptr);
+    dDate = ParseDateUsingFormat(strValue, sFormat, nullptr);
   }
 
-  if (isnan(dDate)) {
+  if (std::isnan(dDate)) {
     WideString swMsg = WideString::Format(
         JSGetStringFromID(JSMessage::kParseDateError).c_str(), sFormat.c_str());
-    AlertIfPossible(pEvent, L"AFDate_FormatEx", swMsg);
+    AlertIfPossible(pContext, swMsg);
     return CJS_Result::Failure(JSMessage::kParseDateError);
   }
 
@@ -915,8 +908,7 @@ CJS_Result CJS_PublicMethods::AFDate_FormatEx(
   return CJS_Result::Success();
 }
 
-double CJS_PublicMethods::ParseDateAsGMT(v8::Isolate* isolate,
-                                         const WideString& strValue) {
+double CJS_PublicMethods::ParseDateAsGMT(const WideString& strValue) {
   std::vector<WideString> wsArray;
   WideString sTemp;
   for (const auto& c : strValue) {
@@ -932,9 +924,9 @@ double CJS_PublicMethods::ParseDateAsGMT(v8::Isolate* isolate,
 
   int nMonth = 1;
   sTemp = wsArray[1];
-  for (size_t i = 0; i < std::size(fxjs::kMonths); ++i) {
-    if (sTemp == fxjs::kMonths[i]) {
-      nMonth = static_cast<int>(i) + 1;
+  for (size_t i = 0; i < FX_ArraySize(fxjs::kMonths); ++i) {
+    if (sTemp.Compare(fxjs::kMonths[i]) == 0) {
+      nMonth = i + 1;
       break;
     }
   }
@@ -946,8 +938,8 @@ double CJS_PublicMethods::ParseDateAsGMT(v8::Isolate* isolate,
   int nYear = StringToFloat(wsArray[7].AsStringView());
   double dRet = FX_MakeDate(FX_MakeDay(nYear, nMonth - 1, nDay),
                             FX_MakeTime(nHour, nMin, nSec, 0));
-  if (isnan(dRet))
-    dRet = JS_DateParse(isolate, strValue);
+  if (std::isnan(dRet))
+    dRet = JS_DateParse(strValue);
 
   return dRet;
 }
@@ -961,7 +953,8 @@ CJS_Result CJS_PublicMethods::AFDate_KeystrokeEx(
         "AFDate_KeystrokeEx's parameter size not correct"));
   }
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventContext* pContext = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent = pContext->GetEventRecorder();
   if (!pEvent->WillCommit())
     return CJS_Result::Success();
 
@@ -974,12 +967,11 @@ CJS_Result CJS_PublicMethods::AFDate_KeystrokeEx(
 
   bool bWrongFormat = false;
   WideString sFormat = pRuntime->ToWideString(params[0]);
-  double dRet = ParseDateUsingFormat(pRuntime->GetIsolate(), strValue, sFormat,
-                                     &bWrongFormat);
-  if (bWrongFormat || isnan(dRet)) {
+  double dRet = ParseDateUsingFormat(strValue, sFormat, &bWrongFormat);
+  if (bWrongFormat || std::isnan(dRet)) {
     WideString swMsg = WideString::Format(
         JSGetStringFromID(JSMessage::kParseDateError).c_str(), sFormat.c_str());
-    AlertIfPossible(pEvent, L"AFDate_KeystrokeEx", swMsg);
+    AlertIfPossible(pContext, swMsg);
     pEvent->Rc() = false;
   }
   return CJS_Result::Success();
@@ -991,8 +983,8 @@ CJS_Result CJS_PublicMethods::AFDate_Format(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  int iIndex =
-      WithinBoundsOrZero(pRuntime->ToInt32(params[0]), std::size(kDateFormats));
+  int iIndex = WithinBoundsOrZero(pRuntime->ToInt32(params[0]),
+                                  FX_ArraySize(kDateFormats));
   std::vector<v8::Local<v8::Value>> newParams;
   newParams.push_back(pRuntime->NewString(kDateFormats[iIndex]));
   return AFDate_FormatEx(pRuntime, newParams);
@@ -1005,8 +997,8 @@ CJS_Result CJS_PublicMethods::AFDate_Keystroke(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  int iIndex =
-      WithinBoundsOrZero(pRuntime->ToInt32(params[0]), std::size(kDateFormats));
+  int iIndex = WithinBoundsOrZero(pRuntime->ToInt32(params[0]),
+                                  FX_ArraySize(kDateFormats));
   std::vector<v8::Local<v8::Value>> newParams;
   newParams.push_back(pRuntime->NewString(kDateFormats[iIndex]));
   return AFDate_KeystrokeEx(pRuntime, newParams);
@@ -1019,8 +1011,8 @@ CJS_Result CJS_PublicMethods::AFTime_Format(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  int iIndex =
-      WithinBoundsOrZero(pRuntime->ToInt32(params[0]), std::size(kTimeFormats));
+  int iIndex = WithinBoundsOrZero(pRuntime->ToInt32(params[0]),
+                                  FX_ArraySize(kTimeFormats));
   std::vector<v8::Local<v8::Value>> newParams;
   newParams.push_back(pRuntime->NewString(kTimeFormats[iIndex]));
   return AFDate_FormatEx(pRuntime, newParams);
@@ -1032,8 +1024,8 @@ CJS_Result CJS_PublicMethods::AFTime_Keystroke(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  int iIndex =
-      WithinBoundsOrZero(pRuntime->ToInt32(params[0]), std::size(kTimeFormats));
+  int iIndex = WithinBoundsOrZero(pRuntime->ToInt32(params[0]),
+                                  FX_ArraySize(kTimeFormats));
   std::vector<v8::Local<v8::Value>> newParams;
   newParams.push_back(pRuntime->NewString(kTimeFormats[iIndex]));
   return AFDate_KeystrokeEx(pRuntime, newParams);
@@ -1058,7 +1050,8 @@ CJS_Result CJS_PublicMethods::AFSpecial_Format(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -1093,7 +1086,8 @@ CJS_Result CJS_PublicMethods::AFSpecial_KeystrokeEx(
   if (params.size() < 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventContext* pContext = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent = pContext->GetEventRecorder();
   if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -1107,7 +1101,7 @@ CJS_Result CJS_PublicMethods::AFSpecial_KeystrokeEx(
       return CJS_Result::Success();
 
     if (valEvent.GetLength() > wstrMask.GetLength()) {
-      AlertIfPossible(pEvent, L"AFSpecial_KeystrokeEx",
+      AlertIfPossible(pContext,
                       JSGetStringFromID(JSMessage::kParamTooLongError));
       pEvent->Rc() = false;
       return CJS_Result::Success();
@@ -1119,7 +1113,7 @@ CJS_Result CJS_PublicMethods::AFSpecial_KeystrokeEx(
         break;
     }
     if (iIndex != wstrMask.GetLength()) {
-      AlertIfPossible(pEvent, L"AFSpecial_KeystrokeEx",
+      AlertIfPossible(pContext,
                       JSGetStringFromID(JSMessage::kInvalidInputError));
       pEvent->Rc() = false;
     }
@@ -1135,22 +1129,20 @@ CJS_Result CJS_PublicMethods::AFSpecial_KeystrokeEx(
   size_t combined_len = valEvent.GetLength() + wChange.GetLength() +
                         pEvent->SelStart() - pEvent->SelEnd();
   if (combined_len > wstrMask.GetLength()) {
-    AlertIfPossible(pEvent, L"AFSpecial_KeystrokeEx",
-                    JSGetStringFromID(JSMessage::kParamTooLongError));
+    AlertIfPossible(pContext, JSGetStringFromID(JSMessage::kParamTooLongError));
     pEvent->Rc() = false;
     return CJS_Result::Success();
   }
 
   if (iIndexMask >= wstrMask.GetLength() && !wChange.IsEmpty()) {
-    AlertIfPossible(pEvent, L"AFSpecial_KeystrokeEx",
-                    JSGetStringFromID(JSMessage::kParamTooLongError));
+    AlertIfPossible(pContext, JSGetStringFromID(JSMessage::kParamTooLongError));
     pEvent->Rc() = false;
     return CJS_Result::Success();
   }
 
   for (size_t i = 0; i < wChange.GetLength(); ++i) {
     if (iIndexMask >= wstrMask.GetLength()) {
-      AlertIfPossible(pEvent, L"AFSpecial_KeystrokeEx",
+      AlertIfPossible(pContext,
                       JSGetStringFromID(JSMessage::kParamTooLongError));
       pEvent->Rc() = false;
       return CJS_Result::Success();
@@ -1176,7 +1168,8 @@ CJS_Result CJS_PublicMethods::AFSpecial_Keystroke(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
@@ -1210,17 +1203,19 @@ CJS_Result CJS_PublicMethods::AFMergeChange(
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEventRecorder =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
 
   WideString swValue;
-  if (pEvent->HasValue())
-    swValue = pEvent->Value();
+  if (pEventRecorder->HasValue())
+    swValue = pEventRecorder->Value();
 
-  if (pEvent->WillCommit())
+  if (pEventRecorder->WillCommit())
     return CJS_Result::Success(pRuntime->NewString(swValue.AsStringView()));
 
   return CJS_Result::Success(pRuntime->NewString(
-      CalcMergedString(pEvent, swValue, pEvent->Change()).AsStringView()));
+      CalcMergedString(pEventRecorder, swValue, pEventRecorder->Change())
+          .AsStringView()));
 }
 
 CJS_Result CJS_PublicMethods::AFParseDateEx(
@@ -1231,13 +1226,11 @@ CJS_Result CJS_PublicMethods::AFParseDateEx(
 
   WideString sValue = pRuntime->ToWideString(params[0]);
   WideString sFormat = pRuntime->ToWideString(params[1]);
-  double dDate =
-      ParseDateUsingFormat(pRuntime->GetIsolate(), sValue, sFormat, nullptr);
-  if (isnan(dDate)) {
+  double dDate = ParseDateUsingFormat(sValue, sFormat, nullptr);
+  if (std::isnan(dDate)) {
     WideString swMsg = WideString::Format(
         JSGetStringFromID(JSMessage::kParseDateError).c_str(), sFormat.c_str());
-    AlertIfPossible(pRuntime->GetCurrentEventContext(), L"AFParseDateEx",
-                    swMsg);
+    AlertIfPossible(pRuntime->GetCurrentEventContext(), swMsg);
     return CJS_Result::Failure(JSMessage::kParseDateError);
   }
   return CJS_Result::Success(pRuntime->NewNumber(dDate));
@@ -1252,10 +1245,10 @@ CJS_Result CJS_PublicMethods::AFSimple(
   WideString sFunction = pRuntime->ToWideString(params[0]);
   double arg1 = pRuntime->ToDouble(params[1]);
   double arg2 = pRuntime->ToDouble(params[2]);
-  if (isnan(arg1) || isnan(arg2))
+  if (std::isnan(arg1) || std::isnan(arg2))
     return CJS_Result::Failure(JSMessage::kValueError);
 
-  absl::optional<double> result = ApplyNamedOperation(sFunction, arg1, arg2);
+  Optional<double> result = ApplyNamedOperation(sFunction.c_str(), arg1, arg2);
   if (!result.has_value())
     return CJS_Result::Failure(JSMessage::kValueError);
 
@@ -1354,8 +1347,8 @@ CJS_Result CJS_PublicMethods::AFSimple_Calculate(
            wcscmp(sFunction.c_str(), L"MAX") == 0)) {
         dValue = dTemp;
       }
-      absl::optional<double> dResult =
-          ApplyNamedOperation(sFunction, dValue, dTemp);
+      Optional<double> dResult =
+          ApplyNamedOperation(sFunction.c_str(), dValue, dTemp);
       if (!dResult.has_value())
         return CJS_Result::Failure(JSMessage::kValueError);
 
@@ -1367,11 +1360,13 @@ CJS_Result CJS_PublicMethods::AFSimple_Calculate(
   if (wcscmp(sFunction.c_str(), L"AVG") == 0 && nFieldsCount > 0)
     dValue /= nFieldsCount;
 
-  dValue = floor(dValue * powf(10, 6) + 0.49) / powf(10, 6);
+  dValue = floor(dValue * FXSYS_pow(10, 6) + 0.49) / FXSYS_pow(10, 6);
 
   CJS_EventContext* pContext = pRuntime->GetCurrentEventContext();
-  if (pContext->HasValue())
-    pContext->Value() = pRuntime->ToWideString(pRuntime->NewNumber(dValue));
+  if (pContext->GetEventRecorder()->HasValue()) {
+    pContext->GetEventRecorder()->Value() =
+        pRuntime->ToWideString(pRuntime->NewNumber(dValue));
+  }
 
   return CJS_Result::Success();
 }
@@ -1384,14 +1379,15 @@ CJS_Result CJS_PublicMethods::AFRange_Validate(
   if (params.size() != 4)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventContext* pContext = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent = pContext->GetEventRecorder();
   if (!pEvent->HasValue())
     return CJS_Result::Failure(JSMessage::kBadObjectError);
 
   if (pEvent->Value().IsEmpty())
     return CJS_Result::Success();
 
-  double dEventValue = atof(pEvent->Value().ToUTF8().c_str());
+  double dEentValue = atof(pEvent->Value().ToDefANSI().c_str());
   bool bGreaterThan = pRuntime->ToBoolean(params[0]);
   double dGreaterThan = pRuntime->ToDouble(params[1]);
   bool bLessThan = pRuntime->ToBoolean(params[2]);
@@ -1399,25 +1395,25 @@ CJS_Result CJS_PublicMethods::AFRange_Validate(
   WideString swMsg;
 
   if (bGreaterThan && bLessThan) {
-    if (dEventValue < dGreaterThan || dEventValue > dLessThan)
+    if (dEentValue < dGreaterThan || dEentValue > dLessThan)
       swMsg = WideString::Format(
           JSGetStringFromID(JSMessage::kRangeBetweenError).c_str(),
           pRuntime->ToWideString(params[1]).c_str(),
           pRuntime->ToWideString(params[3]).c_str());
   } else if (bGreaterThan) {
-    if (dEventValue < dGreaterThan)
+    if (dEentValue < dGreaterThan)
       swMsg = WideString::Format(
           JSGetStringFromID(JSMessage::kRangeGreaterError).c_str(),
           pRuntime->ToWideString(params[1]).c_str());
   } else if (bLessThan) {
-    if (dEventValue > dLessThan)
+    if (dEentValue > dLessThan)
       swMsg = WideString::Format(
           JSGetStringFromID(JSMessage::kRangeLessError).c_str(),
           pRuntime->ToWideString(params[3]).c_str());
   }
 
   if (!swMsg.IsEmpty()) {
-    AlertIfPossible(pEvent, L"AFRange_Validate", swMsg);
+    AlertIfPossible(pContext, swMsg);
     pEvent->Rc() = false;
   }
   return CJS_Result::Success();

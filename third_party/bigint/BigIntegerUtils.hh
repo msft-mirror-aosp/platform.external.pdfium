@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 
 #include "BigInteger.hh"
 #include <string>
-#include <iosfwd>
+#include <ostream>
 
 /* This file provides:
  * - Convenient std::string <-> BigUnsigned/BigInteger conversion routines

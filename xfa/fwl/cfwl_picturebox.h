@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,25 +8,26 @@
 #define XFA_FWL_CFWL_PICTUREBOX_H_
 
 #include "xfa/fwl/cfwl_widget.h"
+#include "xfa/fwl/cfwl_widgetproperties.h"
+
+class CFX_DIBitmap;
+class CFWL_Widget;
 
 class CFWL_PictureBox final : public CFWL_Widget {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CFWL_PictureBox(const CFWL_App* pApp);
   ~CFWL_PictureBox() override;
 
   // CFWL_Widget
   FWL_Type GetClassID() const override;
   void Update() override;
-  void DrawWidget(CFGAS_GEGraphics* pGraphics,
-                  const CFX_Matrix& matrix) override;
-  void OnDrawWidget(CFGAS_GEGraphics* pGraphics,
+  void DrawWidget(CXFA_Graphics* pGraphics, const CFX_Matrix& matrix) override;
+  void OnDrawWidget(CXFA_Graphics* pGraphics,
                     const CFX_Matrix& matrix) override;
 
  private:
-  explicit CFWL_PictureBox(CFWL_App* pApp);
-
-  CFX_RectF m_ClientRect;
-  CFX_RectF m_ImageRect;
+  CFX_RectF m_rtClient;
+  CFX_RectF m_rtImage;
   CFX_Matrix m_matrix;
 };
 

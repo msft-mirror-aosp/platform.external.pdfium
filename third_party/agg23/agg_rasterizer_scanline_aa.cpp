@@ -49,8 +49,6 @@
 #include <limits.h>
 #include "agg_rasterizer_scanline_aa.h"
 #include "third_party/base/numerics/safe_math.h"
-namespace pdfium
-{
 namespace agg
 {
 AGG_INLINE void cell_aa::set_cover(int c, int a)
@@ -126,7 +124,7 @@ void outline_aa::allocate_block()
             m_cells = new_cells;
             m_max_blocks += cell_block_pool;
         }
-        m_cells[m_num_blocks++] = FX_AllocUninit(cell_aa, cell_block_size);
+        m_cells[m_num_blocks++] = FX_Alloc(cell_aa, cell_block_size);
     }
     m_cur_cell_ptr = m_cells[m_cur_block++];
 }
@@ -227,27 +225,10 @@ AGG_INLINE void outline_aa::render_hline(int ey, int x1, int y1, int x2, int y2)
 void outline_aa::render_line(int x1, int y1, int x2, int y2)
 {
     enum dx_limit_e { dx_limit = 16384 << poly_base_shift };
-    pdfium::base::CheckedNumeric<int> safe_dx = x2;
-    safe_dx -= x1;
-    if (!safe_dx.IsValid())
-        return;
-
-    int dx = safe_dx.ValueOrDie();
+    int dx = x2 - x1;
     if(dx >= dx_limit || dx <= -dx_limit) {
-        pdfium::base::CheckedNumeric<int> safe_cx = x1;
-        safe_cx += x2;
-        safe_cx /= 2;
-        if (!safe_cx.IsValid())
-            return;
-
-        pdfium::base::CheckedNumeric<int> safe_cy = y1;
-        safe_cy += y2;
-        safe_cy /= 2;
-        if (!safe_cy.IsValid())
-            return;
-
-        int cx = safe_cx.ValueOrDie();
-        int cy = safe_cy.ValueOrDie();
+        int cx = (x1 + x2) >> 1;
+        int cy = (y1 + y2) >> 1;
         render_line(x1, y1, cx, cy);
         render_line(cx, cy, x2, y2);
     }
@@ -534,4 +515,3 @@ bool rasterizer_scanline_aa::safe_add(int* op1, int op2)
     return true;
 }
 }
-}  // namespace pdfium

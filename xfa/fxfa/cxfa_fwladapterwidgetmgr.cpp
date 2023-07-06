@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,12 @@
 
 #include "xfa/fxfa/cxfa_fwladapterwidgetmgr.h"
 
-#include "core/fxcrt/fx_coordinates.h"
 #include "xfa/fxfa/cxfa_ffdoc.h"
 #include "xfa/fxfa/cxfa_fffield.h"
 
-CXFA_FWLAdapterWidgetMgr::CXFA_FWLAdapterWidgetMgr() = default;
+CXFA_FWLAdapterWidgetMgr::CXFA_FWLAdapterWidgetMgr() {}
 
-CXFA_FWLAdapterWidgetMgr::~CXFA_FWLAdapterWidgetMgr() = default;
-
-void CXFA_FWLAdapterWidgetMgr::Trace(cppgc::Visitor* visitor) const {}
+CXFA_FWLAdapterWidgetMgr::~CXFA_FWLAdapterWidgetMgr() {}
 
 void CXFA_FWLAdapterWidgetMgr::RepaintWidget(CFWL_Widget* pWidget) {
   if (!pWidget)
@@ -35,7 +32,7 @@ bool CXFA_FWLAdapterWidgetMgr::GetPopupPos(CFWL_Widget* pWidget,
   auto* pFFWidget = static_cast<CXFA_FFWidget*>(pWidget->GetAdapterIface());
   CFX_RectF rtRotateAnchor =
       pFFWidget->GetRotateMatrix().TransformRect(rtAnchor);
-  pFFWidget->GetDoc()->GetPopupPos(pFFWidget, fMinHeight, fMaxHeight,
-                                   rtRotateAnchor, pPopupRect);
+  pFFWidget->GetDoc()->GetDocEnvironment()->GetPopupPos(
+      pFFWidget, fMinHeight, fMaxHeight, rtRotateAnchor, pPopupRect);
   return true;
 }

@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #include <memory>
 #include <utility>
 
+#include "core/fxcrt/fx_system.h"
 #include "core/fxcrt/unowned_ptr.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 namespace fxcrt {
 
@@ -20,83 +20,87 @@ namespace fxcrt {
 template <typename T, typename D = std::default_delete<T>>
 class MaybeOwned {
  public:
-  using OwnedType = std::unique_ptr<T, D>;
-  using UnownedType = UnownedPtr<T>;
-
   MaybeOwned() = default;
-  explicit MaybeOwned(T* ptr) : ptr_(UnownedType(ptr)) {}
-  explicit MaybeOwned(const UnownedType& ptr) : ptr_(ptr) {}
-  explicit MaybeOwned(OwnedType ptr) : ptr_(std::move(ptr)) {}
+  explicit MaybeOwned(T* ptr) : m_pObj(ptr) {}
+  explicit MaybeOwned(const UnownedPtr<T>& ptr) : m_pObj(ptr.Get()) {}
+  explicit MaybeOwned(std::unique_ptr<T, D> ptr)
+      : m_pOwnedObj(std::move(ptr)), m_pObj(m_pOwnedObj.get()) {}
 
   MaybeOwned(const MaybeOwned& that) = delete;
-  MaybeOwned(MaybeOwned&& that) noexcept = default;
+  MaybeOwned(MaybeOwned&& that) noexcept
+      : m_pOwnedObj(that.m_pOwnedObj.release()), m_pObj(that.m_pObj) {
+    that.m_pObj = nullptr;
+  }
 
-  MaybeOwned& operator=(const MaybeOwned& that) = delete;
-  MaybeOwned& operator=(MaybeOwned&& that) noexcept = default;
-
-  ~MaybeOwned() = default;
-
-  void Reset(T* ptr = nullptr) { ptr_ = UnownedType(ptr); }
-  void Reset(OwnedType ptr) { ptr_ = std::move(ptr); }
-
-  bool IsOwned() const { return absl::holds_alternative<OwnedType>(ptr_); }
-
+  void Reset(std::unique_ptr<T, D> ptr) {
+    m_pObj = ptr.get();
+    m_pOwnedObj = std::move(ptr);
+  }
+  void Reset(T* ptr = nullptr) {
+    m_pObj = ptr;
+    m_pOwnedObj.reset();
+  }
   // Helpful for untangling a collection of intertwined MaybeOwned<>.
   void ResetIfUnowned() {
     if (!IsOwned())
       Reset();
   }
 
-  T* Get() const& {
-    return absl::visit([](const auto& obj) { return obj.get(); }, ptr_);
-  }
-  T* Get() && {
-    auto local_variable_preventing_move_elision = std::move(ptr_);
-    return absl::visit([](const auto& obj) { return obj.get(); },
-                       local_variable_preventing_move_elision);
-  }
+  T* Get() const { return m_pObj.Get(); }
+  bool IsOwned() const { return !!m_pOwnedObj; }
 
   // Downgrades to unowned, caller takes ownership.
-  OwnedType Release() {
-    auto result = std::move(absl::get<OwnedType>(ptr_));
-    ptr_ = UnownedType(result.get());
-    return result;
+  std::unique_ptr<T, D> Release() {
+    ASSERT(IsOwned());
+    return std::move(m_pOwnedObj);
   }
 
   // Downgrades to empty, caller takes ownership.
-  OwnedType ReleaseAndClear() {
-    auto result = std::move(absl::get<OwnedType>(ptr_));
-    ptr_ = UnownedType();
-    return result;
+  std::unique_ptr<T, D> ReleaseAndClear() {
+    ASSERT(IsOwned());
+    m_pObj = nullptr;
+    return std::move(m_pOwnedObj);
   }
 
+  MaybeOwned& operator=(const MaybeOwned& that) = delete;
+  MaybeOwned& operator=(MaybeOwned&& that) {
+    m_pObj = that.m_pObj;
+    m_pOwnedObj = std::move(that.m_pOwnedObj);
+    that.m_pObj = nullptr;
+    return *this;
+  }
   MaybeOwned& operator=(T* ptr) {
     Reset(ptr);
     return *this;
   }
-  MaybeOwned& operator=(const UnownedType& ptr) {
-    Reset(ptr);
+  MaybeOwned& operator=(const UnownedPtr<T>& ptr) {
+    Reset(ptr.Get());
     return *this;
   }
-  MaybeOwned& operator=(OwnedType ptr) {
+  MaybeOwned& operator=(std::unique_ptr<T, D> ptr) {
     Reset(std::move(ptr));
     return *this;
   }
 
   bool operator==(const MaybeOwned& that) const { return Get() == that.Get(); }
-  bool operator==(const OwnedType& ptr) const { return Get() == ptr.get(); }
+  bool operator==(const std::unique_ptr<T, D>& ptr) const {
+    return Get() == ptr.get();
+  }
   bool operator==(T* ptr) const { return Get() == ptr; }
 
   bool operator!=(const MaybeOwned& that) const { return !(*this == that); }
-  bool operator!=(const OwnedType ptr) const { return !(*this == ptr); }
+  bool operator!=(const std::unique_ptr<T, D> ptr) const {
+    return !(*this == ptr);
+  }
   bool operator!=(T* ptr) const { return !(*this == ptr); }
 
-  explicit operator bool() const { return !!Get(); }
-  T& operator*() const { return *Get(); }
-  T* operator->() const { return Get(); }
+  explicit operator bool() const { return !!m_pObj; }
+  T& operator*() const { return *m_pObj; }
+  T* operator->() const { return m_pObj.Get(); }
 
  private:
-  absl::variant<UnownedType, OwnedType> ptr_;
+  std::unique_ptr<T, D> m_pOwnedObj;
+  UnownedPtr<T> m_pObj;
 };
 
 }  // namespace fxcrt

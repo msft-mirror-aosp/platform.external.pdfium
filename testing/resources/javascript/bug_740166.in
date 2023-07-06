@@ -24,12 +24,10 @@ endobj
   /Contents [21 0 R]
   /MediaBox [0 0 612 792]
 >>
-endobj
 % Forms
 {{object 4 0}} <<
   /Fields [5 0 R]
 >>
-endobj
 % Field
 {{object 5 0}} <<
  /FT /Tx
@@ -38,7 +36,6 @@ endobj
  /Subtype /Widget
  /Rect [100 200 150 250]
 >>
-endobj
 % OpenAction action
 {{object 10 0}} <<
   /Type /Action
@@ -46,7 +43,7 @@ endobj
   /JS 11 0 R
 >>
 endobj
-% JS program to execute
+% JS program to exexute
 {{object 11 0}} <<
   {{streamlen}}
 >>

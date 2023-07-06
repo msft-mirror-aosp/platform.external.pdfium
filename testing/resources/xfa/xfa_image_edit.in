@@ -21,9 +21,7 @@ stream
           <imageEdit data="embed"/>
         </ui>
         <value>
-          <image contentType="image/jpg">
-            {{include ../mona_lisa.fragment}}
-          </image>
+          <image contentType="image/jpg">FOOOEY</image>
         </value>
       </field>
     </subform>

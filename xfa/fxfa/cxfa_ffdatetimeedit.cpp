@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,9 @@
 
 #include "xfa/fxfa/cxfa_ffdatetimeedit.h"
 
-#include "core/fxcrt/cfx_datetime.h"
-#include "third_party/base/check.h"
+#include <utility>
+
+#include "third_party/base/ptr_util.h"
 #include "xfa/fwl/cfwl_datetimepicker.h"
 #include "xfa/fwl/cfwl_eventselectchanged.h"
 #include "xfa/fwl/cfwl_notedriver.h"
@@ -41,22 +42,20 @@ bool CXFA_FFDateTimeEdit::PtInActiveRect(const CFX_PointF& point) {
 }
 
 bool CXFA_FFDateTimeEdit::LoadWidget() {
-  DCHECK(!IsLoaded());
-
-  CFWL_DateTimePicker* pWidget =
-      cppgc::MakeGarbageCollected<CFWL_DateTimePicker>(
-          GetFWLApp()->GetHeap()->GetAllocationHandle(), GetFWLApp());
-  SetNormalWidget(pWidget);
+  ASSERT(!IsLoaded());
+  auto pNewPicker = pdfium::MakeUnique<CFWL_DateTimePicker>(GetFWLApp());
+  CFWL_DateTimePicker* pWidget = pNewPicker.get();
+  SetNormalWidget(std::move(pNewPicker));
   pWidget->SetAdapterIface(this);
 
-  CFWL_NoteDriver* pNoteDriver = pWidget->GetFWLApp()->GetNoteDriver();
+  CFWL_NoteDriver* pNoteDriver = pWidget->GetOwnerApp()->GetNoteDriver();
   pNoteDriver->RegisterEventTarget(pWidget, pWidget);
   m_pOldDelegate = pWidget->GetDelegate();
   pWidget->SetDelegate(this);
 
   {
     CFWL_Widget::ScopedUpdateLock update_lock(pWidget);
-    WideString wsText = m_pNode->GetValue(XFA_ValuePicture::kDisplay);
+    WideString wsText = m_pNode->GetValue(XFA_VALUEPICTURE_Display);
     pWidget->SetEditText(wsText);
 
     CXFA_Value* value = m_pNode->GetFormValueIfExists();
@@ -89,20 +88,20 @@ void CXFA_FFDateTimeEdit::UpdateWidgetProperty() {
   uint32_t dwExtendedStyle = FWL_STYLEEXT_DTP_ShortDateFormat;
   dwExtendedStyle |= UpdateUIProperty();
   dwExtendedStyle |= GetAlignment();
-  GetNormalWidget()->ModifyStyleExts(dwExtendedStyle, 0xFFFFFFFF);
+  GetNormalWidget()->ModifyStylesEx(dwExtendedStyle, 0xFFFFFFFF);
 
   uint32_t dwEditStyles = 0;
-  absl::optional<int32_t> numCells = m_pNode->GetNumberOfCells();
-  if (numCells.has_value() && numCells.value() > 0) {
+  Optional<int32_t> numCells = m_pNode->GetNumberOfCells();
+  if (numCells && *numCells > 0) {
     dwEditStyles |= FWL_STYLEEXT_EDT_CombText;
-    pPicker->SetEditLimit(numCells.value());
+    pPicker->SetEditLimit(*numCells);
   }
   if (!m_pNode->IsOpenAccess() || !GetDoc()->GetXFADoc()->IsInteractive())
     dwEditStyles |= FWL_STYLEEXT_EDT_ReadOnly;
   if (!m_pNode->IsHorizontalScrollPolicyOff())
     dwEditStyles |= FWL_STYLEEXT_EDT_AutoHScroll;
 
-  pPicker->ModifyEditStyleExts(dwEditStyles, 0xFFFFFFFF);
+  pPicker->ModifyEditStylesEx(dwEditStyles, 0xFFFFFFFF);
 }
 
 uint32_t CXFA_FFDateTimeEdit::GetAlignment() {
@@ -145,7 +144,7 @@ uint32_t CXFA_FFDateTimeEdit::GetAlignment() {
 
 bool CXFA_FFDateTimeEdit::CommitData() {
   CFWL_DateTimePicker* pPicker = GetPickerWidget();
-  if (!m_pNode->SetValue(XFA_ValuePicture::kEdit, pPicker->GetEditText()))
+  if (!m_pNode->SetValue(XFA_VALUEPICTURE_Edit, pPicker->GetEditText()))
     return false;
 
   GetDoc()->GetDocView()->UpdateUIDisplay(m_pNode.Get(), this);
@@ -156,9 +155,9 @@ bool CXFA_FFDateTimeEdit::UpdateFWLData() {
   if (!GetNormalWidget())
     return false;
 
-  XFA_ValuePicture eType = XFA_ValuePicture::kDisplay;
+  XFA_VALUEPICTURE eType = XFA_VALUEPICTURE_Display;
   if (IsFocused())
-    eType = XFA_ValuePicture::kEdit;
+    eType = XFA_VALUEPICTURE_Edit;
 
   WideString wsText = m_pNode->GetValue(eType);
   CFWL_DateTimePicker* pPicker = GetPickerWidget();
@@ -176,42 +175,43 @@ bool CXFA_FFDateTimeEdit::UpdateFWLData() {
 }
 
 bool CXFA_FFDateTimeEdit::IsDataChanged() {
-  if (GetLayoutItem()->TestStatusBits(XFA_WidgetStatus::kTextEditValueChanged))
+  if (GetLayoutItem()->TestStatusBits(XFA_WidgetStatus_TextEditValueChanged))
     return true;
 
   WideString wsText = GetPickerWidget()->GetEditText();
-  return m_pNode->GetValue(XFA_ValuePicture::kEdit) != wsText;
+  return m_pNode->GetValue(XFA_VALUEPICTURE_Edit) != wsText;
 }
 
 void CXFA_FFDateTimeEdit::OnSelectChanged(CFWL_Widget* pWidget,
                                           int32_t iYear,
                                           int32_t iMonth,
                                           int32_t iDay) {
-  WideString wsPicture = m_pNode->GetPictureContent(XFA_ValuePicture::kEdit);
-  CXFA_LocaleValue date(CXFA_LocaleValue::ValueType::kDate,
-                        GetDoc()->GetXFADoc()->GetLocaleMgr());
+  WideString wsPicture = m_pNode->GetPictureContent(XFA_VALUEPICTURE_Edit);
+
+  CXFA_LocaleValue date(XFA_VT_DATE, GetDoc()->GetXFADoc()->GetLocaleMgr());
   date.SetDate(CFX_DateTime(iYear, iMonth, iDay, 0, 0, 0, 0));
 
   WideString wsDate;
   date.FormatPatterns(wsDate, wsPicture, m_pNode->GetLocale(),
-                      XFA_ValuePicture::kEdit);
+                      XFA_VALUEPICTURE_Edit);
 
   CFWL_DateTimePicker* pPicker = GetPickerWidget();
   pPicker->SetEditText(wsDate);
   pPicker->Update();
-  GetDoc()->SetFocusWidget(nullptr);
+  GetDoc()->GetDocEnvironment()->SetFocusWidget(GetDoc(), nullptr);
 
   CXFA_EventParam eParam;
   eParam.m_eType = XFA_EVENT_Change;
-  eParam.m_wsPrevText = m_pNode->GetValue(XFA_ValuePicture::kRaw);
+  eParam.m_pTarget = m_pNode.Get();
+  eParam.m_wsPrevText = m_pNode->GetValue(XFA_VALUEPICTURE_Raw);
   m_pNode->ProcessEvent(GetDocView(), XFA_AttributeValue::Change, &eParam);
 }
 
 void CXFA_FFDateTimeEdit::OnProcessEvent(CFWL_Event* pEvent) {
   if (pEvent->GetType() == CFWL_Event::Type::SelectChanged) {
     auto* event = static_cast<CFWL_EventSelectChanged*>(pEvent);
-    OnSelectChanged(GetNormalWidget(), event->GetYear(), event->GetMonth(),
-                    event->GetDay());
+    OnSelectChanged(GetNormalWidget(), event->iYear, event->iMonth,
+                    event->iDay);
     return;
   }
   CXFA_FFTextEdit::OnProcessEvent(pEvent);
@@ -225,28 +225,6 @@ bool CXFA_FFDateTimeEdit::CanRedo() {
   return GetPickerWidget()->CanRedo();
 }
 
-bool CXFA_FFDateTimeEdit::CanCopy() {
-  return GetPickerWidget()->HasSelection();
-}
-
-bool CXFA_FFDateTimeEdit::CanCut() {
-  if (GetPickerWidget()->GetStyleExts() & FWL_STYLEEXT_EDT_ReadOnly)
-    return false;
-  return GetPickerWidget()->HasSelection();
-}
-
-bool CXFA_FFDateTimeEdit::CanPaste() {
-  return !(GetPickerWidget()->GetStyleExts() & FWL_STYLEEXT_EDT_ReadOnly);
-}
-
-bool CXFA_FFDateTimeEdit::CanSelectAll() {
-  return GetPickerWidget()->GetEditTextLength() > 0;
-}
-
-absl::optional<WideString> CXFA_FFDateTimeEdit::Copy() {
-  return GetPickerWidget()->Copy();
-}
-
 bool CXFA_FFDateTimeEdit::Undo() {
   return GetPickerWidget()->Undo();
 }
@@ -255,7 +233,29 @@ bool CXFA_FFDateTimeEdit::Redo() {
   return GetPickerWidget()->Redo();
 }
 
-absl::optional<WideString> CXFA_FFDateTimeEdit::Cut() {
+bool CXFA_FFDateTimeEdit::CanCopy() {
+  return GetPickerWidget()->HasSelection();
+}
+
+bool CXFA_FFDateTimeEdit::CanCut() {
+  if (GetPickerWidget()->GetStylesEx() & FWL_STYLEEXT_EDT_ReadOnly)
+    return false;
+  return GetPickerWidget()->HasSelection();
+}
+
+bool CXFA_FFDateTimeEdit::CanPaste() {
+  return !(GetPickerWidget()->GetStylesEx() & FWL_STYLEEXT_EDT_ReadOnly);
+}
+
+bool CXFA_FFDateTimeEdit::CanSelectAll() {
+  return GetPickerWidget()->GetEditTextLength() > 0;
+}
+
+Optional<WideString> CXFA_FFDateTimeEdit::Copy() {
+  return GetPickerWidget()->Copy();
+}
+
+Optional<WideString> CXFA_FFDateTimeEdit::Cut() {
   return GetPickerWidget()->Cut();
 }
 

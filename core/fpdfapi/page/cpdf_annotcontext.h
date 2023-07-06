@@ -1,4 +1,4 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,29 +14,28 @@
 
 class CPDF_Dictionary;
 class CPDF_Form;
+class CPDF_Page;
 class CPDF_Stream;
-class IPDF_Page;
 
 class CPDF_AnnotContext {
  public:
-  CPDF_AnnotContext(RetainPtr<CPDF_Dictionary> pAnnotDict, IPDF_Page* pPage);
+  CPDF_AnnotContext(CPDF_Dictionary* pAnnotDict, CPDF_Page* pPage);
   ~CPDF_AnnotContext();
 
-  void SetForm(RetainPtr<CPDF_Stream> pStream);
+  void SetForm(CPDF_Stream* pStream);
   bool HasForm() const { return !!m_pAnnotForm; }
   CPDF_Form* GetForm() const { return m_pAnnotForm.get(); }
 
   // Never nullptr.
-  RetainPtr<CPDF_Dictionary> GetMutableAnnotDict() { return m_pAnnotDict; }
-  const CPDF_Dictionary* GetAnnotDict() const { return m_pAnnotDict.Get(); }
+  CPDF_Dictionary* GetAnnotDict() const { return m_pAnnotDict.Get(); }
 
   // Never nullptr.
-  IPDF_Page* GetPage() const { return m_pPage; }
+  CPDF_Page* GetPage() const { return m_pPage.Get(); }
 
  private:
   std::unique_ptr<CPDF_Form> m_pAnnotForm;
   RetainPtr<CPDF_Dictionary> const m_pAnnotDict;
-  UnownedPtr<IPDF_Page> const m_pPage;
+  UnownedPtr<CPDF_Page> const m_pPage;
 };
 
 #endif  // CORE_FPDFAPI_PAGE_CPDF_ANNOTCONTEXT_H_

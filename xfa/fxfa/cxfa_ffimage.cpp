@@ -1,12 +1,10 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/fxfa/cxfa_ffimage.h"
-
-#include <utility>
 
 #include "core/fxge/dib/cfx_dibitmap.h"
 #include "xfa/fxfa/cxfa_ffapp.h"
@@ -19,24 +17,22 @@
 
 CXFA_FFImage::CXFA_FFImage(CXFA_Node* pNode) : CXFA_FFWidget(pNode) {}
 
-CXFA_FFImage::~CXFA_FFImage() = default;
-
-void CXFA_FFImage::PreFinalize() {
-  GetNode()->SetLayoutImage(nullptr);
+CXFA_FFImage::~CXFA_FFImage() {
+  GetNode()->SetImageImage(nullptr);
 }
 
 bool CXFA_FFImage::IsLoaded() {
-  return !!GetNode()->GetLayoutImage();
+  return !!GetNode()->GetImageImage();
 }
 
 bool CXFA_FFImage::LoadWidget() {
-  if (GetNode()->GetLayoutImage())
+  if (GetNode()->GetImageImage())
     return true;
 
-  return GetNode()->LoadLayoutImage(GetDoc()) && CXFA_FFWidget::LoadWidget();
+  return GetNode()->LoadImageImage(GetDoc()) && CXFA_FFWidget::LoadWidget();
 }
 
-void CXFA_FFImage::RenderWidget(CFGAS_GEGraphics* pGS,
+void CXFA_FFImage::RenderWidget(CXFA_Graphics* pGS,
                                 const CFX_Matrix& matrix,
                                 HighlightOption highlight) {
   if (!HasVisibleStatus())
@@ -47,7 +43,7 @@ void CXFA_FFImage::RenderWidget(CFGAS_GEGraphics* pGS,
 
   CXFA_FFWidget::RenderWidget(pGS, mtRotate, highlight);
 
-  RetainPtr<CFX_DIBitmap> pDIBitmap = GetNode()->GetLayoutImage();
+  RetainPtr<CFX_DIBitmap> pDIBitmap = GetNode()->GetImageImage();
   if (!pDIBitmap)
     return;
 
@@ -64,14 +60,9 @@ void CXFA_FFImage::RenderWidget(CFGAS_GEGraphics* pGS,
   }
 
   auto* value = m_pNode->GetFormValueIfExists();
-  if (!value)
-    return;
-
-  CXFA_Image* image = value->GetImageIfExists();
-  if (!image)
-    return;
-
-  XFA_DrawImage(pGS, rtImage, mtRotate, std::move(pDIBitmap),
-                image->GetAspect(), m_pNode->GetLayoutImageDpi(), iHorzAlign,
-                iVertAlign);
+  CXFA_Image* image = value ? value->GetImageIfExists() : nullptr;
+  if (image) {
+    XFA_DrawImage(pGS, rtImage, mtRotate, pDIBitmap, image->GetAspect(),
+                  m_pNode->GetImageDpi(), iHorzAlign, iVertAlign);
+  }
 }

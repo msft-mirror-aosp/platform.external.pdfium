@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ class CXFA_Encrypt;
 
 class CJX_Encrypt final : public CJX_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_Encrypt(CXFA_Encrypt* node);
   ~CJX_Encrypt() override;
 
   // CJX_Object:
@@ -23,8 +23,6 @@ class CJX_Encrypt final : public CJX_Node {
   JSE_PROP(format);
 
  private:
-  explicit CJX_Encrypt(CXFA_Encrypt* node);
-
   using Type__ = CJX_Encrypt;
   using ParentType__ = CJX_Node;
 

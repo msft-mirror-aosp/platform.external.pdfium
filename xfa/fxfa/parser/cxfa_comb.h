@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,8 @@
 
 class CXFA_Comb final : public CXFA_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
-  ~CXFA_Comb() override;
-
- private:
   CXFA_Comb(CXFA_Document* doc, XFA_PacketType packet);
+  ~CXFA_Comb() override;
 };
 
 #endif  // XFA_FXFA_PARSER_CXFA_COMB_H_

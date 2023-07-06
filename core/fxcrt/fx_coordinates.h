@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,14 @@
 #ifndef CORE_FXCRT_FX_COORDINATES_H_
 #define CORE_FXCRT_FX_COORDINATES_H_
 
-#include <stdint.h>
+#include <algorithm>
+
+#include "core/fxcrt/fx_system.h"
+#include "third_party/base/numerics/safe_math.h"
 
 #ifndef NDEBUG
-#include <iosfwd>
+#include <ostream>
 #endif
-
-#include "third_party/base/span.h"
 
 template <class BaseType>
 class CFX_PTemplate {
@@ -55,7 +56,6 @@ class CFX_PTemplate {
   BaseType x;
   BaseType y;
 };
-using CFX_Point16 = CFX_PTemplate<int16_t>;
 using CFX_Point = CFX_PTemplate<int32_t>;
 using CFX_PointF = CFX_PTemplate<float>;
 
@@ -148,8 +148,29 @@ class CFX_VTemplate final : public CFX_PTemplate<BaseType> {
                 const CFX_PTemplate<BaseType>& point2)
       : CFX_PTemplate<BaseType>(point2.x - point1.x, point2.y - point1.y) {}
 
-  float Length() const;
-  void Normalize();
+  float Length() const { return sqrt(x * x + y * y); }
+  void Normalize() {
+    float fLen = Length();
+    if (fLen < 0.0001f)
+      return;
+
+    x /= fLen;
+    y /= fLen;
+  }
+  void Translate(BaseType dx, BaseType dy) {
+    x += dx;
+    y += dy;
+  }
+  void Scale(BaseType sx, BaseType sy) {
+    x *= sx;
+    y *= sy;
+  }
+  void Rotate(float fRadian) {
+    float cosValue = cos(fRadian);
+    float sinValue = sin(fRadian);
+    x = x * cosValue - y * sinValue;
+    y = x * sinValue + y * cosValue;
+  }
 };
 using CFX_Vector = CFX_VTemplate<int32_t>;
 using CFX_VectorF = CFX_VTemplate<float>;
@@ -167,12 +188,17 @@ struct FX_RECT {
   int Height() const { return bottom - top; }
   bool IsEmpty() const { return right <= left || bottom <= top; }
 
-  bool Valid() const;
+  bool Valid() const {
+    pdfium::base::CheckedNumeric<int> w = right;
+    pdfium::base::CheckedNumeric<int> h = bottom;
+    w -= left;
+    h -= top;
+    return w.IsValid() && h.IsValid();
+  }
 
   void Normalize();
   void Intersect(const FX_RECT& src);
   void Intersect(int l, int t, int r, int b) { Intersect(FX_RECT(l, t, r, b)); }
-  FX_RECT SwappedClipBox(int width, int height, bool bFlipX, bool bFlipY) const;
 
   void Offset(int dx, int dy) {
     left += dx;
@@ -203,10 +229,12 @@ class CFX_FloatRect {
   constexpr CFX_FloatRect(float l, float b, float r, float t)
       : left(l), bottom(b), right(r), top(t) {}
 
-  explicit CFX_FloatRect(const FX_RECT& rect);
-  explicit CFX_FloatRect(const CFX_PointF& point);
+  explicit CFX_FloatRect(const float* pArray)
+      : CFX_FloatRect(pArray[0], pArray[1], pArray[2], pArray[3]) {}
 
-  static CFX_FloatRect GetBBox(pdfium::span<const CFX_PointF> pPoints);
+  explicit CFX_FloatRect(const FX_RECT& rect);
+
+  static CFX_FloatRect GetBBox(const CFX_PointF* pPoints, int nPoints);
 
   void Normalize();
 
@@ -233,6 +261,12 @@ class CFX_FloatRect {
 
   CFX_FloatRect GetCenterSquare() const;
 
+  void InitRect(const CFX_PointF& point) {
+    left = point.x;
+    right = point.x;
+    bottom = point.y;
+    top = point.y;
+  }
   void UpdateRect(const CFX_PointF& point);
 
   float Width() const { return right - left; }
@@ -274,11 +308,6 @@ class CFX_FloatRect {
   // Rounds LBRT values.
   FX_RECT ToRoundedFxRect() const;
 
-  bool operator==(const CFX_FloatRect& other) const {
-    return left == other.left && right == other.right && top == other.top &&
-           bottom == other.bottom;
-  }
-
   float left = 0.0f;
   float bottom = 0.0f;
   float right = 0.0f;
@@ -315,8 +344,6 @@ class CFX_RectF {
 
   // NOLINTNEXTLINE(runtime/explicit)
   CFX_RectF(const CFX_RectF& other) = default;
-
-  CFX_RectF& operator=(const CFX_RectF& other) = default;
 
   CFX_RectF& operator+=(const PointType& p) {
     left += p.x;
@@ -409,10 +436,43 @@ class CFX_RectF {
   PointType Center() const {
     return PointType(left + width / 2, top + height / 2);
   }
-  void Union(float x, float y);
+  void Union(float x, float y) {
+    float r = right();
+    float b = bottom();
+
+    left = std::min(left, x);
+    top = std::min(top, y);
+    r = std::max(r, x);
+    b = std::max(b, y);
+
+    width = r - left;
+    height = b - top;
+  }
   void Union(const PointType& p) { Union(p.x, p.y); }
-  void Union(const CFX_RectF& rt);
-  void Intersect(const CFX_RectF& rt);
+  void Union(const CFX_RectF& rt) {
+    float r = right();
+    float b = bottom();
+
+    left = std::min(left, rt.left);
+    top = std::min(top, rt.top);
+    r = std::max(r, rt.right());
+    b = std::max(b, rt.bottom());
+
+    width = r - left;
+    height = b - top;
+  }
+  void Intersect(const CFX_RectF& rt) {
+    float r = right();
+    float b = bottom();
+
+    left = std::max(left, rt.left);
+    top = std::max(top, rt.top);
+    r = std::min(r, rt.right());
+    b = std::min(b, rt.bottom());
+
+    width = r - left;
+    height = b - top;
+  }
   bool IntersectWith(const CFX_RectF& rt) const {
     CFX_RectF rect = rt;
     rect.Intersect(*this);

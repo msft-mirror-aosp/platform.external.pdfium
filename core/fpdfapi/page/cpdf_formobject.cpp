@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,12 +17,11 @@ CPDF_FormObject::CPDF_FormObject(int32_t content_stream,
       m_pForm(std::move(pForm)),
       m_FormMatrix(matrix) {}
 
-CPDF_FormObject::~CPDF_FormObject() = default;
+CPDF_FormObject::~CPDF_FormObject() {}
 
 void CPDF_FormObject::Transform(const CFX_Matrix& matrix) {
   m_FormMatrix.Concat(matrix);
   CalcBoundingBox();
-  SetDirty(true);
 }
 
 bool CPDF_FormObject::IsForm() const {
@@ -38,14 +37,9 @@ const CPDF_FormObject* CPDF_FormObject::AsForm() const {
 }
 
 CPDF_PageObject::Type CPDF_FormObject::GetType() const {
-  return Type::kForm;
+  return FORM;
 }
 
 void CPDF_FormObject::CalcBoundingBox() {
   SetRect(m_FormMatrix.TransformRect(m_pForm->CalcBoundingBox()));
-}
-
-void CPDF_FormObject::SetFormMatrix(const CFX_Matrix& matrix) {
-  m_FormMatrix = matrix;
-  CalcBoundingBox();
 }

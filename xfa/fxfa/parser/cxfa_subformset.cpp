@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,14 @@
 #include "xfa/fxfa/parser/cxfa_subformset.h"
 
 #include "fxjs/xfa/cjx_container.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kSubformSetPropertyData[] = {
-    {XFA_Element::Break, 1, {}},  {XFA_Element::Overflow, 1, {}},
-    {XFA_Element::Desc, 1, {}},   {XFA_Element::Bookend, 1, {}},
-    {XFA_Element::Extras, 1, {}}, {XFA_Element::Occur, 1, {}},
+    {XFA_Element::Break, 1, 0},  {XFA_Element::Overflow, 1, 0},
+    {XFA_Element::Desc, 1, 0},   {XFA_Element::Bookend, 1, 0},
+    {XFA_Element::Extras, 1, 0}, {XFA_Element::Occur, 1, 0},
 };
 
 const CXFA_Node::AttributeData kSubformSetAttributeData[] = {
@@ -32,13 +32,11 @@ const CXFA_Node::AttributeData kSubformSetAttributeData[] = {
 CXFA_SubformSet::CXFA_SubformSet(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::ContainerNode,
                 XFA_Element::SubformSet,
                 kSubformSetPropertyData,
                 kSubformSetAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Container>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Container>(this)) {}
 
 CXFA_SubformSet::~CXFA_SubformSet() = default;

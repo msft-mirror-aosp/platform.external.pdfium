@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,7 @@
 
 #include "fxjs/cjs_event_context_stub.h"
 
-CJS_EventContextStub::CJS_EventContextStub() = default;
-
-CJS_EventContextStub::~CJS_EventContextStub() = default;
-
-absl::optional<IJS_Runtime::JS_Error> CJS_EventContextStub::RunScript(
+Optional<IJS_Runtime::JS_Error> CJS_EventContextStub::RunScript(
     const WideString& script) {
   return IJS_Runtime::JS_Error(1, 1, L"JavaScript support not present");
 }
