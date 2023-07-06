@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,32 +11,14 @@
 
 #include "core/fxcrt/widestring.h"
 #include "fxjs/xfa/cjx_object.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 #include "xfa/fxfa/fxfa_basic.h"
 
-using XFA_ATTRIBUTE_CALLBACK = void (*)(v8::Isolate* pIsolate,
-                                        CJX_Object* pNode,
-                                        v8::Local<v8::Value>* pValue,
-                                        bool bSetting,
-                                        XFA_Attribute eAttribute);
-
-enum class XFA_PacketMatch : uint8_t {
-  kCompleteMatch = 1,
-  kPrefixMatch,
-  kNoMatch,
-};
-
-enum class XFA_PacketSupport : uint8_t {
-  kSupportOne = 1,
-  kSupportMany,
-};
-
 struct XFA_PACKETINFO {
+  const wchar_t* name;
   XFA_PacketType packet_type;
-  XFA_PacketMatch match;
-  XFA_PacketSupport support;
-  const char* name;
-  const char* uri;
+  const wchar_t* uri;
+  uint32_t flags;
 };
 
 struct XFA_ATTRIBUTEINFO {
@@ -51,19 +33,18 @@ struct XFA_SCRIPTATTRIBUTEINFO {
 };
 
 XFA_PACKETINFO XFA_GetPacketByIndex(XFA_PacketType ePacket);
-absl::optional<XFA_PACKETINFO> XFA_GetPacketByName(WideStringView wsName);
+Optional<XFA_PACKETINFO> XFA_GetPacketByName(WideStringView wsName);
 
 ByteStringView XFA_ElementToName(XFA_Element elem);
 XFA_Element XFA_GetElementByName(WideStringView name);
 
 ByteStringView XFA_AttributeToName(XFA_Attribute attr);
-absl::optional<XFA_ATTRIBUTEINFO> XFA_GetAttributeByName(WideStringView name);
+Optional<XFA_ATTRIBUTEINFO> XFA_GetAttributeByName(WideStringView name);
 
 ByteStringView XFA_AttributeValueToName(XFA_AttributeValue item);
-absl::optional<XFA_AttributeValue> XFA_GetAttributeValueByName(
-    WideStringView name);
+Optional<XFA_AttributeValue> XFA_GetAttributeValueByName(WideStringView name);
 
-absl::optional<XFA_SCRIPTATTRIBUTEINFO> XFA_GetScriptAttributeByName(
+Optional<XFA_SCRIPTATTRIBUTEINFO> XFA_GetScriptAttributeByName(
     XFA_Element eElement,
     WideStringView wsAttributeName);
 

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,23 +7,19 @@
 #include "xfa/fgas/font/cfgas_pdffontmgr.h"
 
 #include <algorithm>
-#include <iterator>
-#include <utility>
 
 #include "core/fpdfapi/font/cpdf_font.h"
 #include "core/fpdfapi/page/cpdf_docpagedata.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
-#include "core/fpdfapi/parser/fpdf_parser_utility.h"
 #include "core/fxge/fx_font.h"
-#include "third_party/base/check.h"
 #include "xfa/fgas/font/cfgas_fontmgr.h"
 #include "xfa/fgas/font/cfgas_gefont.h"
 
 namespace {
 
 // The 5 names per entry are: PsName, Normal, Bold, Italic, BoldItalic.
-const char* const kXFAPDFFontName[][5] = {
+const char* const g_XFAPDFFontName[][5] = {
     {"Adobe PI Std", "AdobePIStd", "AdobePIStd", "AdobePIStd", "AdobePIStd"},
     {"Myriad Pro Light", "MyriadPro-Light", "MyriadPro-Semibold",
      "MyriadPro-LightIt", "MyriadPro-SemiboldIt"},
@@ -31,17 +27,19 @@ const char* const kXFAPDFFontName[][5] = {
 
 }  // namespace
 
-CFGAS_PDFFontMgr::CFGAS_PDFFontMgr(const CPDF_Document* pDoc) : m_pDoc(pDoc) {
-  DCHECK(pDoc);
+CFGAS_PDFFontMgr::CFGAS_PDFFontMgr(CPDF_Document* pDoc, CFGAS_FontMgr* pFontMgr)
+    : m_pDoc(pDoc), m_pFontMgr(pFontMgr) {
+  ASSERT(pDoc);
+  ASSERT(pFontMgr);
 }
 
-CFGAS_PDFFontMgr::~CFGAS_PDFFontMgr() = default;
+CFGAS_PDFFontMgr::~CFGAS_PDFFontMgr() {}
 
 RetainPtr<CFGAS_GEFont> CFGAS_PDFFontMgr::FindFont(const ByteString& strPsName,
                                                    bool bBold,
                                                    bool bItalic,
                                                    bool bStrictMatch) {
-  RetainPtr<const CPDF_Dictionary> pFontSetDict =
+  CPDF_Dictionary* pFontSetDict =
       m_pDoc->GetRoot()->GetDictFor("AcroForm")->GetDictFor("DR");
   if (!pFontSetDict)
     return nullptr;
@@ -53,35 +51,34 @@ RetainPtr<CFGAS_GEFont> CFGAS_PDFFontMgr::FindFont(const ByteString& strPsName,
   ByteString name = strPsName;
   name.Remove(' ');
 
-  auto* pData = CPDF_DocPageData::FromDocument(m_pDoc);
+  auto* pData = CPDF_DocPageData::FromDocument(m_pDoc.Get());
   CPDF_DictionaryLocker locker(pFontSetDict);
   for (const auto& it : locker) {
     const ByteString& key = it.first;
-    const RetainPtr<CPDF_Object>& pObj = it.second;
+    CPDF_Object* pObj = it.second.Get();
     if (!PsNameMatchDRFontName(name.AsStringView(), bBold, bItalic, key,
                                bStrictMatch)) {
       continue;
     }
-    RetainPtr<CPDF_Dictionary> pFontDict =
-        ToDictionary(pObj->GetMutableDirect());
-    if (!ValidateDictType(pFontDict.Get(), "Font"))
+    CPDF_Dictionary* pFontDict = ToDictionary(pObj->GetDirect());
+    if (!pFontDict || pFontDict->GetStringFor("Type") != "Font")
       return nullptr;
 
     RetainPtr<CPDF_Font> pPDFFont = pData->GetFont(pFontDict);
     if (!pPDFFont || !pPDFFont->IsEmbedded())
       return nullptr;
 
-    return CFGAS_GEFont::LoadFont(std::move(pPDFFont));
+    return CFGAS_GEFont::LoadFont(pPDFFont, m_pFontMgr.Get());
   }
   return nullptr;
 }
 
-RetainPtr<CFGAS_GEFont> CFGAS_PDFFontMgr::GetFont(
-    const WideString& wsFontFamily,
-    uint32_t dwFontStyles,
-    bool bStrictMatch) {
-  auto key = std::make_pair(wsFontFamily, dwFontStyles);
-  auto it = m_FontMap.find(key);
+RetainPtr<CFGAS_GEFont> CFGAS_PDFFontMgr::GetFont(WideStringView wsFontFamily,
+                                                  uint32_t dwFontStyles,
+                                                  bool bStrictMatch) {
+  uint32_t dwHashCode = FX_HashCode_GetW(wsFontFamily, false);
+  ByteString strKey = ByteString::Format("%u%u", dwHashCode, dwFontStyles);
+  auto it = m_FontMap.find(strKey);
   if (it != m_FontMap.end())
     return it->second;
 
@@ -91,24 +88,23 @@ RetainPtr<CFGAS_GEFont> CFGAS_PDFFontMgr::GetFont(
   ByteString strFontName = PsNameToFontName(bsPsName, bBold, bItalic);
   RetainPtr<CFGAS_GEFont> pFont =
       FindFont(strFontName, bBold, bItalic, bStrictMatch);
-  if (!pFont)
-    return nullptr;
+  if (pFont)
+    m_FontMap[strKey] = pFont;
 
-  m_FontMap[key] = pFont;
   return pFont;
 }
 
 ByteString CFGAS_PDFFontMgr::PsNameToFontName(const ByteString& strPsName,
                                               bool bBold,
                                               bool bItalic) {
-  for (size_t i = 0; i < std::size(kXFAPDFFontName); ++i) {
-    if (strPsName == kXFAPDFFontName[i][0]) {
+  for (size_t i = 0; i < FX_ArraySize(g_XFAPDFFontName); ++i) {
+    if (strPsName == g_XFAPDFFontName[i][0]) {
       size_t index = 1;
       if (bBold)
         ++index;
       if (bItalic)
         index += 2;
-      return kXFAPDFFontName[i][index];
+      return g_XFAPDFFontName[i][index];
     }
   }
   return strPsName;

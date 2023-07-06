@@ -1,11 +1,13 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <string.h>
-
+#include <cstring>
+#include <memory>
 #include <string>
+#include <vector>
 
+#include "core/fxcrt/fx_system.h"
 #include "public/cpp/fpdf_scopers.h"
 #include "public/fpdf_annot.h"
 #include "public/fpdf_edit.h"
@@ -46,7 +48,7 @@ TEST_F(CPDF_CreatorEmbedderTest, SavedDocsAreEqualAfterParse) {
 }
 
 TEST_F(CPDF_CreatorEmbedderTest, BUG_873) {
-  ASSERT_TRUE(OpenDocument("embedded_attachments.pdf"));
+  EXPECT_TRUE(OpenDocument("embedded_attachments.pdf"));
   EXPECT_TRUE(FPDF_SaveAsCopy(document(), this, 0));
 
   // Cannot match second part of the ID since it is randomly generated.
@@ -67,24 +69,24 @@ TEST_F(CPDF_CreatorEmbedderTest, SaveLinearizedInfo) {
   FileAccessForTesting file_acc("linearized.pdf");
   FakeFileAccess fake_acc(&file_acc);
 
-  CreateAvail(fake_acc.GetFileAvail(), fake_acc.GetFileAccess());
+  avail_ = FPDFAvail_Create(fake_acc.GetFileAvail(), fake_acc.GetFileAccess());
   while (PDF_DATA_AVAIL !=
-         FPDFAvail_IsDocAvail(avail(), fake_acc.GetDownloadHints())) {
+         FPDFAvail_IsDocAvail(avail_, fake_acc.GetDownloadHints())) {
     fake_acc.SetRequestedDataAvailable();
   }
 
-  SetDocumentFromAvail();
-  ASSERT_TRUE(document());
+  document_ = FPDFAvail_GetDocument(avail_, nullptr);
+  ASSERT_TRUE(document_);
 
   // Load second page, to parse additional crossref sections.
   while (PDF_DATA_AVAIL !=
-         FPDFAvail_IsPageAvail(avail(), 1, fake_acc.GetDownloadHints())) {
+         FPDFAvail_IsPageAvail(avail_, 1, fake_acc.GetDownloadHints())) {
     fake_acc.SetRequestedDataAvailable();
   }
   // Simulate downloading of whole file.
   fake_acc.SetWholeFileAvailable();
   // Save document.
-  EXPECT_TRUE(FPDF_SaveAsCopy(document(), this, 0));
+  EXPECT_TRUE(FPDF_SaveAsCopy(document_, this, 0));
   const std::string saved_doc = GetString();
 
   EXPECT_THAT(saved_doc, ::testing::HasSubstr("/Info"));

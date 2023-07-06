@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ class CXFA_Field;
 
 class CJX_Field final : public CJX_Container {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_Field(CXFA_Field* field);
   ~CJX_Field() override;
 
   // CJX_Object:
@@ -43,8 +43,6 @@ class CJX_Field final : public CJX_Container {
   JSE_PROP(selectedIndex);
 
  private:
-  explicit CJX_Field(CXFA_Field* field);
-
   using Type__ = CJX_Field;
   using ParentType__ = CJX_Container;
 

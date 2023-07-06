@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,14 +8,15 @@
 #define CORE_FXCRT_XML_CFX_XMLPARSER_H_
 
 #include <memory>
+#include <vector>
 
-#include "core/fxcrt/data_vector.h"
+#include "core/fxcrt/fx_memory_wrappers.h"
+#include "core/fxcrt/fx_string.h"
 #include "core/fxcrt/retain_ptr.h"
-#include "core/fxcrt/widestring.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class CFX_SeekableStreamProxy;
 class CFX_XMLDocument;
+class CFX_XMLElement;
 class CFX_XMLNode;
 class IFX_SeekableReadStream;
 
@@ -55,9 +56,9 @@ class CFX_XMLParser final {
 
   CFX_XMLNode* current_node_ = nullptr;
   RetainPtr<CFX_SeekableStreamProxy> stream_;
-  DataVector<wchar_t> current_text_;
+  std::vector<wchar_t, FxAllocAllocator<wchar_t>> current_text_;
   size_t xml_plane_size_ = 1024;
-  absl::optional<size_t> entity_start_;
+  int32_t entity_start_ = -1;
 };
 
 #endif  // CORE_FXCRT_XML_CFX_XMLPARSER_H_

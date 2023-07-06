@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,13 @@
 
 #include "core/fxcodec/jbig2/JBig2_HuffmanTable.h"
 
-#include <iterator>
 #include <limits>
+#include <vector>
 
 #include "core/fxcodec/jbig2/JBig2_BitStream.h"
 #include "core/fxcodec/jbig2/JBig2_Context.h"
-#include "core/fxcrt/fx_safe_types.h"
-#include "third_party/base/check.h"
+#include "core/fxcrt/fx_memory.h"
+#include "third_party/base/numerics/safe_math.h"
 
 namespace {
 
@@ -107,36 +107,36 @@ constexpr JBig2TableLine kTableLine15[] = {
 
 constexpr HuffmanTable kHuffmanTables[16] = {
     {false, nullptr, 0},  // Zero dummy to preserve indexing.
-    {false, kTableLine1, std::size(kTableLine1)},
-    {true, kTableLine2, std::size(kTableLine2)},
-    {true, kTableLine3, std::size(kTableLine3)},
-    {false, kTableLine4, std::size(kTableLine4)},
-    {false, kTableLine5, std::size(kTableLine5)},
-    {false, kTableLine6, std::size(kTableLine6)},
-    {false, kTableLine7, std::size(kTableLine7)},
-    {true, kTableLine8, std::size(kTableLine8)},
-    {true, kTableLine9, std::size(kTableLine9)},
-    {true, kTableLine10, std::size(kTableLine10)},
-    {false, kTableLine11, std::size(kTableLine11)},
-    {false, kTableLine12, std::size(kTableLine12)},
-    {false, kTableLine13, std::size(kTableLine13)},
-    {false, kTableLine14, std::size(kTableLine14)},
-    {false, kTableLine15, std::size(kTableLine15)}};
+    {false, kTableLine1, FX_ArraySize(kTableLine1)},
+    {true, kTableLine2, FX_ArraySize(kTableLine2)},
+    {true, kTableLine3, FX_ArraySize(kTableLine3)},
+    {false, kTableLine4, FX_ArraySize(kTableLine4)},
+    {false, kTableLine5, FX_ArraySize(kTableLine5)},
+    {false, kTableLine6, FX_ArraySize(kTableLine6)},
+    {false, kTableLine7, FX_ArraySize(kTableLine7)},
+    {true, kTableLine8, FX_ArraySize(kTableLine8)},
+    {true, kTableLine9, FX_ArraySize(kTableLine9)},
+    {true, kTableLine10, FX_ArraySize(kTableLine10)},
+    {false, kTableLine11, FX_ArraySize(kTableLine11)},
+    {false, kTableLine12, FX_ArraySize(kTableLine12)},
+    {false, kTableLine13, FX_ArraySize(kTableLine13)},
+    {false, kTableLine14, FX_ArraySize(kTableLine14)},
+    {false, kTableLine15, FX_ArraySize(kTableLine15)}};
 
 static_assert(CJBig2_HuffmanTable::kNumHuffmanTables ==
-                  std::size(kHuffmanTables),
+                  FX_ArraySize(kHuffmanTables),
               "kNumHuffmanTables must be equal to the size of kHuffmanTables");
 
 }  // namespace
 
 CJBig2_HuffmanTable::CJBig2_HuffmanTable(size_t idx) {
-  DCHECK(idx > 0);
-  DCHECK(idx < kNumHuffmanTables);
+  ASSERT(idx > 0);
+  ASSERT(idx < kNumHuffmanTables);
   const HuffmanTable& table = kHuffmanTables[idx];
   HTOOB = table.HTOOB;
-  NTEMP = pdfium::base::checked_cast<uint32_t>(table.size);
+  NTEMP = table.size;
   m_bOK = ParseFromStandardTable(idx);
-  DCHECK(m_bOK);
+  ASSERT(m_bOK);
 }
 
 CJBig2_HuffmanTable::CJBig2_HuffmanTable(CJBig2_BitStream* pStream)
@@ -144,7 +144,7 @@ CJBig2_HuffmanTable::CJBig2_HuffmanTable(CJBig2_BitStream* pStream)
   m_bOK = ParseFromCodedBuffer(pStream);
 }
 
-CJBig2_HuffmanTable::~CJBig2_HuffmanTable() = default;
+CJBig2_HuffmanTable::~CJBig2_HuffmanTable() {}
 
 bool CJBig2_HuffmanTable::ParseFromStandardTable(size_t idx) {
   const JBig2TableLine* pTable = kHuffmanTables[idx].lines;
@@ -180,7 +180,7 @@ bool CJBig2_HuffmanTable::ParseFromCodedBuffer(CJBig2_BitStream* pStream) {
     return false;
 
   ExtendBuffers(false);
-  FX_SAFE_INT32 cur_low = low;
+  pdfium::base::CheckedNumeric<int> cur_low = low;
   do {
     if ((pStream->readNBits(HTPS, &CODES[NTEMP].codelen) == -1) ||
         (pStream->readNBits(HTRS, &RANGELEN[NTEMP]) == -1) ||
@@ -234,7 +234,7 @@ void CJBig2_HuffmanTable::ExtendBuffers(bool increment) {
     return;
 
   size += 16;
-  DCHECK(NTEMP < size);
+  ASSERT(NTEMP < size);
   CODES.resize(size);
   RANGELEN.resize(size);
   RANGELOW.resize(size);

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,14 +26,13 @@
 #include "fxbarcode/qrcode/BC_QRCoder.h"
 #include "fxbarcode/qrcode/BC_QRCoderErrorCorrectionLevel.h"
 #include "fxbarcode/qrcode/BC_QRCoderMode.h"
-#include "third_party/base/numerics/safe_conversions.h"
 
 CBC_QRCoder::CBC_QRCoder() = default;
 
 CBC_QRCoder::~CBC_QRCoder() = default;
 
 const CBC_QRCoderErrorCorrectionLevel* CBC_QRCoder::GetECLevel() const {
-  return m_ecLevel;
+  return m_ecLevel.Get();
 }
 
 int32_t CBC_QRCoder::GetVersion() const {
@@ -60,8 +59,8 @@ int32_t CBC_QRCoder::GetNumRSBlocks() const {
   return m_numRSBlocks;
 }
 
-std::unique_ptr<CBC_CommonByteMatrix> CBC_QRCoder::TakeMatrix() {
-  return std::move(m_matrix);
+const CBC_CommonByteMatrix* CBC_QRCoder::GetMatrix() const {
+  return m_matrix.get();
 }
 
 bool CBC_QRCoder::IsValid() const {
@@ -70,8 +69,7 @@ bool CBC_QRCoder::IsValid() const {
          m_numECBytes != -1 && m_numRSBlocks != -1 &&
          IsValidMaskPattern(m_maskPattern) &&
          m_numTotalBytes == m_numDataBytes + m_numECBytes && m_matrix &&
-         m_matrixWidth ==
-             pdfium::base::checked_cast<int32_t>(m_matrix->GetWidth()) &&
+         m_matrixWidth == m_matrix->GetWidth() &&
          m_matrix->GetWidth() == m_matrix->GetHeight();
 }
 

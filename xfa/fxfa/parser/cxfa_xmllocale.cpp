@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,12 @@
 
 #include <utility>
 
-#include "core/fxcrt/cfx_read_only_span_stream.h"
+#include "core/fxcrt/cfx_readonlymemorystream.h"
 #include "core/fxcrt/fx_codepage.h"
 #include "core/fxcrt/xml/cfx_xmldocument.h"
 #include "core/fxcrt/xml/cfx_xmlelement.h"
 #include "core/fxcrt/xml/cfx_xmlparser.h"
-#include "third_party/base/check.h"
+#include "third_party/base/ptr_util.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 #include "xfa/fxfa/parser/cxfa_localemgr.h"
 #include "xfa/fxfa/parser/cxfa_nodelocale.h"
@@ -30,37 +30,37 @@ constexpr wchar_t kCurrencySymbol[] = L"currencySymbol";
 }  // namespace
 
 // static
-CXFA_XMLLocale* CXFA_XMLLocale::Create(cppgc::Heap* heap,
-                                       pdfium::span<uint8_t> data) {
-  auto stream = pdfium::MakeRetain<CFX_ReadOnlySpanStream>(data);
+std::unique_ptr<CXFA_XMLLocale> CXFA_XMLLocale::Create(
+    pdfium::span<uint8_t> data) {
+  auto stream = pdfium::MakeRetain<CFX_ReadOnlyMemoryStream>(data);
   CFX_XMLParser parser(stream);
   auto doc = parser.Parse();
   if (!doc)
     return nullptr;
 
+  CFX_XMLElement* locale = nullptr;
   for (auto* child = doc->GetRoot()->GetFirstChild(); child;
        child = child->GetNextSibling()) {
     CFX_XMLElement* elem = ToXMLElement(child);
     if (elem && elem->GetName().EqualsASCII("locale")) {
-      return cppgc::MakeGarbageCollected<CXFA_XMLLocale>(
-          heap->GetAllocationHandle(), std::move(doc), elem);
+      locale = elem;
+      break;
     }
   }
-  return nullptr;
+  if (!locale)
+    return nullptr;
+
+  return pdfium::MakeUnique<CXFA_XMLLocale>(std::move(doc), locale);
 }
 
 CXFA_XMLLocale::CXFA_XMLLocale(std::unique_ptr<CFX_XMLDocument> doc,
-                               const CFX_XMLElement* locale)
+                               CFX_XMLElement* locale)
     : xml_doc_(std::move(doc)), locale_(locale) {
-  DCHECK(xml_doc_);
-  DCHECK(locale_);
+  ASSERT(xml_doc_);
+  ASSERT(locale_);
 }
 
-CXFA_XMLLocale::~CXFA_XMLLocale() = default;
-
-void CXFA_XMLLocale::Trace(cppgc::Visitor* visitor) const {
-  GCedLocaleIface::Trace(visitor);
-}
+CXFA_XMLLocale::~CXFA_XMLLocale() {}
 
 WideString CXFA_XMLLocale::GetName() const {
   return locale_->GetAttribute(L"name");
@@ -113,8 +113,8 @@ WideString CXFA_XMLLocale::GetMeridiemName(bool bAM) const {
   return GetCalendarSymbol(L"meridiem", bAM ? 0 : 1, false);
 }
 
-int CXFA_XMLLocale::GetTimeZoneInMinutes() const {
-  return CXFA_TimeZoneProvider().GetTimeZoneInMinutes();
+FX_TIMEZONE CXFA_XMLLocale::GetTimeZone() const {
+  return CXFA_TimeZoneProvider().GetTimeZone();
 }
 
 WideString CXFA_XMLLocale::GetEraName(bool bAD) const {
@@ -153,55 +153,57 @@ WideString CXFA_XMLLocale::GetCalendarSymbol(WideStringView symbol,
   return sym_element ? sym_element->GetTextData() : WideString();
 }
 
-WideString CXFA_XMLLocale::GetDatePattern(DateTimeSubcategory eType) const {
+WideString CXFA_XMLLocale::GetDatePattern(
+    FX_LOCALEDATETIMESUBCATEGORY eType) const {
   CFX_XMLElement* patterns = locale_->GetFirstChildNamed(L"datePatterns");
   if (!patterns)
     return WideString();
 
   WideString wsName;
   switch (eType) {
-    case DateTimeSubcategory::kShort:
+    case FX_LOCALEDATETIMESUBCATEGORY_Short:
       wsName = L"short";
       break;
-    case DateTimeSubcategory::kDefault:
-    case DateTimeSubcategory::kMedium:
+    case FX_LOCALEDATETIMESUBCATEGORY_Default:
+    case FX_LOCALEDATETIMESUBCATEGORY_Medium:
       wsName = L"med";
       break;
-    case DateTimeSubcategory::kFull:
+    case FX_LOCALEDATETIMESUBCATEGORY_Full:
       wsName = L"full";
       break;
-    case DateTimeSubcategory::kLong:
+    case FX_LOCALEDATETIMESUBCATEGORY_Long:
       wsName = L"long";
       break;
   }
   return GetPattern(patterns, L"datePattern", wsName.AsStringView());
 }
 
-WideString CXFA_XMLLocale::GetTimePattern(DateTimeSubcategory eType) const {
+WideString CXFA_XMLLocale::GetTimePattern(
+    FX_LOCALEDATETIMESUBCATEGORY eType) const {
   CFX_XMLElement* patterns = locale_->GetFirstChildNamed(L"timePatterns");
   if (!patterns)
     return WideString();
 
   WideString wsName;
   switch (eType) {
-    case DateTimeSubcategory::kShort:
+    case FX_LOCALEDATETIMESUBCATEGORY_Short:
       wsName = L"short";
       break;
-    case DateTimeSubcategory::kDefault:
-    case DateTimeSubcategory::kMedium:
+    case FX_LOCALEDATETIMESUBCATEGORY_Default:
+    case FX_LOCALEDATETIMESUBCATEGORY_Medium:
       wsName = L"med";
       break;
-    case DateTimeSubcategory::kFull:
+    case FX_LOCALEDATETIMESUBCATEGORY_Full:
       wsName = L"full";
       break;
-    case DateTimeSubcategory::kLong:
+    case FX_LOCALEDATETIMESUBCATEGORY_Long:
       wsName = L"long";
       break;
   }
   return GetPattern(patterns, L"timePattern", wsName.AsStringView());
 }
 
-WideString CXFA_XMLLocale::GetNumPattern(NumSubcategory eType) const {
+WideString CXFA_XMLLocale::GetNumPattern(FX_LOCALENUMSUBCATEGORY eType) const {
   CFX_XMLElement* patterns = locale_->GetFirstChildNamed(L"numberPatterns");
   return patterns ? XFA_PatternToString(eType) : WideString();
 }

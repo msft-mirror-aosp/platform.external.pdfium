@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,57 +11,32 @@
 #include <memory>
 
 #include "core/fxcrt/fx_codepage.h"
-#include "core/fxcrt/stl_util.h"
-#include "core/fxcrt/unowned_ptr.h"
 #include "core/fxge/cfx_font.h"
 #include "core/fxge/cfx_fontmapper.h"
 #include "core/fxge/cfx_fontmgr.h"
 #include "core/fxge/cfx_gemodule.h"
 #include "core/fxge/fx_font.h"
 #include "core/fxge/systemfontinfo_iface.h"
-#include "third_party/base/numerics/safe_conversions.h"
+#include "third_party/base/ptr_util.h"
 
-#ifdef PDF_ENABLE_XFA
-#include "xfa/fgas/font/cfgas_fontmgr.h"
-#include "xfa/fgas/font/cfgas_gemodule.h"
-#endif
-
-static_assert(FXFONT_ANSI_CHARSET == static_cast<int>(FX_Charset::kANSI),
+static_assert(FXFONT_ANSI_CHARSET == FX_CHARSET_ANSI, "Charset must match");
+static_assert(FXFONT_DEFAULT_CHARSET == FX_CHARSET_Default,
               "Charset must match");
-static_assert(FXFONT_DEFAULT_CHARSET == static_cast<int>(FX_Charset::kDefault),
+static_assert(FXFONT_SYMBOL_CHARSET == FX_CHARSET_Symbol, "Charset must match");
+static_assert(FXFONT_SHIFTJIS_CHARSET == FX_CHARSET_ShiftJIS,
               "Charset must match");
-static_assert(FXFONT_SYMBOL_CHARSET == static_cast<int>(FX_Charset::kSymbol),
+static_assert(FXFONT_HANGEUL_CHARSET == FX_CHARSET_Hangul,
               "Charset must match");
-static_assert(FXFONT_SHIFTJIS_CHARSET ==
-                  static_cast<int>(FX_Charset::kShiftJIS),
+static_assert(FXFONT_GB2312_CHARSET == FX_CHARSET_ChineseSimplified,
               "Charset must match");
-static_assert(FXFONT_HANGEUL_CHARSET == static_cast<int>(FX_Charset::kHangul),
+static_assert(FXFONT_CHINESEBIG5_CHARSET == FX_CHARSET_ChineseTraditional,
               "Charset must match");
-static_assert(FXFONT_GB2312_CHARSET ==
-                  static_cast<int>(FX_Charset::kChineseSimplified),
+static_assert(FXFONT_ARABIC_CHARSET == FX_CHARSET_MSWin_Arabic,
               "Charset must match");
-static_assert(FXFONT_CHINESEBIG5_CHARSET ==
-                  static_cast<int>(FX_Charset::kChineseTraditional),
-              "Charset must match");
-static_assert(FXFONT_GREEK_CHARSET ==
-                  static_cast<int>(FX_Charset::kMSWin_Greek),
-              "Charset must match");
-static_assert(FXFONT_VIETNAMESE_CHARSET ==
-                  static_cast<int>(FX_Charset::kMSWin_Vietnamese),
-              "Charset must match");
-static_assert(FXFONT_HEBREW_CHARSET ==
-                  static_cast<int>(FX_Charset::kMSWin_Hebrew),
-              "Charset must match");
-static_assert(FXFONT_ARABIC_CHARSET ==
-                  static_cast<int>(FX_Charset::kMSWin_Arabic),
-              "Charset must match");
-static_assert(FXFONT_CYRILLIC_CHARSET ==
-                  static_cast<int>(FX_Charset::kMSWin_Cyrillic),
-              "Charset must match");
-static_assert(FXFONT_THAI_CHARSET == static_cast<int>(FX_Charset::kThai),
+static_assert(FXFONT_CYRILLIC_CHARSET == FX_CHARSET_MSWin_Cyrillic,
               "Charset must match");
 static_assert(FXFONT_EASTERNEUROPEAN_CHARSET ==
-                  static_cast<int>(FX_Charset::kMSWin_EasternEuropean),
+                  FX_CHARSET_MSWin_EasternEuropean,
               "Charset must match");
 static_assert(offsetof(CFX_Font::CharsetFontMap, charset) ==
                   offsetof(FPDF_CharsetFontMap, charset),
@@ -90,36 +65,36 @@ class CFX_ExternalFontInfo final : public SystemFontInfoIface {
 
   void* MapFont(int weight,
                 bool bItalic,
-                FX_Charset charset,
+                int charset,
                 int pitch_family,
-                const ByteString& face) override {
+                const char* family) override {
     if (!m_pInfo->MapFont)
       return nullptr;
 
     int iExact;
-    return m_pInfo->MapFont(m_pInfo, weight, bItalic, static_cast<int>(charset),
-                            pitch_family, face.c_str(), &iExact);
+    return m_pInfo->MapFont(m_pInfo, weight, bItalic, charset, pitch_family,
+                            family, &iExact);
   }
 
-  void* GetFont(const ByteString& family) override {
+  void* GetFont(const char* family) override {
     if (!m_pInfo->GetFont)
       return nullptr;
-    return m_pInfo->GetFont(m_pInfo, family.c_str());
+    return m_pInfo->GetFont(m_pInfo, family);
   }
 
-  size_t GetFontData(void* hFont,
-                     uint32_t table,
-                     pdfium::span<uint8_t> buffer) override {
+  uint32_t GetFontData(void* hFont,
+                       uint32_t table,
+                       pdfium::span<uint8_t> buffer) override {
     if (!m_pInfo->GetFontData)
       return 0;
     return m_pInfo->GetFontData(m_pInfo, hFont, table, buffer.data(),
-                                fxcrt::CollectionSize<unsigned long>(buffer));
+                                buffer.size());
   }
 
   bool GetFaceName(void* hFont, ByteString* name) override {
     if (!m_pInfo->GetFaceName)
       return false;
-    unsigned long size = m_pInfo->GetFaceName(m_pInfo, hFont, nullptr, 0);
+    uint32_t size = m_pInfo->GetFaceName(m_pInfo, hFont, nullptr, 0);
     if (size == 0)
       return false;
     char* buffer = FX_Alloc(char, size);
@@ -129,11 +104,11 @@ class CFX_ExternalFontInfo final : public SystemFontInfoIface {
     return true;
   }
 
-  bool GetFontCharset(void* hFont, FX_Charset* charset) override {
+  bool GetFontCharset(void* hFont, int* charset) override {
     if (!m_pInfo->GetFontCharset)
       return false;
 
-    *charset = FX_GetCharsetFromInt(m_pInfo->GetFontCharset(m_pInfo, hFont));
+    *charset = m_pInfo->GetFontCharset(m_pInfo, hFont);
     return true;
   }
 
@@ -143,14 +118,14 @@ class CFX_ExternalFontInfo final : public SystemFontInfoIface {
   }
 
  private:
-  UnownedPtr<FPDF_SYSFONTINFO> const m_pInfo;
+  FPDF_SYSFONTINFO* const m_pInfo;
 };
 
 FPDF_EXPORT void FPDF_CALLCONV FPDF_AddInstalledFont(void* mapper,
                                                      const char* face,
                                                      int charset) {
   CFX_FontMapper* pMapper = static_cast<CFX_FontMapper*>(mapper);
-  pMapper->AddInstalledFont(face, FX_GetCharsetFromInt(charset));
+  pMapper->AddInstalledFont(face, charset);
 }
 
 FPDF_EXPORT void FPDF_CALLCONV
@@ -158,16 +133,12 @@ FPDF_SetSystemFontInfo(FPDF_SYSFONTINFO* pFontInfoExt) {
   if (pFontInfoExt->version != 1)
     return;
 
-  CFX_GEModule::Get()->GetFontMgr()->GetBuiltinMapper()->SetSystemFontInfo(
-      std::make_unique<CFX_ExternalFontInfo>(pFontInfoExt));
-
-#ifdef PDF_ENABLE_XFA
-  CFGAS_GEModule::Get()->GetFontMgr()->EnumFonts();
-#endif
+  CFX_GEModule::Get()->GetFontMgr()->SetSystemFontInfo(
+      pdfium::MakeUnique<CFX_ExternalFontInfo>(pFontInfoExt));
 }
 
 FPDF_EXPORT const FPDF_CharsetFontMap* FPDF_CALLCONV FPDF_GetDefaultTTFMap() {
-  return reinterpret_cast<const FPDF_CharsetFontMap*>(CFX_Font::kDefaultTTFMap);
+  return reinterpret_cast<const FPDF_CharsetFontMap*>(CFX_Font::defaultTTFMap);
 }
 
 struct FPDF_SYSFONTINFO_DEFAULT final : public FPDF_SYSFONTINFO {
@@ -176,7 +147,7 @@ struct FPDF_SYSFONTINFO_DEFAULT final : public FPDF_SYSFONTINFO {
 
 static void DefaultRelease(struct _FPDF_SYSFONTINFO* pThis) {
   auto* pDefault = static_cast<FPDF_SYSFONTINFO_DEFAULT*>(pThis);
-  delete pDefault->m_pFontInfo.ExtractAsDangling();
+  delete pDefault->m_pFontInfo.Release();
 }
 
 static void DefaultEnumFonts(struct _FPDF_SYSFONTINFO* pThis, void* pMapper) {
@@ -192,8 +163,8 @@ static void* DefaultMapFont(struct _FPDF_SYSFONTINFO* pThis,
                             const char* family,
                             int* bExact) {
   auto* pDefault = static_cast<FPDF_SYSFONTINFO_DEFAULT*>(pThis);
-  return pDefault->m_pFontInfo->MapFont(
-      weight, !!bItalic, FX_GetCharsetFromInt(charset), pitch_family, family);
+  return pDefault->m_pFontInfo->MapFont(weight, !!bItalic, charset,
+                                        pitch_family, family);
 }
 
 void* DefaultGetFont(struct _FPDF_SYSFONTINFO* pThis, const char* family) {
@@ -207,8 +178,7 @@ static unsigned long DefaultGetFontData(struct _FPDF_SYSFONTINFO* pThis,
                                         unsigned char* buffer,
                                         unsigned long buf_size) {
   auto* pDefault = static_cast<FPDF_SYSFONTINFO_DEFAULT*>(pThis);
-  return pdfium::base::checked_cast<unsigned long>(
-      pDefault->m_pFontInfo->GetFontData(hFont, table, {buffer, buf_size}));
+  return pDefault->m_pFontInfo->GetFontData(hFont, table, {buffer, buf_size});
 }
 
 static unsigned long DefaultGetFaceName(struct _FPDF_SYSFONTINFO* pThis,
@@ -219,21 +189,20 @@ static unsigned long DefaultGetFaceName(struct _FPDF_SYSFONTINFO* pThis,
   auto* pDefault = static_cast<FPDF_SYSFONTINFO_DEFAULT*>(pThis);
   if (!pDefault->m_pFontInfo->GetFaceName(hFont, &name))
     return 0;
+  if (name.GetLength() >= static_cast<size_t>(buf_size))
+    return name.GetLength() + 1;
 
-  const unsigned long copy_length =
-      pdfium::base::checked_cast<unsigned long>(name.GetLength() + 1);
-  if (copy_length <= buf_size)
-    strncpy(buffer, name.c_str(), copy_length * sizeof(ByteString::CharType));
-
-  return copy_length;
+  strncpy(buffer, name.c_str(),
+          (name.GetLength() + 1) * sizeof(ByteString::CharType));
+  return name.GetLength() + 1;
 }
 
 static int DefaultGetFontCharset(struct _FPDF_SYSFONTINFO* pThis, void* hFont) {
-  FX_Charset charset;
+  int charset;
   auto* pDefault = static_cast<FPDF_SYSFONTINFO_DEFAULT*>(pThis);
   if (!pDefault->m_pFontInfo->GetFontCharset(hFont, &charset))
     return 0;
-  return static_cast<int>(charset);
+  return charset;
 }
 
 static void DefaultDeleteFont(struct _FPDF_SYSFONTINFO* pThis, void* hFont) {
@@ -243,7 +212,7 @@ static void DefaultDeleteFont(struct _FPDF_SYSFONTINFO* pThis, void* hFont) {
 
 FPDF_EXPORT FPDF_SYSFONTINFO* FPDF_CALLCONV FPDF_GetDefaultSystemFontInfo() {
   std::unique_ptr<SystemFontInfoIface> pFontInfo =
-      CFX_GEModule::Get()->GetPlatform()->CreateDefaultSystemFontInfo();
+      SystemFontInfoIface::CreateDefault(nullptr);
   if (!pFontInfo)
     return nullptr;
 

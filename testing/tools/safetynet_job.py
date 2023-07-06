@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# Copyright 2017 The PDFium Authors
+#!/usr/bin/env python
+# Copyright 2017 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Looks for performance regressions on all pushes since the last run.
@@ -15,13 +15,14 @@ import json
 import os
 import sys
 
+# pylint: disable=relative-import
 from common import PrintWithTime
 from common import RunCommandPropagateErr
 from githelper import GitHelper
 from safetynet_conclusions import PrintConclusionsDictHumanReadable
 
 
-class JobContext:
+class JobContext(object):
   """Context for a single run, including name and directory paths."""
 
   def __init__(self, args):
@@ -35,7 +36,7 @@ class JobContext:
                                             '%s.log' % self.datetime)
 
 
-class JobRun:
+class JobRun(object):
   """A single run looking for regressions since the last one."""
 
   def __init__(self, args, context):
@@ -68,7 +69,7 @@ class JobRun:
 
     if not self.args.no_checkout:
       self.git.FetchOriginMaster()
-      self.git.Checkout('origin/main')
+      self.git.Checkout('origin/master')
 
     # Make sure results dir exists
     if not os.path.exists(self.context.results_dir):
@@ -199,7 +200,7 @@ def main():
   parser.add_argument(
       '--no-checkout',
       action='store_true',
-      help='whether to skip checking out origin/main. Use '
+      help='whether to skip checking out origin/master. Use '
       'for script debugging.')
   parser.add_argument(
       '--no-checkpoint',

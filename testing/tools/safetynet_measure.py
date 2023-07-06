@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# Copyright 2017 The PDFium Authors
+#!/usr/bin/env python
+# Copyright 2017 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Measures performance for rendering a single test case with pdfium.
@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 
+# pylint: disable=relative-import
 from common import PrintErr
 
 CALLGRIND_PROFILER = 'callgrind'
@@ -22,7 +23,7 @@ NONE_PROFILER = 'none'
 PDFIUM_TEST = 'pdfium_test'
 
 
-class PerformanceRun:
+class PerformanceRun(object):
   """A single measurement of a test case."""
 
   def __init__(self, args):
@@ -64,7 +65,7 @@ class PerformanceRun:
     if time is None:
       return 1
 
-    print(time)
+    print time
     return 0
 
   def _RunCallgrind(self):
@@ -83,8 +84,7 @@ class PerformanceRun:
         '--instr-atstart=%s' % instrument_at_start,
         '--callgrind-out-file=%s' % output_path
     ] + self._BuildTestHarnessCommand())
-    output = subprocess.check_output(
-        valgrind_cmd, stderr=subprocess.STDOUT).decode('utf-8')
+    output = subprocess.check_output(valgrind_cmd, stderr=subprocess.STDOUT)
 
     # Match the line with the instruction count, eg.
     # '==98765== Collected : 12345'
@@ -100,8 +100,7 @@ class PerformanceRun:
     # -einstructions: print only instruction count
     cmd_to_run = (['perf', 'stat', '--no-big-num', '-einstructions'] +
                   self._BuildTestHarnessCommand())
-    output = subprocess.check_output(
-        cmd_to_run, stderr=subprocess.STDOUT).decode('utf-8')
+    output = subprocess.check_output(cmd_to_run, stderr=subprocess.STDOUT)
 
     # Match the line with the instruction count, eg.
     # '        12345      instructions'

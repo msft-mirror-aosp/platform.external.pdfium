@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,29 +6,23 @@
 #define CORE_FPDFAPI_PARSER_CPDF_READ_VALIDATOR_H_
 
 #include "core/fpdfapi/parser/cpdf_data_avail.h"
-#include "core/fxcrt/fx_memory.h"
 #include "core/fxcrt/fx_stream.h"
-#include "core/fxcrt/retain_ptr.h"
-#include "core/fxcrt/unowned_ptr.h"
 
 class CPDF_ReadValidator : public IFX_SeekableReadStream {
  public:
-  class ScopedSession {
+  class Session {
    public:
-    FX_STACK_ALLOCATED();
-
-    explicit ScopedSession(RetainPtr<CPDF_ReadValidator> validator);
-    ScopedSession(const ScopedSession& that) = delete;
-    ScopedSession& operator=(const ScopedSession& that) = delete;
-    ~ScopedSession();
+    explicit Session(const RetainPtr<CPDF_ReadValidator>& validator);
+    ~Session();
 
    private:
-    RetainPtr<CPDF_ReadValidator> const validator_;
-    const bool saved_read_error_;
-    const bool saved_has_unavailable_data_;
+    UnownedPtr<CPDF_ReadValidator> validator_;
+    bool saved_read_error_;
+    bool saved_has_unavailable_data_;
   };
 
-  CONSTRUCT_VIA_MAKE_RETAIN;
+  template <typename T, typename... Args>
+  friend RetainPtr<T> pdfium::MakeRetain(Args&&... args);
 
   void SetDownloadHints(CPDF_DataAvail::DownloadHints* hints) {
     hints_ = hints;
@@ -40,17 +34,20 @@ class CPDF_ReadValidator : public IFX_SeekableReadStream {
   }
 
   void ResetErrors();
+
   bool IsWholeFileAvailable();
+
   bool CheckDataRangeAndRequestIfUnavailable(FX_FILESIZE offset, size_t size);
   bool CheckWholeFileAndRequestIfUnavailable();
 
   // IFX_SeekableReadStream overrides:
-  bool ReadBlockAtOffset(pdfium::span<uint8_t> buffer,
-                         FX_FILESIZE offset) override;
+  bool ReadBlockAtOffset(void* buffer,
+                         FX_FILESIZE offset,
+                         size_t size) override;
   FX_FILESIZE GetSize() override;
 
  protected:
-  CPDF_ReadValidator(RetainPtr<IFX_SeekableReadStream> file_read,
+  CPDF_ReadValidator(const RetainPtr<IFX_SeekableReadStream>& file_read,
                      CPDF_DataAvail::FileAvail* file_avail);
   ~CPDF_ReadValidator() override;
 
@@ -58,12 +55,14 @@ class CPDF_ReadValidator : public IFX_SeekableReadStream {
   void ScheduleDownload(FX_FILESIZE offset, size_t size);
   bool IsDataRangeAvailable(FX_FILESIZE offset, size_t size) const;
 
-  RetainPtr<IFX_SeekableReadStream> const file_read_;
-  UnownedPtr<CPDF_DataAvail::FileAvail> const file_avail_;
+  RetainPtr<IFX_SeekableReadStream> file_read_;
+  UnownedPtr<CPDF_DataAvail::FileAvail> file_avail_;
+
   UnownedPtr<CPDF_DataAvail::DownloadHints> hints_;
-  bool read_error_ = false;
-  bool has_unavailable_data_ = false;
-  bool whole_file_already_available_ = false;
+
+  bool read_error_;
+  bool has_unavailable_data_;
+  bool whole_file_already_available_;
   const FX_FILESIZE file_size_;
 };
 

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,8 @@
 
 class CXFA_NameAttr final : public CXFA_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
-  ~CXFA_NameAttr() override;
-
- private:
   CXFA_NameAttr(CXFA_Document* doc, XFA_PacketType packet);
+  ~CXFA_NameAttr() override;
 };
 
 #endif  // XFA_FXFA_PARSER_CXFA_NAMEATTR_H_

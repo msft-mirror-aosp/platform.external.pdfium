@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,11 +10,11 @@
 #include "fxjs/xfa/cjx_container.h"
 #include "fxjs/xfa/jse_define.h"
 
-class CXFA_Node;
+class CXFA_Delta;
 
 class CJX_Subform final : public CJX_Container {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_Subform(CXFA_Node* container);
   ~CJX_Subform() override;
 
   // CJX_Object:
@@ -29,8 +29,6 @@ class CJX_Subform final : public CJX_Container {
   JSE_PROP(locale);
 
  private:
-  explicit CJX_Subform(CXFA_Node* container);
-
   using Type__ = CJX_Subform;
   using ParentType__ = CJX_Container;
 

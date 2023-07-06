@@ -1,22 +1,22 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef TESTING_XFA_JS_EMBEDDER_TEST_H_
 #define TESTING_XFA_JS_EMBEDDER_TEST_H_
 
+#include <memory>
 #include <string>
 
-#include "core/fxcrt/string_view_template.h"
-#include "testing/js_embedder_test.h"
-#include "v8/include/v8-local-handle.h"
-#include "v8/include/v8-persistent-handle.h"
-#include "v8/include/v8-value.h"
+#include "testing/embedder_test.h"
+#include "xfa/fxfa/parser/cxfa_document.h"
+#include "xfa/fxfa/parser/cxfa_node.h"
 
 class CFXJSE_Engine;
-class CXFA_Document;
+class CFXJSE_Value;
+class CFX_V8ArrayBufferAllocator;
 
-class XFAJSEmbedderTest : public JSEmbedderTest {
+class XFAJSEmbedderTest : public EmbedderTest {
  public:
   XFAJSEmbedderTest();
   ~XFAJSEmbedderTest() override;
@@ -29,18 +29,22 @@ class XFAJSEmbedderTest : public JSEmbedderTest {
                                LinearizeOption linearize_option,
                                JavaScriptOption javascript_option) override;
 
+  v8::Isolate* GetIsolate() const { return isolate_; }
   CXFA_Document* GetXFADocument() const;
-  CFXJSE_Engine* GetScriptContext() const { return script_context_; }
-  v8::Local<v8::Value> GetValue() const;
 
   bool Execute(ByteStringView input);
   bool ExecuteSilenceFailure(ByteStringView input);
 
- private:
-  bool ExecuteHelper(ByteStringView input);
+  CFXJSE_Engine* GetScriptContext() const { return script_context_; }
+  CFXJSE_Value* GetValue() const { return value_.get(); }
 
-  v8::Global<v8::Value> value_;
+ private:
+  std::unique_ptr<CFX_V8ArrayBufferAllocator> array_buffer_allocator_;
+  std::unique_ptr<CFXJSE_Value> value_;
+  v8::Isolate* isolate_ = nullptr;
   CFXJSE_Engine* script_context_ = nullptr;
+
+  bool ExecuteHelper(ByteStringView input);
 };
 
 #endif  // TESTING_XFA_JS_EMBEDDER_TEST_H_

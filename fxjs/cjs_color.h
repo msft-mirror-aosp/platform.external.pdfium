@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,13 +9,12 @@
 
 #include <vector>
 
-#include "core/fxge/cfx_color.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/js_define.h"
 
 class CJS_Color final : public CJS_Object {
  public:
-  static uint32_t GetObjDefnID();
+  static int GetObjDefnID();
   static void DefineJSObjects(CFXJS_Engine* pEngine);
   static v8::Local<v8::Array> ConvertPWLColorToArray(CJS_Runtime* pRuntime,
                                                      const CFX_Color& color);
@@ -42,7 +41,7 @@ class CJS_Color final : public CJS_Object {
   JS_STATIC_METHOD(equal, CJS_Color)
 
  private:
-  static uint32_t ObjDefnID;
+  static int ObjDefnID;
   static const char kName[];
   static const JSPropertySpec PropertySpecs[];
   static const JSMethodSpec MethodSpecs[];

@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,26 +7,27 @@
 #ifndef XFA_FXFA_PARSER_CXFA_STROKE_H_
 #define XFA_FXFA_PARSER_CXFA_STROKE_H_
 
-#include "core/fxcrt/mask.h"
-#include "core/fxge/dib/fx_dib.h"
+#include <memory>
+
+#include "core/fxge/fx_dib.h"
 #include "xfa/fxfa/fxfa_basic.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
 
-class CFGAS_GEGraphics;
-class CFGAS_GEPath;
+enum StrokeSameStyle {
+  XFA_STROKE_SAMESTYLE_NoPresence = 1,
+  XFA_STROKE_SAMESTYLE_Corner = 2
+};
+
+class CXFA_GEPath;
+class CXFA_Graphics;
 class CXFA_Node;
 
-void XFA_StrokeTypeSetLineDash(CFGAS_GEGraphics* pGraphics,
+void XFA_StrokeTypeSetLineDash(CXFA_Graphics* pGraphics,
                                XFA_AttributeValue iStrokeType,
                                XFA_AttributeValue iCapType);
 
 class CXFA_Stroke : public CXFA_Node {
  public:
-  enum class SameStyleOption {
-    kNoPresence = 1 << 0,
-    kCorner = 1 << 1,
-  };
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
   ~CXFA_Stroke() override;
 
   bool IsCorner() const { return GetElementType() == XFA_Element::Corner; }
@@ -42,24 +43,22 @@ class CXFA_Stroke : public CXFA_Node {
   CXFA_Measurement GetMSThickness() const;
   void SetMSThickness(CXFA_Measurement msThinkness);
 
-  FX_ARGB GetColor() const;
+  FX_ARGB GetColor();
   void SetColor(FX_ARGB argb);
 
-  bool SameStyles(CXFA_Stroke* stroke, Mask<SameStyleOption> dwFlags);
+  bool SameStyles(CXFA_Stroke* stroke, uint32_t dwFlags);
 
-  void Stroke(CFGAS_GEGraphics* pGS,
-              const CFGAS_GEPath& pPath,
-              const CFX_Matrix& matrix);
+  void Stroke(CXFA_GEPath* pPath, CXFA_Graphics* pGS, const CFX_Matrix& matrix);
 
  protected:
   CXFA_Stroke(CXFA_Document* pDoc,
               XFA_PacketType ePacket,
-              Mask<XFA_XDPPACKET> validPackets,
+              uint32_t validPackets,
               XFA_ObjectType oType,
               XFA_Element eType,
               pdfium::span<const PropertyData> properties,
               pdfium::span<const AttributeData> attributes,
-              CJX_Object* js_node);
+              std::unique_ptr<CJX_Object> js_node);
 };
 
 #endif  // XFA_FXFA_PARSER_CXFA_STROKE_H_

@@ -1,10 +1,10 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "public/fpdf_thumbnail.h"
 
-#include <utility>
+#include <vector>
 
 #include "core/fpdfapi/page/cpdf_dib.h"
 #include "core/fpdfapi/page/cpdf_page.h"
@@ -17,12 +17,12 @@
 
 namespace {
 
-RetainPtr<const CPDF_Stream> CPDFStreamForThumbnailFromPage(FPDF_PAGE page) {
-  const CPDF_Page* pdf_page = CPDFPageFromFPDFPage(page);
-  if (!pdf_page)
+const CPDF_Stream* CPDFStreamForThumbnailFromPage(FPDF_PAGE page) {
+  const CPDF_Page* p_page = CPDFPageFromFPDFPage(page);
+  if (!p_page)
     return nullptr;
 
-  RetainPtr<const CPDF_Dictionary> page_dict = pdf_page->GetDict();
+  const CPDF_Dictionary* page_dict = p_page->GetDict();
   if (!page_dict->KeyExist("Type"))
     return nullptr;
 
@@ -35,48 +35,41 @@ FPDF_EXPORT unsigned long FPDF_CALLCONV
 FPDFPage_GetDecodedThumbnailData(FPDF_PAGE page,
                                  void* buffer,
                                  unsigned long buflen) {
-  RetainPtr<const CPDF_Stream> thumb_stream =
-      CPDFStreamForThumbnailFromPage(page);
+  const CPDF_Stream* thumb_stream = CPDFStreamForThumbnailFromPage(page);
   if (!thumb_stream)
     return 0u;
 
-  return DecodeStreamMaybeCopyAndReturnLength(
-      std::move(thumb_stream),
-      {static_cast<uint8_t*>(buffer), static_cast<size_t>(buflen)});
+  return DecodeStreamMaybeCopyAndReturnLength(thumb_stream, buffer, buflen);
 }
 
 FPDF_EXPORT unsigned long FPDF_CALLCONV
 FPDFPage_GetRawThumbnailData(FPDF_PAGE page,
                              void* buffer,
                              unsigned long buflen) {
-  RetainPtr<const CPDF_Stream> thumb_stream =
-      CPDFStreamForThumbnailFromPage(page);
+  const CPDF_Stream* thumb_stream = CPDFStreamForThumbnailFromPage(page);
   if (!thumb_stream)
     return 0u;
 
-  return GetRawStreamMaybeCopyAndReturnLength(
-      std::move(thumb_stream),
-      {static_cast<uint8_t*>(buffer), static_cast<size_t>(buflen)});
+  return GetRawStreamMaybeCopyAndReturnLength(thumb_stream, buffer, buflen);
 }
 
 FPDF_EXPORT FPDF_BITMAP FPDF_CALLCONV
 FPDFPage_GetThumbnailAsBitmap(FPDF_PAGE page) {
-  RetainPtr<const CPDF_Stream> thumb_stream =
-      CPDFStreamForThumbnailFromPage(page);
+  const CPDF_Stream* thumb_stream = CPDFStreamForThumbnailFromPage(page);
   if (!thumb_stream)
     return nullptr;
 
-  const CPDF_Page* pdf_page = CPDFPageFromFPDFPage(page);
-  auto dib_source = pdfium::MakeRetain<CPDF_DIB>(pdf_page->GetDocument(),
-                                                 std::move(thumb_stream));
-  const CPDF_DIB::LoadState start_status = dib_source->StartLoadDIBBase(
-      false, nullptr, pdf_page->GetPageResources().Get(), false,
-      CPDF_ColorSpace::Family::kUnknown, false, {0, 0});
+  const CPDF_Page* p_page = CPDFPageFromFPDFPage(page);
+
+  auto p_source = pdfium::MakeRetain<CPDF_DIB>();
+  const CPDF_DIB::LoadState start_status = p_source->StartLoadDIBBase(
+      p_page->GetDocument(), thumb_stream, false, nullptr,
+      p_page->m_pPageResources.Get(), false, 0, false);
   if (start_status == CPDF_DIB::LoadState::kFail)
     return nullptr;
 
   auto thumb_bitmap = pdfium::MakeRetain<CFX_DIBitmap>();
-  if (!thumb_bitmap->Copy(dib_source))
+  if (!thumb_bitmap->Copy(p_source))
     return nullptr;
 
   return FPDFBitmapFromCFXDIBitmap(thumb_bitmap.Leak());

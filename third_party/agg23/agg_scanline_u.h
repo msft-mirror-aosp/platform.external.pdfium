@@ -24,8 +24,6 @@
 #ifndef AGG_SCANLINE_U_INCLUDED
 #define AGG_SCANLINE_U_INCLUDED
 #include "agg_array.h"
-namespace pdfium
-{
 namespace agg
 {
 template<class CoverT> class scanline_u 
@@ -149,5 +147,4 @@ private:
 };
 typedef scanline_u<int8u> scanline_u8;
 }
-}  // namespace pdfium
 #endif

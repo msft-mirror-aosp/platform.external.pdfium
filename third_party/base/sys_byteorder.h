@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 #include "build/build_config.h"
-#include "third_party/base/notreached.h"
+#include "third_party/base/logging.h"
 
 #if defined(COMPILER_MSVC)
 #include <stdlib.h>

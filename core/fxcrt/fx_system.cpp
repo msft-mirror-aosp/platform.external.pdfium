@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,7 @@
 
 #include "core/fxcrt/fx_system.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <limits>
 
 #include "build/build_config.h"
@@ -15,7 +14,7 @@
 
 namespace {
 
-#if !BUILDFLAG(IS_WIN)
+#if !defined(OS_WIN)
 uint32_t g_last_error = 0;
 #endif
 
@@ -90,7 +89,7 @@ STR_T FXSYS_IntToStr(T value, STR_T str, int radix) {
 }  // namespace
 
 int FXSYS_roundf(float f) {
-  if (isnan(f))
+  if (std::isnan(f))
     return 0;
   if (f < static_cast<float>(std::numeric_limits<int>::min()))
     return std::numeric_limits<int>::min();
@@ -100,7 +99,7 @@ int FXSYS_roundf(float f) {
 }
 
 int FXSYS_round(double d) {
-  if (isnan(d))
+  if (std::isnan(d))
     return 0;
   if (d < static_cast<double>(std::numeric_limits<int>::min()))
     return std::numeric_limits<int>::min();
@@ -125,7 +124,7 @@ const char* FXSYS_i64toa(int64_t value, char* str, int radix) {
   return FXSYS_IntToStr<int64_t, uint64_t, char*>(value, str, radix);
 }
 
-#if BUILDFLAG(IS_WIN)
+#if defined(OS_WIN)
 
 size_t FXSYS_wcsftime(wchar_t* strDest,
                       size_t maxsize,
@@ -145,7 +144,11 @@ size_t FXSYS_wcsftime(wchar_t* strDest,
   return wcsftime(strDest, maxsize, format, timeptr);
 }
 
-#else   // BUILDFLAG(IS_WIN)
+#else   // defined(OS_WIN)
+
+int FXSYS_GetACP() {
+  return 0;
+}
 
 char* FXSYS_strlwr(char* str) {
   if (!str) {
@@ -220,6 +223,40 @@ char* FXSYS_itoa(int value, char* str, int radix) {
   return FXSYS_IntToStr<int32_t, uint32_t, char*>(value, str, radix);
 }
 
+int FXSYS_WideCharToMultiByte(uint32_t codepage,
+                              uint32_t dwFlags,
+                              const wchar_t* wstr,
+                              int wlen,
+                              char* buf,
+                              int buflen,
+                              const char* default_str,
+                              int* pUseDefault) {
+  int len = 0;
+  for (int i = 0; i < wlen; i++) {
+    if (wstr[i] < 0x100) {
+      if (buf && len < buflen)
+        buf[len] = static_cast<char>(wstr[i]);
+      len++;
+    }
+  }
+  return len;
+}
+
+int FXSYS_MultiByteToWideChar(uint32_t codepage,
+                              uint32_t dwFlags,
+                              const char* bstr,
+                              int blen,
+                              wchar_t* buf,
+                              int buflen) {
+  int wlen = 0;
+  for (int i = 0; i < blen; i++) {
+    if (buf && wlen < buflen)
+      buf[wlen] = reinterpret_cast<const uint8_t*>(bstr)[i];
+    wlen++;
+  }
+  return wlen;
+}
+
 void FXSYS_SetLastError(uint32_t err) {
   g_last_error = err;
 }
@@ -227,8 +264,4 @@ void FXSYS_SetLastError(uint32_t err) {
 uint32_t FXSYS_GetLastError() {
   return g_last_error;
 }
-#endif  // BUILDFLAG(IS_WIN)
-
-float FXSYS_sqrt2(float a, float b) {
-  return sqrtf(a * a + b * b);
-}
+#endif  // defined(OS_WIN)

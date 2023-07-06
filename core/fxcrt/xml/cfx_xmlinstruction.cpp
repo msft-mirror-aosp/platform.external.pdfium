@@ -1,10 +1,12 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "core/fxcrt/xml/cfx_xmlinstruction.h"
+
+#include <utility>
 
 #include "core/fxcrt/fx_codepage.h"
 #include "core/fxcrt/fx_extension.h"
@@ -38,7 +40,7 @@ bool CFX_XMLInstruction::IsAcrobat() const {
 }
 
 void CFX_XMLInstruction::Save(
-    const RetainPtr<IFX_RetainableWriteStream>& pXMLStream) {
+    const RetainPtr<IFX_SeekableWriteStream>& pXMLStream) {
   if (name_.EqualsASCIINoCase("xml")) {
     pXMLStream->WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     return;

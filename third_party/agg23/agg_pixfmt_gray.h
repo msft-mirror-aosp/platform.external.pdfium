@@ -26,8 +26,6 @@
 #include "agg_basics.h"
 #include "agg_color_gray.h"
 #include "agg_rendering_buffer.h"
-namespace pdfium
-{
 namespace agg
 {
 template<class ColorT> struct blender_gray  {
@@ -176,5 +174,4 @@ private:
 typedef blender_gray<gray8>      blender_gray8;
 typedef pixel_formats_gray<blender_gray8, 1, 0> pixfmt_gray8;
 }
-}  // namespace pdfium
 #endif

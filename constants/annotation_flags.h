@@ -1,11 +1,9 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CONSTANTS_ANNOTATION_FLAGS_H_
 #define CONSTANTS_ANNOTATION_FLAGS_H_
-
-#include <stdint.h>
 
 namespace pdfium {
 namespace annotation_flags {

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,17 +10,17 @@
 #include <vector>
 
 #include "core/fxcrt/css/cfx_cssvalue.h"
-#include "core/fxcrt/retain_ptr.h"
 
 class CFX_CSSValueList final : public CFX_CSSValue {
  public:
-  explicit CFX_CSSValueList(std::vector<RetainPtr<CFX_CSSValue>> list);
+  explicit CFX_CSSValueList(std::vector<RetainPtr<CFX_CSSValue>>& list);
   ~CFX_CSSValueList() override;
 
-  const std::vector<RetainPtr<CFX_CSSValue>>& values() const { return list_; }
+  int32_t CountValues() const;
+  RetainPtr<CFX_CSSValue> GetValue(int32_t index) const;
 
  private:
-  std::vector<RetainPtr<CFX_CSSValue>> list_;
+  std::vector<RetainPtr<CFX_CSSValue>> m_ppList;
 };
 
 #endif  // CORE_FXCRT_CSS_CFX_CSSVALUELIST_H_

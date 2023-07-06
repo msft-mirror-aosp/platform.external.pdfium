@@ -1,4 +1,4 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,13 +10,18 @@
 
 #include "core/fxcrt/fx_stream.h"
 
-class StringWriteStream final : public IFX_RetainableWriteStream {
+class StringWriteStream final : public IFX_SeekableWriteStream {
  public:
   StringWriteStream();
   ~StringWriteStream() override;
 
-  // IFX_WriteStream:
-  bool WriteBlock(pdfium::span<const uint8_t> buffer) override;
+  // IFX_SeekableWriteStream
+  FX_FILESIZE GetSize() override;
+  bool Flush() override;
+  bool WriteBlockAtOffset(const void* pData,
+                          FX_FILESIZE offset,
+                          size_t size) override;
+  bool WriteString(ByteStringView str) override;
 
   std::string ToString() const { return stream_.str(); }
 

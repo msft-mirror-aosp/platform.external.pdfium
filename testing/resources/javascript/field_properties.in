@@ -1,6 +1,6 @@
 {{header}}
 {{include field.fragment}}
-% JS program to execute
+% JS program to exexute
 {{object 16 0}} <<
   {{streamlen}}
 >>
@@ -11,7 +11,6 @@ function testProperties() {
     var field = this.getField("MyField");
     var text = this.getField("MyField.MyText");
     var button = this.getField("MyField.MyPushButton");
-    var badbutton = this.getField("MyField.MyBadPushButton");
     var radio = this.getField("MyField.MyRadio");
     var list = this.getField("MyField.MyMultiSelect");
     var check = this.getField("MyField.MyCheckBox");
@@ -24,7 +23,6 @@ function testProperties() {
     testFieldPropertiesCase(field);
     testTextPropertiesCase(text);
     testPushButtonPropertiesCase(button);
-    testBadPushButtonPropertiesCase(badbutton);
     testRadioButtonPropertiesCase(radio);
     testCheckBoxPropertiesCase(check);
     testListBoxPropertiesCase(list);
@@ -70,7 +68,7 @@ function testTextPropertiesCase(field) {
     testROProperty(field, "page", 0);
     testRIProperty(field, "password", false, 42);
     testRWProperty(field, "print", true, false);
-    testRWProperty(field, "readonly", false, true);
+    testRIProperty(field, "readonly", false, true);
     testROProperty(field, "rect", [200,221,220,201]);
     // testROProperty(field, "required", "clams");
     testRIProperty(field, "richText", false, true);
@@ -96,7 +94,7 @@ function testPushButtonPropertiesCase(field) {
     testRIProperty(field, "buttonAlignX", 0, 50);
     testRIProperty(field, "buttonAlignY", 0, 50);
     testRIProperty(field, "buttonFitBounds", false);
-    testRIProperty(field, "buttonPosition", 4);
+    testRIProperty(field, "buttonPosition", 0);
     testRIProperty(field, "buttonScaleHow", 0);
     testRIProperty(field, "buttonScaleWhen", 0);
     testRIProperty(field, "highlight", "invert");
@@ -106,19 +104,11 @@ function testPushButtonPropertiesCase(field) {
   }
 }
 
-function testBadPushButtonPropertiesCase(field) {
-  try {
-    testRIProperty(field, "buttonPosition", 7); // not checked.
-  } catch (e) {
-    app.alert("Unexpected error: " + e);
-  }
-}
-
 function testRadioButtonPropertiesCase(field) {
   try {
-    testROProperty(field, "exportValues", "Yes");
+    testROProperty(field, "exportValues", "N");
     testRIProperty(field, "radiosInUnison", false);
-    testRIProperty(field, "style", "circle");
+    testRIProperty(field, "style", "check");
     testROProperty(field, "type", "radiobutton");
     testRIProperty(field, "value", "Off");
     testROProperty(field, "valueAsString", "Off");
@@ -129,7 +119,7 @@ function testRadioButtonPropertiesCase(field) {
 
 function testCheckBoxPropertiesCase(field) {
   try {
-    testROProperty(field, "exportValues", "Yes");
+    testROProperty(field, "exportValues", "N");
     testRIProperty(field, "style", "check");
     testROProperty(field, "type", "checkbox");
     testRIProperty(field, "value", "Off");

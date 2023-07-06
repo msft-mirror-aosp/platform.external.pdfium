@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #ifndef FXBARCODE_CFX_BARCODE_H_
 #define FXBARCODE_CFX_BARCODE_H_
 
-#include <stdint.h>
-
 #include <memory>
 
-#include "core/fxcrt/widestring.h"
-#include "core/fxge/dib/fx_dib.h"
+#include "core/fxcrt/fx_coordinates.h"
+#include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/fx_system.h"
+#include "core/fxge/fx_dib.h"
 #include "fxbarcode/BC_Library.h"
 
 class CBC_CodeBase;
@@ -28,13 +28,15 @@ class CFX_Barcode {
   BC_TYPE GetType();
   bool Encode(WideStringView contents);
 
-  bool RenderDevice(CFX_RenderDevice* device, const CFX_Matrix& matrix);
+  bool RenderDevice(CFX_RenderDevice* device, const CFX_Matrix* matrix);
 
-  void SetCharEncoding(BC_CHAR_ENCODING encoding);
+  bool SetCharEncoding(BC_CHAR_ENCODING encoding);
+
   bool SetModuleHeight(int32_t moduleHeight);
   bool SetModuleWidth(int32_t moduleWidth);
-  void SetHeight(int32_t height);
-  void SetWidth(int32_t width);
+
+  bool SetHeight(int32_t height);
+  bool SetWidth(int32_t width);
 
   bool SetPrintChecksum(bool checksum);
   bool SetDataLength(int32_t length);
@@ -44,7 +46,8 @@ class CFX_Barcode {
   bool SetFontSize(float size);
   bool SetFontColor(FX_ARGB color);
 
-  void SetTextLocation(BC_TEXT_LOC location);
+  bool SetTextLocation(BC_TEXT_LOC location);
+
   bool SetWideNarrowRatio(int8_t ratio);
   bool SetStartChar(char start);
   bool SetEndChar(char end);

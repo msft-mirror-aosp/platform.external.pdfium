@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,20 +6,12 @@
 
 #include "core/fxcrt/fx_coordinates.h"
 
-#include <math.h>
-
-#include <algorithm>
-#include <iterator>
 #include <utility>
 
 #include "build/build_config.h"
 #include "core/fxcrt/fx_extension.h"
 #include "core/fxcrt/fx_safe_types.h"
-#include "core/fxcrt/fx_system.h"
-
-#ifndef NDEBUG
-#include <ostream>
-#endif
+#include "third_party/base/numerics/safe_conversions.h"
 
 namespace {
 
@@ -41,7 +33,7 @@ void MatchFloatRange(float f1, float f2, int* i1, int* i2) {
   }
 }
 
-#if BUILDFLAG(IS_WIN)
+#if defined(OS_WIN)
 static_assert(sizeof(FX_RECT) == sizeof(RECT), "FX_RECT vs. RECT mismatch");
 static_assert(offsetof(FX_RECT, left) == offsetof(RECT, left),
               "FX_RECT vs. RECT mismatch");
@@ -63,29 +55,6 @@ static_assert(sizeof(FX_RECT::bottom) == sizeof(RECT::bottom),
 
 }  // namespace
 
-template <>
-float CFX_VTemplate<float>::Length() const {
-  return FXSYS_sqrt2(x, y);
-}
-
-template <>
-void CFX_VTemplate<float>::Normalize() {
-  float fLen = Length();
-  if (fLen < 0.0001f)
-    return;
-
-  x /= fLen;
-  y /= fLen;
-}
-
-bool FX_RECT::Valid() const {
-  FX_SAFE_INT32 w = right;
-  FX_SAFE_INT32 h = bottom;
-  w -= left;
-  h -= top;
-  return w.IsValid() && h.IsValid();
-}
-
 void FX_RECT::Normalize() {
   if (left > right)
     std::swap(left, right);
@@ -106,50 +75,24 @@ void FX_RECT::Intersect(const FX_RECT& src) {
   }
 }
 
-FX_RECT FX_RECT::SwappedClipBox(int width,
-                                int height,
-                                bool bFlipX,
-                                bool bFlipY) const {
-  FX_RECT rect;
-  if (bFlipY) {
-    rect.left = height - top;
-    rect.right = height - bottom;
-  } else {
-    rect.left = top;
-    rect.right = bottom;
-  }
-  if (bFlipX) {
-    rect.top = width - left;
-    rect.bottom = width - right;
-  } else {
-    rect.top = left;
-    rect.bottom = right;
-  }
-  rect.Normalize();
-  return rect;
-}
-
 // Y-axis runs the opposite way in FX_RECT.
 CFX_FloatRect::CFX_FloatRect(const FX_RECT& rect)
     : left(rect.left), bottom(rect.top), right(rect.right), top(rect.bottom) {}
 
-CFX_FloatRect::CFX_FloatRect(const CFX_PointF& point)
-    : left(point.x), bottom(point.y), right(point.x), top(point.y) {}
-
 // static
-CFX_FloatRect CFX_FloatRect::GetBBox(pdfium::span<const CFX_PointF> pPoints) {
-  if (pPoints.empty())
+CFX_FloatRect CFX_FloatRect::GetBBox(const CFX_PointF* pPoints, int nPoints) {
+  if (nPoints == 0)
     return CFX_FloatRect();
 
-  float min_x = pPoints.front().x;
-  float max_x = pPoints.front().x;
-  float min_y = pPoints.front().y;
-  float max_y = pPoints.front().y;
-  for (const auto& point : pPoints.subspan(1)) {
-    min_x = std::min(min_x, point.x);
-    max_x = std::max(max_x, point.x);
-    min_y = std::min(min_y, point.y);
-    max_y = std::max(max_y, point.y);
+  float min_x = pPoints->x;
+  float max_x = pPoints->x;
+  float min_y = pPoints->y;
+  float max_y = pPoints->y;
+  for (int i = 1; i < nPoints; i++) {
+    min_x = std::min(min_x, pPoints[i].x);
+    max_x = std::max(max_x, pPoints[i].x);
+    min_y = std::min(min_y, pPoints[i].y);
+    max_y = std::max(max_y, pPoints[i].y);
   }
   return CFX_FloatRect(min_x, min_y, max_x, max_y);
 }
@@ -326,45 +269,6 @@ FX_RECT CFX_FloatRect::ToRoundedFxRect() const {
                  FXSYS_roundf(bottom));
 }
 
-void CFX_RectF::Union(float x, float y) {
-  float r = right();
-  float b = bottom();
-
-  left = std::min(left, x);
-  top = std::min(top, y);
-  r = std::max(r, x);
-  b = std::max(b, y);
-
-  width = r - left;
-  height = b - top;
-}
-
-void CFX_RectF::Union(const CFX_RectF& rt) {
-  float r = right();
-  float b = bottom();
-
-  left = std::min(left, rt.left);
-  top = std::min(top, rt.top);
-  r = std::max(r, rt.right());
-  b = std::max(b, rt.bottom());
-
-  width = r - left;
-  height = b - top;
-}
-
-void CFX_RectF::Intersect(const CFX_RectF& rt) {
-  float r = right();
-  float b = bottom();
-
-  left = std::max(left, rt.left);
-  top = std::max(top, rt.top);
-  r = std::min(r, rt.right());
-  b = std::min(b, rt.bottom());
-
-  width = r - left;
-  height = b - top;
-}
-
 FX_RECT CFX_RectF::GetOuterRect() const {
   return FX_RECT(static_cast<int32_t>(floor(left)),
                  static_cast<int32_t>(floor(top)),
@@ -453,7 +357,7 @@ float CFX_Matrix::GetXUnit() const {
     return (a > 0 ? a : -a);
   if (a == 0)
     return (b > 0 ? b : -b);
-  return FXSYS_sqrt2(a, b);
+  return sqrt(a * a + b * b);
 }
 
 float CFX_Matrix::GetYUnit() const {
@@ -461,7 +365,7 @@ float CFX_Matrix::GetYUnit() const {
     return (d > 0 ? d : -d);
   if (d == 0)
     return (c > 0 ? c : -c);
-  return FXSYS_sqrt2(c, d);
+  return sqrt(c * c + d * d);
 }
 
 CFX_FloatRect CFX_Matrix::GetUnitRect() const {
@@ -471,7 +375,7 @@ CFX_FloatRect CFX_Matrix::GetUnitRect() const {
 float CFX_Matrix::TransformXDistance(float dx) const {
   float fx = a * dx;
   float fy = b * dx;
-  return FXSYS_sqrt2(fx, fy);
+  return sqrt(fx * fx + fy * fy);
 }
 
 float CFX_Matrix::TransformDistance(float distance) const {
@@ -501,7 +405,7 @@ CFX_FloatRect CFX_Matrix::TransformRect(const CFX_FloatRect& rect) const {
   float new_left = points[0].x;
   float new_top = points[0].y;
   float new_bottom = points[0].y;
-  for (size_t i = 1; i < std::size(points); i++) {
+  for (size_t i = 1; i < FX_ArraySize(points); i++) {
     new_right = std::max(new_right, points[i].x);
     new_left = std::min(new_left, points[i].x);
     new_top = std::max(new_top, points[i].y);

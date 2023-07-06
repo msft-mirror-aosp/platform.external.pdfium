@@ -1,10 +1,8 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "fxjs/cjs_publicmethods.h"
-
-#include <iterator>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -44,7 +42,7 @@ TEST(CJS_PublicMethods, IsNumber) {
       {L"0123", true},
       {L"9876123", true},
   };
-  for (size_t i = 0; i < std::size(test_data); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(test_data); ++i) {
     EXPECT_EQ(test_data[i].expected,
               CJS_PublicMethods::IsNumber(test_data[i].input))
         << "for case " << i;

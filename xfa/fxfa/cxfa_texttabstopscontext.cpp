@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,9 +8,10 @@
 
 #include <algorithm>
 
-CXFA_TextTabstopsContext::CXFA_TextTabstopsContext() = default;
+CXFA_TextTabstopsContext::CXFA_TextTabstopsContext()
+    : m_iTabIndex(-1), m_bTabstops(false), m_fTabWidth(0), m_fLeft(0) {}
 
-CXFA_TextTabstopsContext::~CXFA_TextTabstopsContext() = default;
+CXFA_TextTabstopsContext::~CXFA_TextTabstopsContext() {}
 
 void CXFA_TextTabstopsContext::Append(uint32_t dwAlign, float fTabstops) {
   XFA_TABSTOPS tabstop;
@@ -27,7 +28,7 @@ void CXFA_TextTabstopsContext::RemoveAll() {
 
 void CXFA_TextTabstopsContext::Reset() {
   m_iTabIndex = -1;
-  m_bHasTabstops = false;
+  m_bTabstops = false;
   m_fTabWidth = 0;
   m_fLeft = 0;
 }

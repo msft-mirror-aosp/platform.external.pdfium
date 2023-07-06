@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,27 +6,25 @@
 
 #include "fxjs/cjs_util.h"
 
-#include <math.h>
 #include <time.h>
 
 #include <algorithm>
-#include <string>
+#include <cmath>
+#include <cwctype>
 #include <vector>
 
 #include "build/build_config.h"
 #include "core/fxcrt/fx_extension.h"
 #include "fxjs/cjs_event_context.h"
+#include "fxjs/cjs_eventrecorder.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/cjs_publicmethods.h"
 #include "fxjs/cjs_runtime.h"
 #include "fxjs/fx_date_helpers.h"
-#include "fxjs/fxv8.h"
 #include "fxjs/js_define.h"
 #include "fxjs/js_resources.h"
-#include "third_party/base/check_op.h"
-#include "v8/include/v8-date.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if defined(OS_ANDROID)
 #include <ctype.h>
 #endif
 
@@ -42,8 +40,8 @@ struct TbConvert {
 // Map PDF-style directives lacking direct wcsftime directives to
 // the value with which they will be replaced.
 struct TbConvertAdditional {
-  wchar_t js_mark;
-  int value;
+  const wchar_t* lpszJSMark;
+  int iValue;
 };
 
 const TbConvert TbConvertTable[] = {
@@ -51,7 +49,7 @@ const TbConvert TbConvertTable[] = {
     {L"ddd", L"%a"},  {L"dd", L"%d"},  {L"yyyy", L"%Y"}, {L"yy", L"%y"},
     {L"HH", L"%H"},   {L"hh", L"%I"},  {L"MM", L"%M"},   {L"ss", L"%S"},
     {L"TT", L"%p"},
-#if BUILDFLAG(IS_WIN)
+#if defined(OS_WIN)
     {L"tt", L"%p"},   {L"h", L"%#I"},
 #else
     {L"tt", L"%P"},   {L"h", L"%l"},
@@ -77,11 +75,11 @@ const JSMethodSpec CJS_Util::MethodSpecs[] = {
     {"scand", scand_static},
     {"byteToChar", byteToChar_static}};
 
-uint32_t CJS_Util::ObjDefnID = 0;
+int CJS_Util::ObjDefnID = -1;
 const char CJS_Util::kName[] = "util";
 
 // static
-uint32_t CJS_Util::GetObjDefnID() {
+int CJS_Util::GetObjDefnID() {
   return ObjDefnID;
 }
 
@@ -111,8 +109,7 @@ CJS_Result CJS_Util::printf(CJS_Runtime* pRuntime,
   {
     size_t offset = 0;
     while (true) {
-      absl::optional<size_t> offset_end =
-          unsafe_fmt_string.Find(L"%", offset + 1);
+      Optional<size_t> offset_end = unsafe_fmt_string.Find(L"%", offset + 1);
       if (!offset_end.has_value()) {
         unsafe_conversion_specifiers.push_back(
             unsafe_fmt_string.Last(unsafe_fmt_string.GetLength() - offset));
@@ -135,14 +132,14 @@ CJS_Result CJS_Util::printf(CJS_Runtime* pRuntime,
 
     WideString segment;
     switch (ParseDataType(&fmt)) {
-      case DataType::kInt:
+      case UTIL_INT:
         segment = WideString::Format(fmt.c_str(), pRuntime->ToInt32(params[i]));
         break;
-      case DataType::kDouble:
+      case UTIL_DOUBLE:
         segment =
             WideString::Format(fmt.c_str(), pRuntime->ToDouble(params[i]));
         break;
-      case DataType::kString:
+      case UTIL_STRING:
         segment = WideString::Format(fmt.c_str(),
                                      pRuntime->ToWideString(params[i]).c_str());
         break;
@@ -166,11 +163,11 @@ CJS_Result CJS_Util::printd(CJS_Runtime* pRuntime,
   if (iSize < 2)
     return CJS_Result::Failure(JSMessage::kParamError);
 
-  if (!fxv8::IsDate(params[1]))
+  if (params[1].IsEmpty() || !params[1]->IsDate())
     return CJS_Result::Failure(JSMessage::kSecondParamNotDateError);
 
   v8::Local<v8::Date> v8_date = params[1].As<v8::Date>();
-  if (v8_date.IsEmpty() || isnan(pRuntime->ToDouble(v8_date)))
+  if (v8_date.IsEmpty() || std::isnan(pRuntime->ToDouble(v8_date)))
     return CJS_Result::Failure(JSMessage::kSecondParamInvalidDateError);
 
   double date = FX_LocalTime(pRuntime->ToDouble(v8_date));
@@ -212,19 +209,18 @@ CJS_Result CJS_Util::printd(CJS_Runtime* pRuntime,
 
   // Convert PDF-style format specifiers to wcsftime specifiers. Remove any
   // pre-existing %-directives before inserting our own.
-  std::wstring cFormat = pRuntime->ToWideString(params[0]).c_str();
+  std::basic_string<wchar_t> cFormat =
+      pRuntime->ToWideString(params[0]).c_str();
   cFormat.erase(std::remove(cFormat.begin(), cFormat.end(), '%'),
                 cFormat.end());
 
-  for (size_t i = 0; i < std::size(TbConvertTable); ++i) {
-    size_t nFound = 0;
-    while (true) {
-      nFound = cFormat.find(TbConvertTable[i].lpszJSMark, nFound);
-      if (nFound == std::wstring::npos)
-        break;
-
-      cFormat.replace(nFound, wcslen(TbConvertTable[i].lpszJSMark),
+  for (size_t i = 0; i < FX_ArraySize(TbConvertTable); ++i) {
+    int iStart = 0;
+    int iEnd;
+    while ((iEnd = cFormat.find(TbConvertTable[i].lpszJSMark, iStart)) != -1) {
+      cFormat.replace(iEnd, wcslen(TbConvertTable[i].lpszJSMark),
                       TbConvertTable[i].lpszCppMark);
+      iStart = iEnd;
     }
   }
 
@@ -232,24 +228,24 @@ CJS_Result CJS_Util::printd(CJS_Runtime* pRuntime,
     return CJS_Result::Failure(JSMessage::kValueError);
 
   const TbConvertAdditional cTableAd[] = {
-      {L'm', month}, {L'd', day},
-      {L'H', hour},  {L'h', hour > 12 ? hour - 12 : hour},
-      {L'M', min},   {L's', sec},
+      {L"m", month}, {L"d", day},
+      {L"H", hour},  {L"h", hour > 12 ? hour - 12 : hour},
+      {L"M", min},   {L"s", sec},
   };
 
-  for (size_t i = 0; i < std::size(cTableAd); ++i) {
-    size_t nFound = 0;
-    while (true) {
-      nFound = cFormat.find(cTableAd[i].js_mark, nFound);
-      if (nFound == std::wstring::npos)
-        break;
-
-      if (nFound != 0 && cFormat[nFound - 1] == L'%') {
-        ++nFound;
-        continue;
+  for (size_t i = 0; i < FX_ArraySize(cTableAd); ++i) {
+    int iStart = 0;
+    int iEnd;
+    while ((iEnd = cFormat.find(cTableAd[i].lpszJSMark, iStart)) != -1) {
+      if (iEnd > 0) {
+        if (cFormat[iEnd - 1] == L'%') {
+          iStart = iEnd + 1;
+          continue;
+        }
       }
-      cFormat.replace(nFound, 1,
-                      WideString::FormatInteger(cTableAd[i].value).c_str());
+      cFormat.replace(iEnd, wcslen(cTableAd[i].lpszJSMark),
+                      WideString::Format(L"%d", cTableAd[i].iValue).c_str());
+      iStart = iEnd;
     }
   }
 
@@ -377,9 +373,8 @@ CJS_Result CJS_Util::scand(CJS_Runtime* pRuntime,
   WideString sDate = pRuntime->ToWideString(params[1]);
   double dDate = FX_GetDateTime();
   if (sDate.GetLength() > 0)
-    dDate = CJS_PublicMethods::ParseDateUsingFormat(pRuntime->GetIsolate(),
-                                                    sDate, sFormat, nullptr);
-  if (isnan(dDate))
+    dDate = CJS_PublicMethods::ParseDateUsingFormat(sDate, sFormat, nullptr);
+  if (std::isnan(dDate))
     return CJS_Result::Success(pRuntime->NewUndefined());
 
   return CJS_Result::Success(pRuntime->NewDate(dDate));
@@ -400,80 +395,80 @@ CJS_Result CJS_Util::byteToChar(
 }
 
 // static
-CJS_Util::DataType CJS_Util::ParseDataType(WideString* sFormat) {
-  enum State { kBefore, kFlags, kWidth, kPrecision, kSpecifier, kAfter };
+int CJS_Util::ParseDataType(WideString* sFormat) {
+  enum State { BEFORE, FLAGS, WIDTH, PRECISION, SPECIFIER, AFTER };
 
-  DataType result = DataType::kInvalid;
-  State state = kBefore;
+  int result = -1;
+  State state = BEFORE;
   size_t precision_digits = 0;
   size_t i = 0;
   while (i < sFormat->GetLength()) {
     wchar_t c = (*sFormat)[i];
     switch (state) {
-      case kBefore:
+      case BEFORE:
         if (c == L'%')
-          state = kFlags;
+          state = FLAGS;
         break;
-      case kFlags:
+      case FLAGS:
         if (c == L'+' || c == L'-' || c == L'#' || c == L' ') {
           // Stay in same state.
         } else {
-          state = kWidth;
+          state = WIDTH;
           continue;  // Re-process same character.
         }
         break;
-      case kWidth:
+      case WIDTH:
         if (c == L'*')
-          return DataType::kInvalid;
+          return -1;
         if (FXSYS_IsDecimalDigit(c)) {
           // Stay in same state.
         } else if (c == L'.') {
-          state = kPrecision;
+          state = PRECISION;
         } else {
-          state = kSpecifier;
+          state = SPECIFIER;
           continue;  // Re-process same character.
         }
         break;
-      case kPrecision:
+      case PRECISION:
         if (c == L'*')
-          return DataType::kInvalid;
+          return -1;
         if (FXSYS_IsDecimalDigit(c)) {
           // Stay in same state.
           ++precision_digits;
         } else {
-          state = kSpecifier;
+          state = SPECIFIER;
           continue;  // Re-process same character.
         }
         break;
-      case kSpecifier:
+      case SPECIFIER:
         if (c == L'c' || c == L'C' || c == L'd' || c == L'i' || c == L'o' ||
             c == L'u' || c == L'x' || c == L'X') {
-          result = DataType::kInt;
+          result = UTIL_INT;
         } else if (c == L'e' || c == L'E' || c == L'f' || c == L'g' ||
                    c == L'G') {
-          result = DataType::kDouble;
+          result = UTIL_DOUBLE;
         } else if (c == L's' || c == L'S') {
           // Map s to S since we always deal internally with wchar_t strings.
           // TODO(tsepez): Probably 100% borked. %S is not a standard
           // conversion.
           sFormat->SetAt(i, L'S');
-          result = DataType::kString;
+          result = UTIL_STRING;
         } else {
-          return DataType::kInvalid;
+          return -1;
         }
-        state = kAfter;
+        state = AFTER;
         break;
-      case kAfter:
+      case AFTER:
         if (c == L'%')
-          return DataType::kInvalid;
+          return -1;
         // Stay in same state until string exhausted.
         break;
     }
     ++i;
   }
   // See https://crbug.com/740166
-  if (result == DataType::kInt && precision_digits > 2)
-    return DataType::kInvalid;
+  if (result == UTIL_INT && precision_digits > 2)
+    return -1;
 
   return result;
 }

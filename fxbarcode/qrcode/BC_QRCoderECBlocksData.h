@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,10 +17,6 @@ struct CBC_QRCoderECBlockData {
   uint8_t dataCodeWords2;
 };
 
-namespace fxbarcode {
-
-extern const CBC_QRCoderECBlockData kECBData[40][4];
-
-}  // namespace fxbarcode
+extern const CBC_QRCoderECBlockData g_ECBData[40][4];
 
 #endif  // FXBARCODE_QRCODE_BC_QRCODERECBLOCKSDATA_H_

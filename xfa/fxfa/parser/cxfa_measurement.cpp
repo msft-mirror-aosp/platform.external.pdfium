@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,9 @@
 
 #include "xfa/fxfa/parser/cxfa_measurement.h"
 
-#include <math.h>
+#include <cmath>
 
 #include "core/fxcrt/fx_extension.h"
-#include "third_party/base/notreached.h"
 
 namespace {
 
@@ -34,21 +33,22 @@ CXFA_Measurement::CXFA_Measurement(float fValue, XFA_Unit eUnit) {
 }
 
 void CXFA_Measurement::SetString(WideStringView wsMeasure) {
-  if (wsMeasure.Front() == L'=')
-    wsMeasure = wsMeasure.Substr(1);
-
   if (wsMeasure.IsEmpty()) {
     Set(0, XFA_Unit::Unknown);
     return;
   }
 
-  size_t nUsedLen = 0;
+  if (wsMeasure[0] == L'=')
+    wsMeasure = wsMeasure.Last(wsMeasure.GetLength() - 1);
+
+  int32_t iUsedLen = 0;
   float fValue = FXSYS_wcstof(wsMeasure.unterminated_c_str(),
-                              wsMeasure.GetLength(), &nUsedLen);
-  if (!isfinite(fValue))
+                              wsMeasure.GetLength(), &iUsedLen);
+  if (!std::isfinite(fValue))
     fValue = 0.0f;
 
-  Set(fValue, GetUnitFromString(wsMeasure.Substr(nUsedLen)));
+  wsMeasure = wsMeasure.Last(wsMeasure.GetLength() - iUsedLen);
+  Set(fValue, GetUnitFromString(wsMeasure));
 }
 
 WideString CXFA_Measurement::ToString() const {

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,8 @@
 
 #include "core/fxcodec/jbig2/JBig2_ArithDecoder.h"
 
-#include <iterator>
-
 #include "core/fxcodec/jbig2/JBig2_BitStream.h"
-#include "third_party/base/check_op.h"
+#include "core/fxcrt/fx_memory.h"
 
 namespace {
 
@@ -43,13 +41,13 @@ int JBig2ArithCtx::DecodeNLPS(const JBig2ArithQe& qe) {
   if (qe.bSwitch)
     m_MPS = !m_MPS;
   m_I = qe.NLPS;
-  DCHECK_LT(m_I, std::size(kQeTable));
+  ASSERT(m_I < FX_ArraySize(kQeTable));
   return D;
 }
 
 int JBig2ArithCtx::DecodeNMPS(const JBig2ArithQe& qe) {
   m_I = qe.NMPS;
-  DCHECK_LT(m_I, std::size(kQeTable));
+  ASSERT(m_I < FX_ArraySize(kQeTable));
   return MPS();
 }
 
@@ -63,11 +61,11 @@ CJBig2_ArithDecoder::CJBig2_ArithDecoder(CJBig2_BitStream* pStream)
   m_A = kDefaultAValue;
 }
 
-CJBig2_ArithDecoder::~CJBig2_ArithDecoder() = default;
+CJBig2_ArithDecoder::~CJBig2_ArithDecoder() {}
 
 int CJBig2_ArithDecoder::Decode(JBig2ArithCtx* pCX) {
-  DCHECK(pCX);
-  DCHECK_LT(pCX->I(), std::size(kQeTable));
+  ASSERT(pCX);
+  ASSERT(pCX->I() < FX_ArraySize(kQeTable));
 
   const JBig2ArithCtx::JBig2ArithQe& qe = kQeTable[pCX->I()];
   m_A -= qe.Qe;

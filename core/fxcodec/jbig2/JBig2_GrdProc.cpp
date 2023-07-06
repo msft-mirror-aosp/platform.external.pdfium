@@ -1,4 +1,4 @@
-// Copyright 2015 The PDFium Authors
+// Copyright 2015 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include "core/fxcodec/jbig2/JBig2_BitStream.h"
 #include "core/fxcodec/jbig2/JBig2_Image.h"
 #include "core/fxcrt/pauseindicator_iface.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -62,7 +63,7 @@ std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArith(
     CJBig2_ArithDecoder* pArithDecoder,
     JBig2ArithCtx* gbContext) {
   if (!CJBig2_Image::IsValidImageSize(GBW, GBH))
-    return std::make_unique<CJBig2_Image>(GBW, GBH);
+    return pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
 
   switch (GBTEMPLATE) {
     case 0:
@@ -88,7 +89,7 @@ std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithOpt3(
     CJBig2_ArithDecoder* pArithDecoder,
     JBig2ArithCtx* gbContext,
     int OPT) {
-  auto GBREG = std::make_unique<CJBig2_Image>(GBW, GBH);
+  auto GBREG = pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
   if (!GBREG->data())
     return nullptr;
 
@@ -194,11 +195,11 @@ std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithTemplateUnopt(
     CJBig2_ArithDecoder* pArithDecoder,
     JBig2ArithCtx* gbContext,
     int UNOPT) {
-  auto GBREG = std::make_unique<CJBig2_Image>(GBW, GBH);
+  auto GBREG = pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
   if (!GBREG->data())
     return nullptr;
 
-  GBREG->Fill(false);
+  GBREG->Fill(0);
   int LTP = 0;
   uint8_t MOD2 = UNOPT % 2;
   uint8_t DIV2 = UNOPT / 2;
@@ -255,7 +256,7 @@ std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithTemplateUnopt(
 std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithTemplate3Opt3(
     CJBig2_ArithDecoder* pArithDecoder,
     JBig2ArithCtx* gbContext) {
-  auto GBREG = std::make_unique<CJBig2_Image>(GBW, GBH);
+  auto GBREG = pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
   if (!GBREG->data())
     return nullptr;
 
@@ -340,11 +341,11 @@ std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithTemplate3Opt3(
 std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithTemplate3Unopt(
     CJBig2_ArithDecoder* pArithDecoder,
     JBig2ArithCtx* gbContext) {
-  auto GBREG = std::make_unique<CJBig2_Image>(GBW, GBH);
+  auto GBREG = pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
   if (!GBREG->data())
     return nullptr;
 
-  GBREG->Fill(false);
+  GBREG->Fill(0);
   int LTP = 0;
   for (uint32_t h = 0; h < GBH; h++) {
     if (TPGDON) {
@@ -386,19 +387,19 @@ std::unique_ptr<CJBig2_Image> CJBig2_GRDProc::DecodeArithTemplate3Unopt(
 FXCODEC_STATUS CJBig2_GRDProc::StartDecodeArith(
     ProgressiveArithDecodeState* pState) {
   if (!CJBig2_Image::IsValidImageSize(GBW, GBH)) {
-    m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-    return FXCODEC_STATUS::kDecodeFinished;
+    m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+    return FXCODEC_STATUS_DECODE_FINISH;
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeReady;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_READY;
   std::unique_ptr<CJBig2_Image>* pImage = pState->pImage;
   if (!*pImage)
-    *pImage = std::make_unique<CJBig2_Image>(GBW, GBH);
+    *pImage = pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
   if (!(*pImage)->data()) {
     *pImage = nullptr;
-    m_ProgressiveStatus = FXCODEC_STATUS::kError;
-    return FXCODEC_STATUS::kError;
+    m_ProssiveStatus = FXCODEC_STATUS_ERROR;
+    return FXCODEC_STATUS_ERROR;
   }
-  pImage->get()->Fill(false);
+  pImage->get()->Fill(0);
   m_DecodeType = 1;
   m_LTP = 0;
   m_pLine = nullptr;
@@ -436,25 +437,25 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArith(
       break;
   }
   CJBig2_Image* pImage = pState->pImage->get();
-  m_ProgressiveStatus = func(*this, pState);
+  m_ProssiveStatus = func(*this, pState);
   m_ReplaceRect.left = 0;
   m_ReplaceRect.right = pImage->width();
   m_ReplaceRect.top = iline;
   m_ReplaceRect.bottom = m_loopIndex;
-  if (m_ProgressiveStatus == FXCODEC_STATUS::kDecodeFinished)
+  if (m_ProssiveStatus == FXCODEC_STATUS_DECODE_FINISH)
     m_loopIndex = 0;
 
-  return m_ProgressiveStatus;
+  return m_ProssiveStatus;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::StartDecodeMMR(
     std::unique_ptr<CJBig2_Image>* pImage,
     CJBig2_BitStream* pStream) {
-  auto image = std::make_unique<CJBig2_Image>(GBW, GBH);
+  auto image = pdfium::MakeUnique<CJBig2_Image>(GBW, GBH);
   if (!image->data()) {
     *pImage = nullptr;
-    m_ProgressiveStatus = FXCODEC_STATUS::kError;
-    return m_ProgressiveStatus;
+    m_ProssiveStatus = FXCODEC_STATUS_ERROR;
+    return m_ProssiveStatus;
   }
   int bitpos = static_cast<int>(pStream->getBitPos());
   bitpos =
@@ -463,19 +464,19 @@ FXCODEC_STATUS CJBig2_GRDProc::StartDecodeMMR(
   pStream->setBitPos(bitpos);
   for (uint32_t i = 0; i < image->stride() * GBH; ++i)
     image->data()[i] = ~image->data()[i];
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
   *pImage = std::move(image);
-  return m_ProgressiveStatus;
+  return m_ProssiveStatus;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ContinueDecode(
     ProgressiveArithDecodeState* pState) {
-  if (m_ProgressiveStatus != FXCODEC_STATUS::kDecodeToBeContinued)
-    return m_ProgressiveStatus;
+  if (m_ProssiveStatus != FXCODEC_STATUS_DECODE_TOBECONTINUE)
+    return m_ProssiveStatus;
 
   if (m_DecodeType != 1) {
-    m_ProgressiveStatus = FXCODEC_STATUS::kError;
-    return m_ProgressiveStatus;
+    m_ProssiveStatus = FXCODEC_STATUS_ERROR;
+    return m_ProssiveStatus;
   }
   return ProgressiveDecodeArith(pState);
 }
@@ -483,8 +484,8 @@ FXCODEC_STATUS CJBig2_GRDProc::ContinueDecode(
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   if (!m_pLine)
     m_pLine = pImage->data();
   int32_t nStride = pImage->stride();
@@ -496,7 +497,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
   for (; m_loopIndex < height; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x9b25]);
     }
@@ -515,7 +516,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -529,7 +530,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -549,7 +550,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -562,7 +563,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -575,23 +576,23 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Opt3(
     m_pLine += nStride;
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Unopt(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   for (; m_loopIndex < GBH; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x9b25]);
     }
@@ -617,7 +618,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Unopt(
           CONTEXT |= line1 << 12;
           CONTEXT |= pImage->GetPixel(w + GBAT[6], m_loopIndex + GBAT[7]) << 15;
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
         }
@@ -633,19 +634,19 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate0Unopt(
     }
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   if (!m_pLine)
     m_pLine = pImage->data();
   int32_t nStride = pImage->stride();
@@ -655,7 +656,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
   for (; m_loopIndex < GBH; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x0795]);
     }
@@ -674,7 +675,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -688,7 +689,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -708,7 +709,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -721,7 +722,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -734,23 +735,23 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Opt3(
     m_pLine += nStride;
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Unopt(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   for (uint32_t h = 0; h < GBH; h++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x0795]);
     }
@@ -774,7 +775,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Unopt(
           CONTEXT |= line2 << 4;
           CONTEXT |= line1 << 9;
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
         }
@@ -788,19 +789,19 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate1Unopt(
     }
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   if (!m_pLine)
     m_pLine = pImage->data();
   int32_t nStride = pImage->stride();
@@ -810,7 +811,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
   for (; m_loopIndex < GBH; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x00e5]);
     }
@@ -829,7 +830,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -843,7 +844,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -863,7 +864,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -876,7 +877,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -890,23 +891,23 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Opt3(
     if (pState->pPause && m_loopIndex % 50 == 0 &&
         pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Unopt(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   for (; m_loopIndex < GBH; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x00e5]);
     }
@@ -928,7 +929,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Unopt(
           CONTEXT |= line2 << 3;
           CONTEXT |= line1 << 7;
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
         }
@@ -944,19 +945,19 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate2Unopt(
     }
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   if (!m_pLine)
     m_pLine = pImage->data();
   int32_t nStride = pImage->stride();
@@ -965,7 +966,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
   for (; m_loopIndex < GBH; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x0195]);
     }
@@ -981,7 +982,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -994,7 +995,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -1008,7 +1009,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
           uint8_t cVal = 0;
           for (int32_t k = 7; k >= 0; k--) {
             if (pArithDecoder->IsComplete())
-              return FXCODEC_STATUS::kError;
+              return FXCODEC_STATUS_ERROR;
 
             int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
             cVal |= bVal << k;
@@ -1019,7 +1020,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
         uint8_t cVal1 = 0;
         for (int32_t k = 0; k < nBitsLeft; k++) {
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           int bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
           cVal1 |= bVal << (7 - k);
@@ -1031,23 +1032,23 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Opt3(
     m_pLine += nStride;
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }
 
 FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Unopt(
     ProgressiveArithDecodeState* pState) {
   CJBig2_Image* pImage = pState->pImage->get();
-  JBig2ArithCtx* gbContext = pState->gbContext;
-  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder;
+  JBig2ArithCtx* gbContext = pState->gbContext.Get();
+  CJBig2_ArithDecoder* pArithDecoder = pState->pArithDecoder.Get();
   for (; m_loopIndex < GBH; m_loopIndex++) {
     if (TPGDON) {
       if (pArithDecoder->IsComplete())
-        return FXCODEC_STATUS::kError;
+        return FXCODEC_STATUS_ERROR;
 
       m_LTP = m_LTP ^ pArithDecoder->Decode(&gbContext[0x0195]);
     }
@@ -1066,7 +1067,7 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Unopt(
           CONTEXT |= pImage->GetPixel(w + GBAT[0], m_loopIndex + GBAT[1]) << 4;
           CONTEXT |= line1 << 5;
           if (pArithDecoder->IsComplete())
-            return FXCODEC_STATUS::kError;
+            return FXCODEC_STATUS_ERROR;
 
           bVal = pArithDecoder->Decode(&gbContext[CONTEXT]);
         }
@@ -1080,10 +1081,10 @@ FXCODEC_STATUS CJBig2_GRDProc::ProgressiveDecodeArithTemplate3Unopt(
     }
     if (pState->pPause && pState->pPause->NeedToPauseNow()) {
       m_loopIndex++;
-      m_ProgressiveStatus = FXCODEC_STATUS::kDecodeToBeContinued;
-      return FXCODEC_STATUS::kDecodeToBeContinued;
+      m_ProssiveStatus = FXCODEC_STATUS_DECODE_TOBECONTINUE;
+      return FXCODEC_STATUS_DECODE_TOBECONTINUE;
     }
   }
-  m_ProgressiveStatus = FXCODEC_STATUS::kDecodeFinished;
-  return FXCODEC_STATUS::kDecodeFinished;
+  m_ProssiveStatus = FXCODEC_STATUS_DECODE_FINISH;
+  return FXCODEC_STATUS_DECODE_FINISH;
 }

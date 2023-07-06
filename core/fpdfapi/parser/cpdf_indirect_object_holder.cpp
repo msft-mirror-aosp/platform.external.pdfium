@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,64 +7,46 @@
 #include "core/fpdfapi/parser/cpdf_indirect_object_holder.h"
 
 #include <algorithm>
-#include <memory>
 #include <utility>
 
 #include "core/fpdfapi/parser/cpdf_object.h"
 #include "core/fpdfapi/parser/cpdf_parser.h"
-#include "third_party/base/check.h"
+#include "third_party/base/logging.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
-const CPDF_Object* FilterInvalidObjNum(const CPDF_Object* obj) {
+CPDF_Object* FilterInvalidObjNum(CPDF_Object* obj) {
   return obj && obj->GetObjNum() != CPDF_Object::kInvalidObjNum ? obj : nullptr;
 }
 
 }  // namespace
 
 CPDF_IndirectObjectHolder::CPDF_IndirectObjectHolder()
-    : m_pByteStringPool(std::make_unique<ByteStringPool>()) {}
+    : m_LastObjNum(0),
+      m_pByteStringPool(pdfium::MakeUnique<ByteStringPool>()) {}
 
 CPDF_IndirectObjectHolder::~CPDF_IndirectObjectHolder() {
   m_pByteStringPool.DeleteObject();  // Make weak.
 }
 
-RetainPtr<const CPDF_Object> CPDF_IndirectObjectHolder::GetIndirectObject(
-    uint32_t objnum) const {
-  return pdfium::WrapRetain(GetIndirectObjectInternal(objnum));
-}
-
-RetainPtr<CPDF_Object> CPDF_IndirectObjectHolder::GetMutableIndirectObject(
-    uint32_t objnum) {
-  return pdfium::WrapRetain(
-      const_cast<CPDF_Object*>(GetIndirectObjectInternal(objnum)));
-}
-
-const CPDF_Object* CPDF_IndirectObjectHolder::GetIndirectObjectInternal(
+CPDF_Object* CPDF_IndirectObjectHolder::GetIndirectObject(
     uint32_t objnum) const {
   auto it = m_IndirectObjs.find(objnum);
-  if (it == m_IndirectObjs.end())
-    return nullptr;
-
-  return FilterInvalidObjNum(it->second.Get());
+  return (it != m_IndirectObjs.end()) ? FilterInvalidObjNum(it->second.Get())
+                                      : nullptr;
 }
 
-RetainPtr<CPDF_Object> CPDF_IndirectObjectHolder::GetOrParseIndirectObject(
-    uint32_t objnum) {
-  return pdfium::WrapRetain(GetOrParseIndirectObjectInternal(objnum));
-}
-
-CPDF_Object* CPDF_IndirectObjectHolder::GetOrParseIndirectObjectInternal(
+CPDF_Object* CPDF_IndirectObjectHolder::GetOrParseIndirectObject(
     uint32_t objnum) {
   if (objnum == 0 || objnum == CPDF_Object::kInvalidObjNum)
     return nullptr;
 
   // Add item anyway to prevent recursively parsing of same object.
   auto insert_result = m_IndirectObjs.insert(std::make_pair(objnum, nullptr));
-  if (!insert_result.second) {
-    return const_cast<CPDF_Object*>(
-        FilterInvalidObjNum(insert_result.first->second.Get()));
-  }
+  if (!insert_result.second)
+    return FilterInvalidObjNum(insert_result.first->second.Get());
+
   RetainPtr<CPDF_Object> pNewObj = ParseIndirectObject(objnum);
   if (!pNewObj) {
     m_IndirectObjs.erase(insert_result.first);
@@ -73,10 +55,8 @@ CPDF_Object* CPDF_IndirectObjectHolder::GetOrParseIndirectObjectInternal(
 
   pNewObj->SetObjNum(objnum);
   m_LastObjNum = std::max(m_LastObjNum, objnum);
-
-  CPDF_Object* result = pNewObj.Get();
   insert_result.first->second = std::move(pNewObj);
-  return result;
+  return insert_result.first->second.Get();
 }
 
 RetainPtr<CPDF_Object> CPDF_IndirectObjectHolder::ParseIndirectObject(
@@ -84,18 +64,20 @@ RetainPtr<CPDF_Object> CPDF_IndirectObjectHolder::ParseIndirectObject(
   return nullptr;
 }
 
-uint32_t CPDF_IndirectObjectHolder::AddIndirectObject(
+CPDF_Object* CPDF_IndirectObjectHolder::AddIndirectObject(
     RetainPtr<CPDF_Object> pObj) {
   CHECK(!pObj->GetObjNum());
   pObj->SetObjNum(++m_LastObjNum);
-  m_IndirectObjs[m_LastObjNum] = std::move(pObj);
-  return m_LastObjNum;
+
+  auto& obj_holder = m_IndirectObjs[m_LastObjNum];
+  obj_holder = std::move(pObj);
+  return obj_holder.Get();
 }
 
 bool CPDF_IndirectObjectHolder::ReplaceIndirectObjectIfHigherGeneration(
     uint32_t objnum,
     RetainPtr<CPDF_Object> pObj) {
-  DCHECK(objnum);
+  ASSERT(objnum);
   if (!pObj || objnum == CPDF_Object::kInvalidObjNum)
     return false;
 

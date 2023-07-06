@@ -1,12 +1,11 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "fxbarcode/pdf417/BC_PDF417Writer.h"
 
-#include <stdint.h>
+#include <vector>
 
-#include "core/fxcrt/data_vector.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class CBC_PDF417WriterTest : public testing::Test {
@@ -414,11 +413,11 @@ TEST_F(CBC_PDF417WriterTest, Encode) {
         1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1,
         0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1,
         1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1};
-    DataVector<uint8_t> data = writer.Encode(L"", &width, &height);
-    ASSERT_EQ(std::size(kExpectedData), data.size());
+    std::vector<uint8_t> data = writer.Encode(L"", &width, &height);
+    ASSERT_EQ(FX_ArraySize(kExpectedData), data.size());
     ASSERT_EQ(kExpectedWidth, width);
     ASSERT_EQ(kExpectedHeight, height);
-    for (size_t i = 0; i < std::size(kExpectedData); ++i)
+    for (size_t i = 0; i < FX_ArraySize(kExpectedData); ++i)
       EXPECT_EQ(kExpectedData[i], data[i]) << i;
   }
   {
@@ -811,11 +810,11 @@ TEST_F(CBC_PDF417WriterTest, Encode) {
         1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0,
         0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1,
         1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1};
-    DataVector<uint8_t> data = writer.Encode(L"hello world", &width, &height);
-    ASSERT_EQ(std::size(kExpectedData), data.size());
+    std::vector<uint8_t> data = writer.Encode(L"hello world", &width, &height);
+    ASSERT_EQ(FX_ArraySize(kExpectedData), data.size());
     ASSERT_EQ(kExpectedWidth, width);
     ASSERT_EQ(kExpectedHeight, height);
-    for (size_t i = 0; i < std::size(kExpectedData); ++i)
+    for (size_t i = 0; i < FX_ArraySize(kExpectedData); ++i)
       EXPECT_EQ(kExpectedData[i], data[i]) << i;
   }
 }

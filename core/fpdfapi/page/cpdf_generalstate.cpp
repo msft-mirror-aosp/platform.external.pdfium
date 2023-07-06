@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,8 @@
 
 #include "core/fpdfapi/page/cpdf_generalstate.h"
 
-#include <utility>
-
 #include "core/fpdfapi/page/cpdf_transferfunc.h"
-#include "core/fpdfapi/parser/cpdf_dictionary.h"
-#include "core/fpdfapi/parser/cpdf_object.h"
+#include "core/fpdfapi/parser/cpdf_document.h"
 
 namespace {
 
@@ -69,12 +66,12 @@ BlendMode GetBlendTypeInternal(const ByteString& mode) {
 
 }  // namespace
 
-CPDF_GeneralState::CPDF_GeneralState() = default;
+CPDF_GeneralState::CPDF_GeneralState() {}
 
 CPDF_GeneralState::CPDF_GeneralState(const CPDF_GeneralState& that)
     : m_Ref(that.m_Ref) {}
 
-CPDF_GeneralState::~CPDF_GeneralState() = default;
+CPDF_GeneralState::~CPDF_GeneralState() {}
 
 void CPDF_GeneralState::SetRenderIntent(const ByteString& ri) {
   m_Ref.GetPrivateCopy()->m_RenderIntent = RI_StringToId(ri);
@@ -145,27 +142,22 @@ void CPDF_GeneralState::SetStrokeAlpha(float alpha) {
   m_Ref.GetPrivateCopy()->m_StrokeAlpha = alpha;
 }
 
-RetainPtr<const CPDF_Dictionary> CPDF_GeneralState::GetSoftMask() const {
+CPDF_Object* CPDF_GeneralState::GetSoftMask() const {
   const StateData* pData = m_Ref.GetObject();
-  return pData ? pData->m_pSoftMask : nullptr;
+  return pData ? pData->m_pSoftMask.Get() : nullptr;
 }
 
-RetainPtr<CPDF_Dictionary> CPDF_GeneralState::GetMutableSoftMask() {
+void CPDF_GeneralState::SetSoftMask(CPDF_Object* pObject) {
+  m_Ref.GetPrivateCopy()->m_pSoftMask.Reset(pObject);
+}
+
+const CPDF_Object* CPDF_GeneralState::GetTR() const {
   const StateData* pData = m_Ref.GetObject();
-  return pData ? pData->m_pSoftMask : nullptr;
+  return pData ? pData->m_pTR.Get() : nullptr;
 }
 
-void CPDF_GeneralState::SetSoftMask(RetainPtr<CPDF_Dictionary> pDict) {
-  m_Ref.GetPrivateCopy()->m_pSoftMask = std::move(pDict);
-}
-
-RetainPtr<const CPDF_Object> CPDF_GeneralState::GetTR() const {
-  const StateData* pData = m_Ref.GetObject();
-  return pData ? pData->m_pTR : nullptr;
-}
-
-void CPDF_GeneralState::SetTR(RetainPtr<const CPDF_Object> pObject) {
-  m_Ref.GetPrivateCopy()->m_pTR = std::move(pObject);
+void CPDF_GeneralState::SetTR(CPDF_Object* pObject) {
+  m_Ref.GetPrivateCopy()->m_pTR.Reset(pObject);
 }
 
 RetainPtr<CPDF_TransferFunc> CPDF_GeneralState::GetTransferFunc() const {
@@ -173,8 +165,9 @@ RetainPtr<CPDF_TransferFunc> CPDF_GeneralState::GetTransferFunc() const {
   return pData ? pData->m_pTransferFunc : nullptr;
 }
 
-void CPDF_GeneralState::SetTransferFunc(RetainPtr<CPDF_TransferFunc> pFunc) {
-  m_Ref.GetPrivateCopy()->m_pTransferFunc = std::move(pFunc);
+void CPDF_GeneralState::SetTransferFunc(
+    const RetainPtr<CPDF_TransferFunc>& pFunc) {
+  m_Ref.GetPrivateCopy()->m_pTransferFunc = pFunc;
 }
 
 void CPDF_GeneralState::SetBlendMode(const ByteString& mode) {
@@ -218,16 +211,16 @@ void CPDF_GeneralState::SetOPMode(int mode) {
   m_Ref.GetPrivateCopy()->m_OPMode = mode;
 }
 
-void CPDF_GeneralState::SetBG(RetainPtr<const CPDF_Object> pObject) {
-  m_Ref.GetPrivateCopy()->m_pBG = std::move(pObject);
+void CPDF_GeneralState::SetBG(CPDF_Object* pObject) {
+  m_Ref.GetPrivateCopy()->m_pBG.Reset(pObject);
 }
 
-void CPDF_GeneralState::SetUCR(RetainPtr<const CPDF_Object> pObject) {
-  m_Ref.GetPrivateCopy()->m_pUCR = std::move(pObject);
+void CPDF_GeneralState::SetUCR(CPDF_Object* pObject) {
+  m_Ref.GetPrivateCopy()->m_pUCR.Reset(pObject);
 }
 
-void CPDF_GeneralState::SetHT(RetainPtr<const CPDF_Object> pObject) {
-  m_Ref.GetPrivateCopy()->m_pHT = std::move(pObject);
+void CPDF_GeneralState::SetHT(CPDF_Object* pObject) {
+  m_Ref.GetPrivateCopy()->m_pHT.Reset(pObject);
 }
 
 void CPDF_GeneralState::SetFlatness(float flatness) {
