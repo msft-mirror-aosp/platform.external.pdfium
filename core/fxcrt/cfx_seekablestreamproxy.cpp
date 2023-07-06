@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,39 +6,48 @@
 
 #include "core/fxcrt/cfx_seekablestreamproxy.h"
 
-#include <stdint.h>
+#if defined(OS_WIN)
+#include <io.h>
+#endif
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <utility>
+#include <vector>
 
 #include "build/build_config.h"
-#include "core/fxcrt/data_vector.h"
+#include "core/fxcrt/fx_codepage.h"
 #include "core/fxcrt/fx_extension.h"
+#include "core/fxcrt/fx_memory_wrappers.h"
 #include "core/fxcrt/fx_safe_types.h"
-#include "third_party/base/check.h"
-#include "third_party/base/check_op.h"
-#include "third_party/base/cxx17_backports.h"
+#include "third_party/base/stl_util.h"
 
 namespace {
 
 // Returns {src bytes consumed, dst chars produced}.
 // Invalid sequences are silently not output.
-std::pair<size_t, size_t> UTF8Decode(pdfium::span<const uint8_t> pSrc,
-                                     pdfium::span<wchar_t> pDst) {
-  DCHECK(!pDst.empty());
+std::pair<size_t, size_t> UTF8Decode(const char* pSrc,
+                                     size_t srcLen,
+                                     wchar_t* pDst,
+                                     size_t dstLen) {
+  ASSERT(pDst);
+  ASSERT(dstLen > 0);
+
+  if (srcLen < 1)
+    return {0, 0};
 
   uint32_t dwCode = 0;
   int32_t iPending = 0;
   size_t iSrcNum = 0;
   size_t iDstNum = 0;
-  for (size_t iIndex = 0; iIndex < pSrc.size() && iDstNum < pDst.size();
-       ++iIndex) {
+  for (size_t iIndex = 0; iIndex < srcLen && iDstNum < dstLen; ++iIndex) {
     ++iSrcNum;
-    uint8_t byte = pSrc[iIndex];
+    uint8_t byte = static_cast<uint8_t>(*(pSrc + iIndex));
     if (byte < 0x80) {
       iPending = 0;
-      pDst[iDstNum++] = byte;
+      ++iDstNum;
+      *pDst++ = byte;
     } else if (byte < 0xc0) {
       if (iPending < 1)
         continue;
@@ -46,8 +55,10 @@ std::pair<size_t, size_t> UTF8Decode(pdfium::span<const uint8_t> pSrc,
       dwCode = dwCode << 6;
       dwCode |= (byte & 0x3f);
       --iPending;
-      if (iPending == 0)
-        pDst[iDstNum++] = dwCode;
+      if (iPending == 0) {
+        ++iDstNum;
+        *pDst++ = dwCode;
+      }
     } else if (byte < 0xe0) {
       iPending = 1;
       dwCode = (byte & 0x1f);
@@ -72,8 +83,8 @@ std::pair<size_t, size_t> UTF8Decode(pdfium::span<const uint8_t> pSrc,
 static_assert(sizeof(wchar_t) > 2, "wchar_t is too small");
 
 void UTF16ToWChar(void* pBuffer, size_t iLength) {
-  DCHECK(pBuffer);
-  DCHECK_GT(iLength, 0);
+  ASSERT(pBuffer);
+  ASSERT(iLength > 0);
 
   uint16_t* pSrc = static_cast<uint16_t*>(pBuffer);
   wchar_t* pDst = static_cast<wchar_t*>(pBuffer);
@@ -101,8 +112,11 @@ void SwapByteOrder(uint16_t* pStr, size_t iLength) {
 
 CFX_SeekableStreamProxy::CFX_SeekableStreamProxy(
     const RetainPtr<IFX_SeekableReadStream>& stream)
-    : m_pStream(stream) {
-  DCHECK(m_pStream);
+    : m_wCodePage(FX_CODEPAGE_DefANSI),
+      m_wBOMLength(0),
+      m_iPosition(0),
+      m_pStream(stream) {
+  ASSERT(m_pStream);
 
   Seek(From::Begin, 0);
 
@@ -112,18 +126,18 @@ CFX_SeekableStreamProxy::CFX_SeekableStreamProxy(
   bom &= BOM_UTF8_MASK;
   if (bom == BOM_UTF8) {
     m_wBOMLength = 3;
-    m_wCodePage = FX_CodePage::kUTF8;
+    m_wCodePage = FX_CODEPAGE_UTF8;
   } else {
     bom &= BOM_UTF16_MASK;
     if (bom == BOM_UTF16_BE) {
       m_wBOMLength = 2;
-      m_wCodePage = FX_CodePage::kUTF16BE;
+      m_wCodePage = FX_CODEPAGE_UTF16BE;
     } else if (bom == BOM_UTF16_LE) {
       m_wBOMLength = 2;
-      m_wCodePage = FX_CodePage::kUTF16LE;
+      m_wCodePage = FX_CODEPAGE_UTF16LE;
     } else {
       m_wBOMLength = 0;
-      m_wCodePage = FX_GetACP();
+      m_wCodePage = FXSYS_GetACP();
     }
   }
 
@@ -160,22 +174,22 @@ void CFX_SeekableStreamProxy::Seek(From eSeek, FX_FILESIZE iOffset) {
       pdfium::clamp(m_iPosition, static_cast<FX_FILESIZE>(0), GetSize());
 }
 
-void CFX_SeekableStreamProxy::SetCodePage(FX_CodePage wCodePage) {
+void CFX_SeekableStreamProxy::SetCodePage(uint16_t wCodePage) {
   if (m_wBOMLength > 0)
     return;
   m_wCodePage = wCodePage;
 }
 
 size_t CFX_SeekableStreamProxy::ReadData(uint8_t* pBuffer, size_t iBufferSize) {
-  DCHECK(pBuffer);
-  DCHECK(iBufferSize > 0);
+  ASSERT(pBuffer);
+  ASSERT(iBufferSize > 0);
 
   iBufferSize =
       std::min(iBufferSize, static_cast<size_t>(GetSize() - m_iPosition));
   if (iBufferSize <= 0)
     return 0;
 
-  if (!m_pStream->ReadBlockAtOffset({pBuffer, iBufferSize}, m_iPosition))
+  if (!m_pStream->ReadBlockAtOffset(pBuffer, m_iPosition, iBufferSize))
     return 0;
 
   FX_SAFE_FILESIZE new_pos = m_iPosition;
@@ -188,33 +202,38 @@ size_t CFX_SeekableStreamProxy::ReadBlock(wchar_t* pStr, size_t size) {
   if (!pStr || size == 0)
     return 0;
 
-  if (m_wCodePage == FX_CodePage::kUTF16LE ||
-      m_wCodePage == FX_CodePage::kUTF16BE) {
+  if (m_wCodePage == FX_CODEPAGE_UTF16LE ||
+      m_wCodePage == FX_CODEPAGE_UTF16BE) {
     size_t iBytes = size * 2;
     size_t iLen = ReadData(reinterpret_cast<uint8_t*>(pStr), iBytes);
     size = iLen / 2;
-    if (m_wCodePage == FX_CodePage::kUTF16BE)
+    if (m_wCodePage == FX_CODEPAGE_UTF16BE)
       SwapByteOrder(reinterpret_cast<uint16_t*>(pStr), size);
 
 #if defined(WCHAR_T_IS_UTF32)
     if (size > 0)
       UTF16ToWChar(pStr, size);
 #endif
-    return size;
+  } else {
+    FX_FILESIZE pos = GetPosition();
+    size_t iBytes = std::min(size, static_cast<size_t>(GetSize() - pos));
+
+    if (iBytes > 0) {
+      std::vector<uint8_t, FxAllocAllocator<uint8_t>> buf(iBytes);
+
+      size_t iLen = ReadData(buf.data(), iBytes);
+      if (m_wCodePage != FX_CODEPAGE_UTF8)
+        return 0;
+
+      size_t iSrc = 0;
+      std::tie(iSrc, size) =
+          UTF8Decode(reinterpret_cast<const char*>(buf.data()), iLen,
+                     static_cast<wchar_t*>(pStr), size);
+      Seek(From::Current, iSrc - iLen);
+    } else {
+      size = 0;
+    }
   }
 
-  FX_FILESIZE pos = GetPosition();
-  size_t iBytes = std::min(size, static_cast<size_t>(GetSize() - pos));
-  if (iBytes == 0)
-    return 0;
-
-  DataVector<uint8_t> buf(iBytes);
-  size_t iLen = ReadData(buf.data(), iBytes);
-  if (m_wCodePage != FX_CodePage::kUTF8)
-    return 0;
-
-  size_t iSrc;
-  std::tie(iSrc, size) = UTF8Decode({buf.data(), iLen}, {pStr, size});
-  Seek(From::Current, iSrc - iLen);
   return size;
 }

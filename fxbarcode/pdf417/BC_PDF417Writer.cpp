@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,17 +22,14 @@
 
 #include "fxbarcode/pdf417/BC_PDF417Writer.h"
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <utility>
 
-#include "core/fxcrt/data_vector.h"
-#include "core/fxcrt/stl_util.h"
 #include "fxbarcode/BC_TwoDimWriter.h"
 #include "fxbarcode/common/BC_CommonBitMatrix.h"
 #include "fxbarcode/pdf417/BC_PDF417.h"
 #include "fxbarcode/pdf417/BC_PDF417BarcodeMatrix.h"
+#include "third_party/base/stl_util.h"
 
 CBC_PDF417Writer::CBC_PDF417Writer() : CBC_TwoDimWriter(false) {}
 
@@ -46,9 +43,10 @@ bool CBC_PDF417Writer::SetErrorCorrectionLevel(int32_t level) {
   return true;
 }
 
-DataVector<uint8_t> CBC_PDF417Writer::Encode(WideStringView contents,
-                                             int32_t* pOutWidth,
-                                             int32_t* pOutHeight) {
+std::vector<uint8_t> CBC_PDF417Writer::Encode(WideStringView contents,
+                                              int32_t* pOutWidth,
+                                              int32_t* pOutHeight) {
+  std::vector<uint8_t> results;
   CBC_PDF417 encoder;
   int32_t col = (m_Width / m_ModuleWidth - 69) / 17;
   int32_t row = m_Height / (m_ModuleWidth * 20);
@@ -59,10 +57,10 @@ DataVector<uint8_t> CBC_PDF417Writer::Encode(WideStringView contents,
   else if (row >= 3 && row <= 90)
     encoder.setDimensions(30, 1, row, row);
   if (!encoder.GenerateBarcodeLogic(contents, error_correction_level()))
-    return DataVector<uint8_t>();
+    return results;
 
   CBC_BarcodeMatrix* barcodeMatrix = encoder.getBarcodeMatrix();
-  DataVector<uint8_t> matrixData = barcodeMatrix->toBitArray();
+  std::vector<uint8_t> matrixData = barcodeMatrix->toBitArray();
   int32_t matrixWidth = barcodeMatrix->getWidth();
   int32_t matrixHeight = barcodeMatrix->getHeight();
 
@@ -72,13 +70,15 @@ DataVector<uint8_t> CBC_PDF417Writer::Encode(WideStringView contents,
   }
   *pOutWidth = matrixWidth;
   *pOutHeight = matrixHeight;
-  return matrixData;
+  results = pdfium::Vector2D<uint8_t>(*pOutWidth, *pOutHeight);
+  memcpy(results.data(), matrixData.data(), *pOutWidth * *pOutHeight);
+  return results;
 }
 
-void CBC_PDF417Writer::RotateArray(DataVector<uint8_t>* bitarray,
+void CBC_PDF417Writer::RotateArray(std::vector<uint8_t>* bitarray,
                                    int32_t height,
                                    int32_t width) {
-  DataVector<uint8_t> temp = *bitarray;
+  std::vector<uint8_t> temp = *bitarray;
   for (int32_t ii = 0; ii < height; ii++) {
     int32_t inverseii = height - ii - 1;
     for (int32_t jj = 0; jj < width; jj++) {

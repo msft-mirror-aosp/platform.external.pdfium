@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,27 +9,26 @@
 
 #include <memory>
 
-#include "fpdfsdk/formfiller/cffl_formfield.h"
+#include "fpdfsdk/formfiller/cffl_formfiller.h"
 
-class CPDF_BAFontMap;
+class CBA_FontMap;
 
-// Class to implement common functionality for CFFL_FormField sub-classes with
+// Class to implement common functionality for CFFL_FormFiller sub-classes with
 // text fields.
-class CFFL_TextObject : public CFFL_FormField {
+class CFFL_TextObject : public CFFL_FormFiller {
  public:
-  // CFFL_FormField:
-  CPWL_Wnd* ResetPWLWindow(const CPDFSDK_PageView* pPageView) override;
-  CPWL_Wnd* RestorePWLWindow(const CPDFSDK_PageView* pPageView) override;
+  // CFFL_FormFiller:
+  CPWL_Wnd* ResetPWLWindow(CPDFSDK_PageView* pPageView,
+                           bool bRestoreValue) override;
 
  protected:
-  CFFL_TextObject(CFFL_InteractiveFormFiller* pFormFiller,
-                  CPDFSDK_Widget* pWidget);
+  CFFL_TextObject(CPDFSDK_FormFillEnvironment* pApp, CPDFSDK_Widget* pWidget);
   ~CFFL_TextObject() override;
 
-  CPDF_BAFontMap* GetOrCreateFontMap();
+  CBA_FontMap* MaybeCreateFontMap();
 
  private:
-  std::unique_ptr<CPDF_BAFontMap> m_pFontMap;
+  std::unique_ptr<CBA_FontMap> m_pFontMap;
 };
 
 #endif  // FPDFSDK_FORMFILLER_CFFL_TEXTOBJECT_H_

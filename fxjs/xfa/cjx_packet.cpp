@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,10 @@
 #include <vector>
 
 #include "core/fxcrt/xml/cfx_xmldocument.h"
-#include "core/fxcrt/xml/cfx_xmlelement.h"
 #include "core/fxcrt/xml/cfx_xmltext.h"
 #include "fxjs/cfx_v8.h"
-#include "fxjs/fxv8.h"
 #include "fxjs/js_resources.h"
-#include "v8/include/v8-primitive.h"
+#include "fxjs/xfa/cfxjse_value.h"
 #include "xfa/fxfa/cxfa_ffdoc.h"
 #include "xfa/fxfa/cxfa_ffnotify.h"
 #include "xfa/fxfa/parser/cxfa_packet.h"
@@ -29,14 +27,14 @@ CJX_Packet::CJX_Packet(CXFA_Packet* packet) : CJX_Node(packet) {
   DefineMethods(MethodSpecs);
 }
 
-CJX_Packet::~CJX_Packet() = default;
+CJX_Packet::~CJX_Packet() {}
 
 bool CJX_Packet::DynamicTypeIs(TypeTag eType) const {
   return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
 }
 
 CJS_Result CJX_Packet::getAttribute(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -51,7 +49,7 @@ CJS_Result CJX_Packet::getAttribute(
 }
 
 CJS_Result CJX_Packet::setAttribute(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (params.size() != 2)
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -65,20 +63,21 @@ CJS_Result CJX_Packet::setAttribute(
 }
 
 CJS_Result CJX_Packet::removeAttribute(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
 
   CFX_XMLElement* pElement = ToXMLElement(GetXFANode()->GetXMLMappingNode());
-  if (pElement)
-    pElement->RemoveAttribute(runtime->ToWideString(params[0]));
-
+  if (pElement) {
+    WideString name = runtime->ToWideString(params[0]);
+    if (pElement->HasAttribute(name))
+      pElement->RemoveAttribute(name);
+  }
   return CJS_Result::Success(runtime->NewNull());
 }
 
-void CJX_Packet::content(v8::Isolate* pIsolate,
-                         v8::Local<v8::Value>* pValue,
+void CJX_Packet::content(CFXJSE_Value* pValue,
                          bool bSetting,
                          XFA_Attribute eAttribute) {
   CFX_XMLElement* element = ToXMLElement(GetXFANode()->GetXMLMappingNode());
@@ -88,10 +87,9 @@ void CJX_Packet::content(v8::Isolate* pIsolate,
           GetXFANode()
               ->GetDocument()
               ->GetNotify()
-              ->GetFFDoc()
+              ->GetHDOC()
               ->GetXMLDocument()
-              ->CreateNode<CFX_XMLText>(
-                  fxv8::ReentrantToWideStringHelper(pIsolate, *pValue)));
+              ->CreateNode<CFX_XMLText>(pValue->ToWideString()));
     }
     return;
   }
@@ -100,5 +98,5 @@ void CJX_Packet::content(v8::Isolate* pIsolate,
   if (element)
     wsTextData = element->GetTextData();
 
-  *pValue = fxv8::NewStringHelper(pIsolate, wsTextData.ToUTF8().AsStringView());
+  pValue->SetString(wsTextData.ToUTF8().AsStringView());
 }

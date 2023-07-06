@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,12 @@
 #include "fxjs/xfa/jse_define.h"
 #include "xfa/fxfa/fxfa_basic.h"
 
+class CFXJSE_Value;
 class CScript_DataWindow;
 
 class CJX_DataWindow final : public CJX_Object {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_DataWindow(CScript_DataWindow* window);
   ~CJX_DataWindow() override;
 
   // CJX_Object:
@@ -32,8 +33,6 @@ class CJX_DataWindow final : public CJX_Object {
   JSE_PROP(recordsBefore);
 
  private:
-  explicit CJX_DataWindow(CScript_DataWindow* window);
-
   using Type__ = CJX_DataWindow;
   using ParentType__ = CJX_Object;
 

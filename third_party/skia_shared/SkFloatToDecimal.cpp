@@ -7,10 +7,13 @@
 
 #include "SkFloatToDecimal.h"
 
-#include <cassert>
 #include <cfloat>
 #include <climits>
 #include <cmath>
+
+//#include "SkTypes.h"
+#include <cassert>
+#define SkASSERT assert
 
 namespace pdfium {
 namespace skia {
@@ -41,11 +44,9 @@ double pow10(int e) {
                 while (e-- > 15) { value *= 10.0; }
                 return value;
             } else {
-                assert(e < 0);
+                SkASSERT(e < 0);
                 double value = 1.0;
-                while (e++ < 0) {
-                    value /= 10.0;
-                }
+                while (e++ < 0) { value /= 10.0; }
                 return value;
             }
     }
@@ -107,7 +108,7 @@ unsigned SkFloatToDecimal(float value, char output[kMaximumSkFloatToDecimalLengt
         *output_ptr++ = '-';
         value = -value;
     }
-    assert(value >= 0.0f);
+    SkASSERT(value >= 0.0f);
 
     int binaryExponent;
     (void)std::frexp(value, &binaryExponent);
@@ -115,31 +116,31 @@ unsigned SkFloatToDecimal(float value, char output[kMaximumSkFloatToDecimalLengt
     int decimalExponent = static_cast<int>(std::floor(kLog2 * binaryExponent));
     int decimalShift = decimalExponent - 8;
     double power = pow10(-decimalShift);
-    assert(value * power <= (double)INT_MAX);
+    SkASSERT(value * power <= (double)INT_MAX);
     int d = static_cast<int>(value * power + 0.5);
-    // assert(value == (float)(d * pow(10.0, decimalShift)));
-    assert(d <= 999999999);
+    // SkASSERT(value == (float)(d * pow(10.0, decimalShift)));
+    SkASSERT(d <= 999999999);
     if (d > 167772159) {  // floor(pow(10,1+log10(1<<24)))
        // need one fewer decimal digits for 24-bit precision.
        decimalShift = decimalExponent - 7;
-       // assert(power * 0.1 = pow10(-decimalShift));
+       // SkASSERT(power * 0.1 = pow10(-decimalShift));
        // recalculate to get rounding right.
        d = static_cast<int>(value * (power * 0.1) + 0.5);
-       assert(d <= 99999999);
+       SkASSERT(d <= 99999999);
     }
     while (d % 10 == 0) {
         d /= 10;
         ++decimalShift;
     }
-    assert(d > 0);
-    // assert(value == (float)(d * pow(10.0, decimalShift)));
+    SkASSERT(d > 0);
+    // SkASSERT(value == (float)(d * pow(10.0, decimalShift)));
     unsigned char buffer[9]; // decimal value buffer.
     int bufferIndex = 0;
     do {
         buffer[bufferIndex++] = d % 10;
         d /= 10;
     } while (d != 0);
-    assert(bufferIndex <= (int)sizeof(buffer) && bufferIndex > 0);
+    SkASSERT(bufferIndex <= (int)sizeof(buffer) && bufferIndex > 0);
     if (decimalShift >= 0) {
         do {
             --bufferIndex;
@@ -173,7 +174,7 @@ unsigned SkFloatToDecimal(float value, char output[kMaximumSkFloatToDecimalLengt
             }
         }
     }
-    assert(output_ptr <= end);
+    SkASSERT(output_ptr <= end);
     *output_ptr = '\0';
     return static_cast<unsigned>(output_ptr - output);
 }

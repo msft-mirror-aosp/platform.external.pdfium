@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,21 +10,31 @@
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
-#include "third_party/base/check.h"
 
 namespace {
+
+int32_t FindGroup(const CPDF_Array* pArray, const CPDF_Dictionary* pGroupDict) {
+  if (!pArray || !pGroupDict)
+    return -1;
+
+  for (size_t i = 0; i < pArray->size(); i++) {
+    if (pArray->GetDictAt(i) == pGroupDict)
+      return i;
+  }
+  return -1;
+}
 
 bool HasIntent(const CPDF_Dictionary* pDict,
                ByteStringView csElement,
                ByteStringView csDef) {
-  RetainPtr<const CPDF_Object> pIntent = pDict->GetDirectObjectFor("Intent");
+  const CPDF_Object* pIntent = pDict->GetDirectObjectFor("Intent");
   if (!pIntent)
     return csElement == csDef;
 
   ByteString bsIntent;
   if (const CPDF_Array* pArray = pIntent->AsArray()) {
     for (size_t i = 0; i < pArray->size(); i++) {
-      bsIntent = pArray->GetByteStringAt(i);
+      bsIntent = pArray->GetStringAt(i);
       if (bsIntent == "All" || bsIntent == csElement)
         return true;
     }
@@ -34,30 +44,28 @@ bool HasIntent(const CPDF_Dictionary* pDict,
   return bsIntent == "All" || bsIntent == csElement;
 }
 
-RetainPtr<const CPDF_Dictionary> GetConfig(CPDF_Document* pDoc,
-                                           const CPDF_Dictionary* pOCGDict) {
-  DCHECK(pOCGDict);
-  RetainPtr<const CPDF_Dictionary> pOCProperties =
-      pDoc->GetRoot()->GetDictFor("OCProperties");
+CPDF_Dictionary* GetConfig(CPDF_Document* pDoc,
+                           const CPDF_Dictionary* pOCGDict) {
+  ASSERT(pOCGDict);
+  CPDF_Dictionary* pOCProperties = pDoc->GetRoot()->GetDictFor("OCProperties");
   if (!pOCProperties)
     return nullptr;
 
-  RetainPtr<const CPDF_Array> pOCGs = pOCProperties->GetArrayFor("OCGs");
+  CPDF_Array* pOCGs = pOCProperties->GetArrayFor("OCGs");
   if (!pOCGs)
     return nullptr;
 
-  if (!pOCGs->Contains(pOCGDict))
+  if (FindGroup(pOCGs, pOCGDict) < 0)
     return nullptr;
 
-  RetainPtr<const CPDF_Dictionary> pConfig = pOCProperties->GetDictFor("D");
-  RetainPtr<const CPDF_Array> pConfigArray =
-      pOCProperties->GetArrayFor("Configs");
-  if (!pConfigArray)
+  CPDF_Dictionary* pConfig = pOCProperties->GetDictFor("D");
+  CPDF_Array* pConfigs = pOCProperties->GetArrayFor("Configs");
+  if (!pConfigs)
     return pConfig;
 
-  for (size_t i = 0; i < pConfigArray->size(); i++) {
-    RetainPtr<const CPDF_Dictionary> pFind = pConfigArray->GetDictAt(i);
-    if (pFind && HasIntent(pFind.Get(), "View", ""))
+  for (size_t i = 0; i < pConfigs->size(); i++) {
+    CPDF_Dictionary* pFind = pConfigs->GetDictAt(i);
+    if (pFind && HasIntent(pFind, "View", ""))
       return pFind;
   }
   return pConfig;
@@ -66,13 +74,13 @@ RetainPtr<const CPDF_Dictionary> GetConfig(CPDF_Document* pDoc,
 ByteString GetUsageTypeString(CPDF_OCContext::UsageType eType) {
   ByteString csState;
   switch (eType) {
-    case CPDF_OCContext::kDesign:
+    case CPDF_OCContext::Design:
       csState = "Design";
       break;
-    case CPDF_OCContext::kPrint:
+    case CPDF_OCContext::Print:
       csState = "Print";
       break;
-    case CPDF_OCContext::kExport:
+    case CPDF_OCContext::Export:
       csState = "Export";
       break;
     default:
@@ -86,52 +94,54 @@ ByteString GetUsageTypeString(CPDF_OCContext::UsageType eType) {
 
 CPDF_OCContext::CPDF_OCContext(CPDF_Document* pDoc, UsageType eUsageType)
     : m_pDocument(pDoc), m_eUsageType(eUsageType) {
-  DCHECK(pDoc);
+  ASSERT(pDoc);
 }
 
-CPDF_OCContext::~CPDF_OCContext() = default;
+CPDF_OCContext::~CPDF_OCContext() {}
 
 bool CPDF_OCContext::LoadOCGStateFromConfig(
     const ByteString& csConfig,
     const CPDF_Dictionary* pOCGDict) const {
-  RetainPtr<const CPDF_Dictionary> pConfig = GetConfig(m_pDocument, pOCGDict);
+  CPDF_Dictionary* pConfig = GetConfig(m_pDocument.Get(), pOCGDict);
   if (!pConfig)
     return true;
 
-  bool bState = pConfig->GetByteStringFor("BaseState", "ON") != "OFF";
-  RetainPtr<const CPDF_Array> pArray = pConfig->GetArrayFor("ON");
-  if (pArray && pArray->Contains(pOCGDict))
-    bState = true;
-
+  bool bState = pConfig->GetStringFor("BaseState", "ON") != "OFF";
+  CPDF_Array* pArray = pConfig->GetArrayFor("ON");
+  if (pArray) {
+    if (FindGroup(pArray, pOCGDict) >= 0)
+      bState = true;
+  }
   pArray = pConfig->GetArrayFor("OFF");
-  if (pArray && pArray->Contains(pOCGDict))
-    bState = false;
-
+  if (pArray) {
+    if (FindGroup(pArray, pOCGDict) >= 0)
+      bState = false;
+  }
   pArray = pConfig->GetArrayFor("AS");
   if (!pArray)
     return bState;
 
   ByteString csFind = csConfig + "State";
   for (size_t i = 0; i < pArray->size(); i++) {
-    RetainPtr<const CPDF_Dictionary> pUsage = pArray->GetDictAt(i);
+    CPDF_Dictionary* pUsage = pArray->GetDictAt(i);
     if (!pUsage)
       continue;
 
-    if (pUsage->GetByteStringFor("Event", "View") != csConfig)
+    if (pUsage->GetStringFor("Event", "View") != csConfig)
       continue;
 
-    RetainPtr<const CPDF_Array> pOCGs = pUsage->GetArrayFor("OCGs");
+    CPDF_Array* pOCGs = pUsage->GetArrayFor("OCGs");
     if (!pOCGs)
       continue;
 
-    if (!pOCGs->Contains(pOCGDict))
+    if (FindGroup(pOCGs, pOCGDict) < 0)
       continue;
 
-    RetainPtr<const CPDF_Dictionary> pState = pUsage->GetDictFor(csConfig);
+    CPDF_Dictionary* pState = pUsage->GetDictFor(csConfig);
     if (!pState)
       continue;
 
-    bState = pState->GetByteStringFor(csFind) != "OFF";
+    bState = pState->GetStringFor(csFind) != "OFF";
   }
   return bState;
 }
@@ -141,18 +151,18 @@ bool CPDF_OCContext::LoadOCGState(const CPDF_Dictionary* pOCGDict) const {
     return true;
 
   ByteString csState = GetUsageTypeString(m_eUsageType);
-  RetainPtr<const CPDF_Dictionary> pUsage = pOCGDict->GetDictFor("Usage");
+  const CPDF_Dictionary* pUsage = pOCGDict->GetDictFor("Usage");
   if (pUsage) {
-    RetainPtr<const CPDF_Dictionary> pState = pUsage->GetDictFor(csState);
+    const CPDF_Dictionary* pState = pUsage->GetDictFor(csState);
     if (pState) {
       ByteString csFind = csState + "State";
       if (pState->KeyExist(csFind))
-        return pState->GetByteStringFor(csFind) != "OFF";
+        return pState->GetStringFor(csFind) != "OFF";
     }
     if (csState != "View") {
       pState = pUsage->GetDictFor("View");
       if (pState && pState->KeyExist("ViewState"))
-        return pState->GetByteStringFor("ViewState") != "OFF";
+        return pState->GetStringFor("ViewState") != "OFF";
     }
   }
   return LoadOCGStateFromConfig(csState, pOCGDict);
@@ -167,17 +177,16 @@ bool CPDF_OCContext::GetOCGVisible(const CPDF_Dictionary* pOCGDict) const {
     return it->second;
 
   bool bState = LoadOCGState(pOCGDict);
-  m_OGCStateCache[pdfium::WrapRetain(pOCGDict)] = bState;
+  m_OGCStateCache[pOCGDict] = bState;
   return bState;
 }
 
-bool CPDF_OCContext::CheckPageObjectVisible(const CPDF_PageObject* pObj) const {
-  const CPDF_ContentMarks* pMarks = pObj->GetContentMarks();
-  for (size_t i = 0; i < pMarks->CountItems(); ++i) {
-    const CPDF_ContentMarkItem* item = pMarks->GetItem(i);
+bool CPDF_OCContext::CheckObjectVisible(const CPDF_PageObject* pObj) const {
+  for (size_t i = 0; i < pObj->m_ContentMarks.CountItems(); ++i) {
+    const CPDF_ContentMarkItem* item = pObj->m_ContentMarks.GetItem(i);
     if (item->GetName() == "OC" &&
         item->GetParamType() == CPDF_ContentMarkItem::kPropertiesDict &&
-        !CheckOCGDictVisible(item->GetParam().Get())) {
+        !CheckOCGVisible(item->GetParam())) {
       return false;
     }
   }
@@ -188,9 +197,9 @@ bool CPDF_OCContext::GetOCGVE(const CPDF_Array* pExpression, int nLevel) const {
   if (nLevel > 32 || !pExpression)
     return false;
 
-  ByteString csOperator = pExpression->GetByteStringAt(0);
+  ByteString csOperator = pExpression->GetStringAt(0);
   if (csOperator == "Not") {
-    RetainPtr<const CPDF_Object> pOCGObj = pExpression->GetDirectObjectAt(1);
+    const CPDF_Object* pOCGObj = pExpression->GetDirectObjectAt(1);
     if (!pOCGObj)
       return false;
     if (const CPDF_Dictionary* pDict = pOCGObj->AsDictionary())
@@ -205,7 +214,7 @@ bool CPDF_OCContext::GetOCGVE(const CPDF_Array* pExpression, int nLevel) const {
 
   bool bValue = false;
   for (size_t i = 1; i < pExpression->size(); i++) {
-    RetainPtr<const CPDF_Object> pOCGObj = pExpression->GetDirectObjectAt(i);
+    const CPDF_Object* pOCGObj = pExpression->GetDirectObjectAt(1);
     if (!pOCGObj)
       continue;
 
@@ -229,13 +238,12 @@ bool CPDF_OCContext::GetOCGVE(const CPDF_Array* pExpression, int nLevel) const {
 }
 
 bool CPDF_OCContext::LoadOCMDState(const CPDF_Dictionary* pOCMDDict) const {
-  RetainPtr<const CPDF_Array> pVE = pOCMDDict->GetArrayFor("VE");
-  if (pVE) {
-    return GetOCGVE(pVE.Get(), 0);
-  }
+  const CPDF_Array* pVE = pOCMDDict->GetArrayFor("VE");
+  if (pVE)
+    return GetOCGVE(pVE, 0);
 
-  ByteString csP = pOCMDDict->GetByteStringFor("P", "AnyOn");
-  RetainPtr<const CPDF_Object> pOCGObj = pOCMDDict->GetDirectObjectFor("OCGs");
+  ByteString csP = pOCMDDict->GetStringFor("P", "AnyOn");
+  const CPDF_Object* pOCGObj = pOCMDDict->GetDirectObjectFor("OCGs");
   if (!pOCGObj)
     return true;
 
@@ -252,12 +260,12 @@ bool CPDF_OCContext::LoadOCMDState(const CPDF_Dictionary* pOCMDDict) const {
   bool bValidEntrySeen = false;
   for (size_t i = 0; i < pArray->size(); i++) {
     bool bItem = true;
-    RetainPtr<const CPDF_Dictionary> pItemDict = pArray->GetDictAt(i);
+    const CPDF_Dictionary* pItemDict = pArray->GetDictAt(i);
     if (!pItemDict)
       continue;
 
     bValidEntrySeen = true;
-    bItem = GetOCGVisible(pItemDict.Get());
+    bItem = GetOCGVisible(pItemDict);
 
     if ((csP == "AnyOn" && bItem) || (csP == "AnyOff" && !bItem))
       return true;
@@ -268,12 +276,11 @@ bool CPDF_OCContext::LoadOCMDState(const CPDF_Dictionary* pOCMDDict) const {
   return !bValidEntrySeen || bState;
 }
 
-bool CPDF_OCContext::CheckOCGDictVisible(
-    const CPDF_Dictionary* pOCGDict) const {
+bool CPDF_OCContext::CheckOCGVisible(const CPDF_Dictionary* pOCGDict) const {
   if (!pOCGDict)
     return true;
 
-  ByteString csType = pOCGDict->GetByteStringFor("Type", "OCG");
+  ByteString csType = pOCGDict->GetStringFor("Type", "OCG");
   if (csType == "OCG")
     return GetOCGVisible(pOCGDict);
   return LoadOCMDState(pOCGDict);

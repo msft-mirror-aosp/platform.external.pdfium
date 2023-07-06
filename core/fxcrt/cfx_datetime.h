@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,23 @@
 #ifndef CORE_FXCRT_CFX_DATETIME_H_
 #define CORE_FXCRT_CFX_DATETIME_H_
 
-#include <stdint.h>
+#include "core/fxcrt/fx_system.h"
 
 bool FX_IsLeapYear(int32_t iYear);
 uint8_t FX_DaysInMonth(int32_t iYear, uint8_t iMonth);
 
 class CFX_DateTime {
  public:
-  static CFX_DateTime Now();  // Accurate to seconds, subject to test overrides.
+  static CFX_DateTime Now();
 
-  CFX_DateTime() = default;
+  CFX_DateTime()
+      : year_(0),
+        month_(0),
+        day_(0),
+        hour_(0),
+        minute_(0),
+        second_(0),
+        millisecond_(0) {}
   CFX_DateTime(int32_t year,
                uint8_t month,
                uint8_t day,
@@ -75,13 +82,18 @@ class CFX_DateTime {
   bool operator==(const CFX_DateTime& other) const;
 
  private:
-  int32_t year_ = 0;
-  uint8_t month_ = 0;
-  uint8_t day_ = 0;
-  uint8_t hour_ = 0;
-  uint8_t minute_ = 0;
-  uint8_t second_ = 0;
-  uint16_t millisecond_ = 0;
+  int32_t year_;
+  uint8_t month_;
+  uint8_t day_;
+  uint8_t hour_;
+  uint8_t minute_;
+  uint8_t second_;
+  uint16_t millisecond_;
+};
+
+struct FX_TIMEZONE {
+  int8_t tzHour;
+  uint8_t tzMinute;
 };
 
 #endif  // CORE_FXCRT_CFX_DATETIME_H_

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,17 +10,17 @@
 #include "xfa/fwl/cfwl_themebackground.h"
 #include "xfa/fwl/cfwl_widget.h"
 
-CFWL_BarcodeTP::CFWL_BarcodeTP() = default;
+CFWL_BarcodeTP::CFWL_BarcodeTP() {}
 
-CFWL_BarcodeTP::~CFWL_BarcodeTP() = default;
+CFWL_BarcodeTP::~CFWL_BarcodeTP() {}
 
 void CFWL_BarcodeTP::DrawBackground(const CFWL_ThemeBackground& pParams) {
-  switch (pParams.GetPart()) {
-    case CFWL_ThemePart::Part::kBorder:
-      DrawBorder(pParams.GetGraphics(), pParams.m_PartRect, pParams.m_matrix);
+  switch (pParams.m_iPart) {
+    case CFWL_Part::Border:
+      DrawBorder(pParams.m_pGraphics.Get(), pParams.m_rtPart, pParams.m_matrix);
       break;
-    case CFWL_ThemePart::Part::kBackground:
-      FillBackground(pParams.GetGraphics(), pParams.m_PartRect,
+    case CFWL_Part::Background:
+      FillBackground(pParams.m_pGraphics.Get(), pParams.m_rtPart,
                      pParams.m_matrix);
       break;
     default:

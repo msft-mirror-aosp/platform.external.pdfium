@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,10 +13,9 @@
 
 class CJBig2_SymbolDict;
 
-// Cache is keyed by both the key of a stream and an index within the stream.
-using CJBig2_CompoundKey = std::pair<uint64_t, uint32_t>;
+using CJBig2_CacheKey = std::pair<uint32_t, uint32_t>;
 using CJBig2_CachePair =
-    std::pair<CJBig2_CompoundKey, std::unique_ptr<CJBig2_SymbolDict>>;
+    std::pair<CJBig2_CacheKey, std::unique_ptr<CJBig2_SymbolDict>>;
 
 // Holds per-document JBig2 related data.
 class JBig2_DocumentContext {

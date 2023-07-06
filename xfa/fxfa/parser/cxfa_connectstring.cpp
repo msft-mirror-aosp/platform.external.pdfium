@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "xfa/fxfa/parser/cxfa_connectstring.h"
 
 #include "fxjs/xfa/cjx_textnode.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -24,13 +24,11 @@ CXFA_ConnectString::CXFA_ConnectString(CXFA_Document* doc,
                                        XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                XFA_XDPPACKET::kSourceSet,
+                XFA_XDPPACKET_SourceSet,
                 XFA_ObjectType::TextNode,
                 XFA_Element::ConnectString,
                 {},
                 kConnectStringAttributeData,
-                cppgc::MakeGarbageCollected<CJX_TextNode>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_TextNode>(this)) {}
 
 CXFA_ConnectString::~CXFA_ConnectString() = default;

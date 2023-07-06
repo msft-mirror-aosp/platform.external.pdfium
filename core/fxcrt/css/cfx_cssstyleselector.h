@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,12 @@
 #ifndef CORE_FXCRT_CSS_CFX_CSSSTYLESELECTOR_H_
 #define CORE_FXCRT_CSS_CFX_CSSSTYLESELECTOR_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
 #include "core/fxcrt/css/cfx_css.h"
 #include "core/fxcrt/css/cfx_cssrulecollection.h"
-#include "core/fxcrt/css/cfx_cssvalue.h"
-#include "core/fxcrt/mask.h"
-#include "core/fxcrt/retain_ptr.h"
+#include "core/fxcrt/fx_system.h"
 
 class CFX_CSSComputedStyle;
 class CFX_CSSCustomProperty;
@@ -24,6 +20,7 @@ class CFX_CSSDeclaration;
 class CFX_CSSPropertyHolder;
 class CFX_CSSSelector;
 class CFX_CSSStyleSheet;
+class CFX_CSSValue;
 class CFX_CSSValueList;
 
 class CFX_CSSStyleSelector {
@@ -31,12 +28,12 @@ class CFX_CSSStyleSelector {
   CFX_CSSStyleSelector();
   ~CFX_CSSStyleSelector();
 
-  void SetDefaultFontSize(float fFontSize);
+  void SetDefFontSize(float fFontSize);
   void SetUAStyleSheet(std::unique_ptr<CFX_CSSStyleSheet> pSheet);
   void UpdateStyleIndex();
 
   RetainPtr<CFX_CSSComputedStyle> CreateComputedStyle(
-      const CFX_CSSComputedStyle* pParentStyle);
+      CFX_CSSComputedStyle* pParentStyle);
 
   // Note, the dest style has to be an out param because the CXFA_TextParser
   // adds non-inherited data from the parent style. Attempting to copy
@@ -66,7 +63,7 @@ class CFX_CSSStyleSelector {
                      std::vector<const CFX_CSSCustomProperty*>* custom);
 
   bool SetLengthWithPercent(CFX_CSSLength& width,
-                            CFX_CSSValue::PrimitiveType eType,
+                            CFX_CSSPrimitiveType eType,
                             const RetainPtr<CFX_CSSValue>& pValue,
                             float fFontSize);
   float ToFontSize(CFX_CSSPropertyValue eValue, float fCurFontSize);
@@ -75,11 +72,10 @@ class CFX_CSSStyleSelector {
   uint16_t ToFontWeight(CFX_CSSPropertyValue eValue);
   CFX_CSSFontStyle ToFontStyle(CFX_CSSPropertyValue eValue);
   CFX_CSSVerticalAlign ToVerticalAlign(CFX_CSSPropertyValue eValue);
-  Mask<CFX_CSSTEXTDECORATION> ToTextDecoration(
-      const RetainPtr<CFX_CSSValueList>& pList);
+  uint32_t ToTextDecoration(const RetainPtr<CFX_CSSValueList>& pList);
   CFX_CSSFontVariant ToFontVariant(CFX_CSSPropertyValue eValue);
 
-  float m_fDefaultFontSize = 12.0f;
+  float m_fDefFontSize;
   std::unique_ptr<CFX_CSSStyleSheet> m_UAStyles;
   CFX_CSSRuleCollection m_UARules;
 };

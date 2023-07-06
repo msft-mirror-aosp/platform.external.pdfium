@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/base/ptr_util.h"
 
 class CXFA_NodeIteratorTemplateTest : public testing::Test {
  public:
@@ -27,7 +28,7 @@ class CXFA_NodeIteratorTemplateTest : public testing::Test {
       }
     };
 
-    explicit Node(Node* parent) : parent_(parent) {
+    explicit Node(Node* parent) : parent_(parent), next_sibling_(nullptr) {
       if (parent) {
         if (!parent->children_.empty())
           parent->children_.back()->next_sibling_ = this;
@@ -36,8 +37,8 @@ class CXFA_NodeIteratorTemplateTest : public testing::Test {
     }
 
    private:
-    Node* const parent_;
-    Node* next_sibling_ = nullptr;
+    Node* parent_;
+    Node* next_sibling_;
     std::vector<Node*> children_;
   };
 
@@ -56,16 +57,16 @@ class CXFA_NodeIteratorTemplateTest : public testing::Test {
   //            child5
   //
   void SetUp() override {
-    root_ = std::make_unique<Node>(nullptr);
-    child1_ = std::make_unique<Node>(root_.get());
-    child2_ = std::make_unique<Node>(root_.get());
-    child3_ = std::make_unique<Node>(child2_.get());
-    child4_ = std::make_unique<Node>(child3_.get());
-    child5_ = std::make_unique<Node>(child4_.get());
-    child6_ = std::make_unique<Node>(child3_.get());
-    child7_ = std::make_unique<Node>(child2_.get());
-    child8_ = std::make_unique<Node>(child7_.get());
-    child9_ = std::make_unique<Node>(child2_.get());
+    root_ = pdfium::MakeUnique<Node>(nullptr);
+    child1_ = pdfium::MakeUnique<Node>(root_.get());
+    child2_ = pdfium::MakeUnique<Node>(root_.get());
+    child3_ = pdfium::MakeUnique<Node>(child2_.get());
+    child4_ = pdfium::MakeUnique<Node>(child3_.get());
+    child5_ = pdfium::MakeUnique<Node>(child4_.get());
+    child6_ = pdfium::MakeUnique<Node>(child3_.get());
+    child7_ = pdfium::MakeUnique<Node>(child2_.get());
+    child8_ = pdfium::MakeUnique<Node>(child7_.get());
+    child9_ = pdfium::MakeUnique<Node>(child2_.get());
   }
 
   Node* root() const { return root_.get(); }
@@ -94,11 +95,11 @@ class CXFA_NodeIteratorTemplateTest : public testing::Test {
 
 TEST_F(CXFA_NodeIteratorTemplateTest, Empty) {
   Iterator iter(nullptr);
-  EXPECT_FALSE(iter.GetRoot());
-  EXPECT_FALSE(iter.GetCurrent());
-  EXPECT_FALSE(iter.MoveToNext());
-  EXPECT_FALSE(iter.MoveToPrev());
-  EXPECT_FALSE(iter.SkipChildrenAndMoveToNext());
+  EXPECT_EQ(nullptr, iter.GetRoot());
+  EXPECT_EQ(nullptr, iter.GetCurrent());
+  EXPECT_EQ(nullptr, iter.MoveToNext());
+  EXPECT_EQ(nullptr, iter.MoveToPrev());
+  EXPECT_EQ(nullptr, iter.SkipChildrenAndMoveToNext());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, Root) {
@@ -118,7 +119,7 @@ TEST_F(CXFA_NodeIteratorTemplateTest, CurrentOutsideRootDisallowed) {
   Iterator iter(child1());
   iter.SetCurrent(root());
   EXPECT_EQ(child1(), iter.GetRoot());
-  EXPECT_FALSE(iter.GetCurrent());
+  EXPECT_EQ(nullptr, iter.GetCurrent());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, CurrentNull) {
@@ -126,10 +127,10 @@ TEST_F(CXFA_NodeIteratorTemplateTest, CurrentNull) {
   EXPECT_EQ(child1(), iter.MoveToNext());
 
   iter.SetCurrent(nullptr);
-  EXPECT_FALSE(iter.GetCurrent());
+  EXPECT_EQ(nullptr, iter.GetCurrent());
 
-  EXPECT_FALSE(iter.MoveToNext());
-  EXPECT_FALSE(iter.GetCurrent());
+  EXPECT_EQ(nullptr, iter.MoveToNext());
+  EXPECT_EQ(nullptr, iter.GetCurrent());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, MoveToPrev) {
@@ -163,10 +164,10 @@ TEST_F(CXFA_NodeIteratorTemplateTest, MoveToPrev) {
   EXPECT_EQ(root(), iter.MoveToPrev());
   EXPECT_EQ(root(), iter.GetCurrent());
 
-  EXPECT_FALSE(iter.MoveToPrev());
+  EXPECT_EQ(nullptr, iter.MoveToPrev());
   EXPECT_EQ(root(), iter.GetCurrent());
 
-  EXPECT_FALSE(iter.MoveToPrev());
+  EXPECT_EQ(nullptr, iter.MoveToPrev());
   EXPECT_EQ(root(), iter.GetCurrent());
 }
 
@@ -195,11 +196,11 @@ TEST_F(CXFA_NodeIteratorTemplateTest, MoveToNext) {
   EXPECT_EQ(child9(), iter.MoveToNext());
   EXPECT_EQ(child9(), iter.GetCurrent());
 
-  EXPECT_FALSE(iter.MoveToNext());
-  EXPECT_FALSE(iter.GetCurrent());
+  EXPECT_EQ(nullptr, iter.MoveToNext());
+  EXPECT_EQ(nullptr, iter.GetCurrent());
 
-  EXPECT_FALSE(iter.MoveToNext());
-  EXPECT_FALSE(iter.GetCurrent());
+  EXPECT_EQ(nullptr, iter.MoveToNext());
+  EXPECT_EQ(nullptr, iter.GetCurrent());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, SkipChildrenAndMoveToNext) {
@@ -207,7 +208,7 @@ TEST_F(CXFA_NodeIteratorTemplateTest, SkipChildrenAndMoveToNext) {
   iter.SetCurrent(child3());
   EXPECT_EQ(child7(), iter.SkipChildrenAndMoveToNext());
   EXPECT_EQ(child9(), iter.SkipChildrenAndMoveToNext());
-  EXPECT_FALSE(iter.SkipChildrenAndMoveToNext());
+  EXPECT_EQ(nullptr, iter.SkipChildrenAndMoveToNext());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, BackAndForth) {
@@ -225,7 +226,7 @@ TEST_F(CXFA_NodeIteratorTemplateTest, BackAndForth) {
 
 TEST_F(CXFA_NodeIteratorTemplateTest, NextFromBeforeTheBeginning) {
   Iterator iter(root());
-  EXPECT_FALSE(iter.MoveToPrev());
+  EXPECT_EQ(nullptr, iter.MoveToPrev());
   EXPECT_EQ(root(), iter.GetCurrent());
   EXPECT_EQ(child1(), iter.MoveToNext());
 }
@@ -233,17 +234,17 @@ TEST_F(CXFA_NodeIteratorTemplateTest, NextFromBeforeTheBeginning) {
 TEST_F(CXFA_NodeIteratorTemplateTest, PrevFromAfterTheEnd) {
   Iterator iter(root());
   iter.SetCurrent(child9());
-  EXPECT_FALSE(iter.MoveToNext());
+  EXPECT_EQ(nullptr, iter.MoveToNext());
   EXPECT_EQ(child9(), iter.MoveToPrev());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, ChildAsRootPrev) {
   Iterator iter(child3());
-  EXPECT_FALSE(iter.MoveToPrev());
+  EXPECT_EQ(nullptr, iter.MoveToPrev());
 
   iter.SetCurrent(child4());
   EXPECT_EQ(child3(), iter.MoveToPrev());
-  EXPECT_FALSE(iter.MoveToPrev());
+  EXPECT_EQ(nullptr, iter.MoveToPrev());
 }
 
 TEST_F(CXFA_NodeIteratorTemplateTest, ChildAsRootNext) {
@@ -251,5 +252,5 @@ TEST_F(CXFA_NodeIteratorTemplateTest, ChildAsRootNext) {
   iter.SetCurrent(child4());
   EXPECT_EQ(child5(), iter.MoveToNext());
   EXPECT_EQ(child6(), iter.MoveToNext());
-  EXPECT_FALSE(iter.MoveToNext());
+  EXPECT_EQ(nullptr, iter.MoveToNext());
 }

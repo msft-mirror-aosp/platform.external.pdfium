@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,17 +10,18 @@
 #include <vector>
 
 #include "core/fxcrt/cfx_memorystream.h"
+#include "core/fxcrt/cfx_widetextbuf.h"
 #include "core/fxcrt/fx_codepage.h"
 #include "core/fxcrt/fx_extension.h"
-#include "core/fxcrt/widetext_buffer.h"
 #include "core/fxcrt/xml/cfx_xmlchardata.h"
 #include "core/fxcrt/xml/cfx_xmlelement.h"
 #include "core/fxcrt/xml/cfx_xmlnode.h"
 #include "core/fxcrt/xml/cfx_xmltext.h"
 #include "fxjs/xfa/cjx_object.h"
-#include "third_party/base/check.h"
+#include "third_party/base/stl_util.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 #include "xfa/fxfa/parser/cxfa_localemgr.h"
+#include "xfa/fxfa/parser/cxfa_localevalue.h"
 #include "xfa/fxfa/parser/cxfa_measurement.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
 #include "xfa/fxfa/parser/cxfa_ui.h"
@@ -32,30 +33,30 @@ namespace {
 const char kFormNS[] = "http://www.xfa.org/schema/xfa-form/";
 
 WideString ExportEncodeAttribute(const WideString& str) {
-  WideString textBuf;
-  textBuf.Reserve(str.GetLength());  // Result always at least as big as input.
-  for (size_t i = 0; i < str.GetLength(); i++) {
+  CFX_WideTextBuf textBuf;
+  int32_t iLen = str.GetLength();
+  for (int32_t i = 0; i < iLen; i++) {
     switch (str[i]) {
       case '&':
-        textBuf += L"&amp;";
+        textBuf << "&amp;";
         break;
       case '<':
-        textBuf += L"&lt;";
+        textBuf << "&lt;";
         break;
       case '>':
-        textBuf += L"&gt;";
+        textBuf << "&gt;";
         break;
       case '\'':
-        textBuf += L"&apos;";
+        textBuf << "&apos;";
         break;
       case '\"':
-        textBuf += L"&quot;";
+        textBuf << "&quot;";
         break;
       default:
-        textBuf += str[i];
+        textBuf.AppendChar(str[i]);
     }
   }
-  return textBuf;
+  return textBuf.MakeString();
 }
 
 bool IsXMLValidChar(wchar_t ch) {
@@ -64,9 +65,9 @@ bool IsXMLValidChar(wchar_t ch) {
 }
 
 WideString ExportEncodeContent(const WideString& str) {
-  WideTextBuffer textBuf;
-  size_t iLen = str.GetLength();
-  for (size_t i = 0; i < iLen; i++) {
+  CFX_WideTextBuf textBuf;
+  int32_t iLen = str.GetLength();
+  for (int32_t i = 0; i < iLen; i++) {
     wchar_t ch = str[i];
     if (!IsXMLValidChar(ch))
       continue;
@@ -112,12 +113,12 @@ bool AttributeSaveInDataModel(CXFA_Node* pNode, XFA_Attribute eAttribute) {
 }
 
 bool ContentNodeNeedtoExport(CXFA_Node* pContentNode) {
-  absl::optional<WideString> wsContent =
+  Optional<WideString> wsContent =
       pContentNode->JSObject()->TryContent(false, false);
-  if (!wsContent.has_value())
+  if (!wsContent)
     return false;
 
-  DCHECK(pContentNode->IsContentNode());
+  ASSERT(pContentNode->IsContentNode());
   CXFA_Node* pParentNode = pContentNode->GetParent();
   if (!pParentNode || pParentNode->GetElementType() != XFA_Element::Value)
     return true;
@@ -132,24 +133,27 @@ bool ContentNodeNeedtoExport(CXFA_Node* pContentNode) {
   return true;
 }
 
-WideString SaveAttribute(CXFA_Node* pNode,
-                         XFA_Attribute eName,
-                         WideStringView wsName,
-                         bool bProto) {
+void SaveAttribute(CXFA_Node* pNode,
+                   XFA_Attribute eName,
+                   const WideString& wsName,
+                   bool bProto,
+                   WideString& wsOutput) {
   if (!bProto && !pNode->JSObject()->HasAttribute(eName))
-    return WideString();
+    return;
 
-  absl::optional<WideString> value =
-      pNode->JSObject()->TryAttribute(eName, false);
-  if (!value.has_value())
-    return WideString();
+  Optional<WideString> value = pNode->JSObject()->TryAttribute(eName, false);
+  if (!value)
+    return;
 
-  WideString wsEncoded = ExportEncodeAttribute(value.value());
-  return WideString{L" ", wsName, L"=\"", wsEncoded.AsStringView(), L"\""};
+  wsOutput += L" ";
+  wsOutput += wsName;
+  wsOutput += L"=\"";
+  wsOutput += ExportEncodeAttribute(*value);
+  wsOutput += L"\"";
 }
 
 void RegenerateFormFile_Changed(CXFA_Node* pNode,
-                                WideTextBuffer& buf,
+                                CFX_WideTextBuf& buf,
                                 bool bSaveXML) {
   WideString wsAttrs;
   for (size_t i = 0;; ++i) {
@@ -161,8 +165,10 @@ void RegenerateFormFile_Changed(CXFA_Node* pNode,
         (AttributeSaveInDataModel(pNode, attr) && !bSaveXML)) {
       continue;
     }
-    WideString wsAttr = WideString::FromASCII(XFA_AttributeToName(attr));
-    wsAttrs += SaveAttribute(pNode, attr, wsAttr.AsStringView(), bSaveXML);
+    WideString wsAttr;
+    SaveAttribute(pNode, attr, WideString::FromASCII(XFA_AttributeToName(attr)),
+                  bSaveXML, wsAttr);
+    wsAttrs += wsAttr;
   }
 
   WideString wsChildren;
@@ -181,7 +187,7 @@ void RegenerateFormFile_Changed(CXFA_Node* pNode,
       if (!pRawValueNode)
         break;
 
-      absl::optional<WideString> contentType =
+      Optional<WideString> contentType =
           pNode->JSObject()->TryAttribute(XFA_Attribute::ContentType, false);
       if (pRawValueNode->GetElementType() == XFA_Element::SharpxHTML &&
           contentType.has_value() &&
@@ -196,15 +202,14 @@ void RegenerateFormFile_Changed(CXFA_Node* pNode,
 
         auto pMemStream = pdfium::MakeRetain<CFX_MemoryStream>();
         pRichTextXML->Save(pMemStream);
-        wsChildren +=
-            WideString::FromUTF8(ByteStringView(pMemStream->GetSpan()));
+        wsChildren += WideString::FromUTF8(
+            ByteStringView(pMemStream->GetBuffer(), pMemStream->GetSize()));
       } else if (pRawValueNode->GetElementType() == XFA_Element::Sharpxml &&
                  contentType.has_value() &&
                  contentType.value().EqualsASCII("text/xml")) {
-        absl::optional<WideString> rawValue =
-            pRawValueNode->JSObject()->TryAttribute(XFA_Attribute::Value,
-                                                    false);
-        if (!rawValue.has_value() || rawValue->IsEmpty())
+        Optional<WideString> rawValue = pRawValueNode->JSObject()->TryAttribute(
+            XFA_Attribute::Value, false);
+        if (!rawValue || rawValue->IsEmpty())
           break;
 
         std::vector<WideString> wsSelTextArray =
@@ -217,10 +222,18 @@ void RegenerateFormFile_Changed(CXFA_Node* pNode,
         if (bodyTagName.IsEmpty())
           bodyTagName = L"ListBox1";
 
-        buf << "<" << bodyTagName << " xmlns=\"\">\n";
-        for (const WideString& text : wsSelTextArray)
-          buf << "<value>" << ExportEncodeContent(text) << "</value>\n";
-        buf << "</" << bodyTagName << ">\n";
+        buf << "<";
+        buf << bodyTagName;
+        buf << " xmlns=\"\"\n>";
+        for (int32_t i = 0; i < pdfium::CollectionSize<int32_t>(wsSelTextArray);
+             i++) {
+          buf << "<value\n>";
+          buf << ExportEncodeContent(wsSelTextArray[i]);
+          buf << "</value\n>";
+        }
+        buf << "</";
+        buf << bodyTagName;
+        buf << "\n>";
         wsChildren += buf.AsStringView();
         buf.Clear();
       } else {
@@ -246,7 +259,7 @@ void RegenerateFormFile_Changed(CXFA_Node* pNode,
           bSaveXML = true;
         }
       }
-      WideTextBuffer newBuf;
+      CFX_WideTextBuf newBuf;
       CXFA_Node* pChildNode = pNode->GetFirstChild();
       while (pChildNode) {
         RegenerateFormFile_Changed(pChildNode, newBuf, bSaveXML);
@@ -272,14 +285,20 @@ void RegenerateFormFile_Changed(CXFA_Node* pNode,
   if (!wsChildren.IsEmpty() || !wsAttrs.IsEmpty() ||
       pNode->JSObject()->HasAttribute(XFA_Attribute::Name)) {
     WideString wsElement = WideString::FromASCII(pNode->GetClassName());
+    WideString wsName;
+    SaveAttribute(pNode, XFA_Attribute::Name, L"name", true, wsName);
     buf << "<";
     buf << wsElement;
-    buf << SaveAttribute(pNode, XFA_Attribute::Name, L"name", true);
+    buf << wsName;
     buf << wsAttrs;
     if (wsChildren.IsEmpty()) {
-      buf << "/>\n";
+      buf << "\n/>";
     } else {
-      buf << ">\n" << wsChildren << "</" << wsElement << ">\n";
+      buf << "\n>";
+      buf << wsChildren;
+      buf << "</";
+      buf << wsElement;
+      buf << "\n>";
     }
   }
 }
@@ -290,7 +309,7 @@ void RegenerateFormFile_Container(CXFA_Node* pNode,
   XFA_Element eType = pNode->GetElementType();
   if (eType == XFA_Element::Field || eType == XFA_Element::Draw ||
       !pNode->IsContainerNode()) {
-    WideTextBuffer buf;
+    CFX_WideTextBuf buf;
     RegenerateFormFile_Changed(pNode, buf, bSaveXML);
     size_t nLen = buf.GetLength();
     if (nLen > 0)
@@ -302,8 +321,10 @@ void RegenerateFormFile_Container(CXFA_Node* pNode,
   pStream->WriteString("<");
   pStream->WriteString(wsElement.ToUTF8().AsStringView());
 
-  WideString wsOutput =
-      SaveAttribute(pNode, XFA_Attribute::Name, L"name", true);
+  WideString wsOutput;
+  SaveAttribute(pNode, XFA_Attribute::Name, L"name", true, wsOutput);
+
+  WideString wsAttrs;
   for (size_t i = 0;; ++i) {
     XFA_Attribute attr = pNode->GetAttribute(i);
     if (attr == XFA_Attribute::Unknown)
@@ -311,8 +332,10 @@ void RegenerateFormFile_Container(CXFA_Node* pNode,
     if (attr == XFA_Attribute::Name)
       continue;
 
-    WideString wsAttr = WideString::FromASCII(XFA_AttributeToName(attr));
-    wsOutput += SaveAttribute(pNode, attr, wsAttr.AsStringView(), false);
+    WideString wsAttr;
+    SaveAttribute(pNode, attr, WideString::FromASCII(XFA_AttributeToName(attr)),
+                  false, wsAttr);
+    wsOutput += wsAttr;
   }
 
   if (!wsOutput.IsEmpty())
@@ -338,14 +361,12 @@ WideString RecognizeXFAVersionNumber(CXFA_Node* pTemplateRoot) {
   if (!pTemplateRoot)
     return WideString();
 
-  absl::optional<WideString> templateNS =
-      pTemplateRoot->JSObject()->TryNamespace();
-  if (!templateNS.has_value())
+  Optional<WideString> templateNS = pTemplateRoot->JSObject()->TryNamespace();
+  if (!templateNS)
     return WideString();
 
   XFA_VERSION eVersion =
-      pTemplateRoot->GetDocument()->RecognizeXFAVersionNumber(
-          templateNS.value());
+      pTemplateRoot->GetDocument()->RecognizeXFAVersionNumber(*templateNS);
   if (eVersion == XFA_VERSION_UNKNOWN)
     eVersion = XFA_VERSION_DEFAULT;
 
@@ -354,8 +375,8 @@ WideString RecognizeXFAVersionNumber(CXFA_Node* pTemplateRoot) {
 
 }  // namespace
 
-CXFA_LocaleValue XFA_GetLocaleValue(const CXFA_Node* pNode) {
-  const auto* pNodeValue =
+CXFA_LocaleValue XFA_GetLocaleValue(CXFA_Node* pNode) {
+  CXFA_Value* pNodeValue =
       pNode->GetChild<CXFA_Value>(0, XFA_Element::Value, false);
   if (!pNodeValue)
     return CXFA_LocaleValue();
@@ -364,32 +385,38 @@ CXFA_LocaleValue XFA_GetLocaleValue(const CXFA_Node* pNode) {
   if (!pValueChild)
     return CXFA_LocaleValue();
 
-  return CXFA_LocaleValue(XFA_GetLocaleValueType(pValueChild->GetElementType()),
-                          pNode->GetRawValue(),
-                          pNode->GetDocument()->GetLocaleMgr());
-}
-
-CXFA_LocaleValue::ValueType XFA_GetLocaleValueType(XFA_Element element) {
-  switch (element) {
+  int32_t iVTType = XFA_VT_NULL;
+  switch (pValueChild->GetElementType()) {
     case XFA_Element::Decimal:
-      return CXFA_LocaleValue::ValueType::kDecimal;
+      iVTType = XFA_VT_DECIMAL;
+      break;
     case XFA_Element::Float:
-      return CXFA_LocaleValue::ValueType::kFloat;
+      iVTType = XFA_VT_FLOAT;
+      break;
     case XFA_Element::Date:
-      return CXFA_LocaleValue::ValueType::kDate;
+      iVTType = XFA_VT_DATE;
+      break;
     case XFA_Element::Time:
-      return CXFA_LocaleValue::ValueType::kTime;
+      iVTType = XFA_VT_TIME;
+      break;
     case XFA_Element::DateTime:
-      return CXFA_LocaleValue::ValueType::kDateTime;
+      iVTType = XFA_VT_DATETIME;
+      break;
     case XFA_Element::Boolean:
-      return CXFA_LocaleValue::ValueType::kBoolean;
+      iVTType = XFA_VT_BOOLEAN;
+      break;
     case XFA_Element::Integer:
-      return CXFA_LocaleValue::ValueType::kInteger;
+      iVTType = XFA_VT_INTEGER;
+      break;
     case XFA_Element::Text:
-      return CXFA_LocaleValue::ValueType::kText;
+      iVTType = XFA_VT_TEXT;
+      break;
     default:
-      return CXFA_LocaleValue::ValueType::kNull;
+      iVTType = XFA_VT_NULL;
+      break;
   }
+  return CXFA_LocaleValue(iVTType, pNode->GetRawValue(),
+                          pNode->GetDocument()->GetLocaleMgr());
 }
 
 bool XFA_FDEExtension_ResolveNamespaceQualifier(CFX_XMLElement* pNode,
@@ -435,7 +462,8 @@ void XFA_DataExporter_DealWithDataGroupNode(CXFA_Node* pDataNode) {
 
   CFX_XMLElement* pElement = ToXMLElement(pDataNode->GetXMLMappingNode());
   if (iChildNum > 0) {
-    pElement->RemoveAttribute(L"xfa:dataNode");
+    if (pElement->HasAttribute(L"xfa:dataNode"))
+      pElement->RemoveAttribute(L"xfa:dataNode");
     return;
   }
   pElement->SetAttribute(L"xfa:dataNode", L"dataGroup");
@@ -454,7 +482,7 @@ void XFA_DataExporter_RegenerateFormFile(
     if (wsVersionNumber.IsEmpty())
       wsVersionNumber = L"2.8";
 
-    wsVersionNumber += L"/\">\n";
+    wsVersionNumber += L"/\"\n>";
     pStream->WriteString(wsVersionNumber.ToUTF8().AsStringView());
 
     CXFA_Node* pChildNode = pNode->GetFirstChild();
@@ -462,18 +490,17 @@ void XFA_DataExporter_RegenerateFormFile(
       RegenerateFormFile_Container(pChildNode, pStream, false);
       pChildNode = pChildNode->GetNextSibling();
     }
-    pStream->WriteString("</form>\n");
+    pStream->WriteString("</form\n>");
   } else {
     RegenerateFormFile_Container(pNode, pStream, bSaveXML);
   }
 }
 
-bool XFA_FieldIsMultiListBox(const CXFA_Node* pFieldNode) {
+bool XFA_FieldIsMultiListBox(CXFA_Node* pFieldNode) {
   if (!pFieldNode)
     return false;
 
-  const auto* pUIChild =
-      pFieldNode->GetChild<CXFA_Ui>(0, XFA_Element::Ui, false);
+  CXFA_Ui* pUIChild = pFieldNode->GetChild<CXFA_Ui>(0, XFA_Element::Ui, false);
   if (!pUIChild)
     return false;
 

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "xfa/fxfa/parser/cxfa_image.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -26,24 +26,15 @@ const CXFA_Node::AttributeData kImageAttributeData[] = {
 
 }  // namespace
 
-// static
-CXFA_Image* CXFA_Image::FromNode(CXFA_Node* pNode) {
-  return pNode && pNode->GetElementType() == XFA_Element::Image
-             ? static_cast<CXFA_Image*>(pNode)
-             : nullptr;
-}
-
 CXFA_Image::CXFA_Image(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::ContentNode,
                 XFA_Element::Image,
                 {},
                 kImageAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Image::~CXFA_Image() = default;
 
@@ -69,11 +60,11 @@ WideString CXFA_Image::GetContent() {
 }
 
 void CXFA_Image::SetContentType(const WideString& wsContentType) {
-  JSObject()->SetCData(XFA_Attribute::ContentType, wsContentType);
+  JSObject()->SetCData(XFA_Attribute::ContentType, wsContentType, false, false);
 }
 
 void CXFA_Image::SetHref(const WideString& wsHref) {
-  JSObject()->SetCData(XFA_Attribute::Href, wsHref);
+  JSObject()->SetCData(XFA_Attribute::Href, wsHref, false, false);
 }
 
 void CXFA_Image::SetTransferEncoding(XFA_AttributeValue iTransferEncoding) {

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,9 +7,11 @@
 #ifndef FXBARCODE_PDF417_BC_PDF417HIGHLEVELENCODER_H_
 #define FXBARCODE_PDF417_BC_PDF417HIGHLEVELENCODER_H_
 
-#include "core/fxcrt/widestring.h"
+#include <vector>
+
+#include "core/fxcrt/fx_string.h"
 #include "fxbarcode/pdf417/BC_PDF417.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 #include "third_party/base/span.h"
 
 class CBC_PDF417HighLevelEncoder {
@@ -17,7 +19,7 @@ class CBC_PDF417HighLevelEncoder {
   CBC_PDF417HighLevelEncoder() = delete;
   ~CBC_PDF417HighLevelEncoder() = delete;
 
-  static absl::optional<WideString> EncodeHighLevel(WideStringView msg);
+  static Optional<WideString> EncodeHighLevel(WideStringView msg);
 
  private:
   enum class EncodingMode { kUnknown = 0, kText, kByte, kNumeric };
@@ -40,9 +42,9 @@ class CBC_PDF417HighLevelEncoder {
                             WideString* sb);
   static size_t DetermineConsecutiveDigitCount(WideString msg, size_t startpos);
   static size_t DetermineConsecutiveTextCount(WideString msg, size_t startpos);
-  static absl::optional<size_t> DetermineConsecutiveBinaryCount(
+  static Optional<size_t> DetermineConsecutiveBinaryCount(
       WideString msg,
-      pdfium::span<const uint8_t> bytes,
+      std::vector<uint8_t>* bytes,
       size_t startpos);
 
   friend class PDF417HighLevelEncoderTest_ConsecutiveBinaryCount_Test;

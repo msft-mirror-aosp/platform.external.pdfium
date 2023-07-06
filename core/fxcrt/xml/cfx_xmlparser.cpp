@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,13 @@
 
 #include "core/fxcrt/xml/cfx_xmlparser.h"
 
-#include <stdint.h>
-
 #include <algorithm>
+#include <cwctype>
 #include <iterator>
 #include <stack>
 #include <utility>
 
 #include "core/fxcrt/cfx_seekablestreamproxy.h"
-#include "core/fxcrt/data_vector.h"
 #include "core/fxcrt/fx_codepage.h"
 #include "core/fxcrt/fx_extension.h"
 #include "core/fxcrt/fx_safe_types.h"
@@ -24,8 +22,7 @@
 #include "core/fxcrt/xml/cfx_xmlinstruction.h"
 #include "core/fxcrt/xml/cfx_xmlnode.h"
 #include "core/fxcrt/xml/cfx_xmltext.h"
-#include "third_party/base/check.h"
-#include "third_party/base/notreached.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -42,7 +39,7 @@ struct FX_XMLNAMECHAR {
   bool bStartChar;
 };
 
-constexpr FX_XMLNAMECHAR kXMLNameChars[] = {
+const FX_XMLNAMECHAR g_XMLNameChars[] = {
     {L'-', L'.', false},    {L'0', L'9', false},     {L':', L':', false},
     {L'A', L'Z', true},     {L'_', L'_', true},      {L'a', L'z', true},
     {0xB7, 0xB7, false},    {0xC0, 0xD6, true},      {0xD8, 0xF6, true},
@@ -57,20 +54,20 @@ constexpr FX_XMLNAMECHAR kXMLNameChars[] = {
 // static
 bool CFX_XMLParser::IsXMLNameChar(wchar_t ch, bool bFirstChar) {
   auto* it = std::lower_bound(
-      std::begin(kXMLNameChars), std::end(kXMLNameChars), ch,
+      std::begin(g_XMLNameChars), std::end(g_XMLNameChars), ch,
       [](const FX_XMLNAMECHAR& arg, wchar_t ch) { return arg.wEnd < ch; });
-  return it != std::end(kXMLNameChars) && ch >= it->wStart &&
+  return it != std::end(g_XMLNameChars) && ch >= it->wStart &&
          (!bFirstChar || it->bStartChar);
 }
 
 CFX_XMLParser::CFX_XMLParser(const RetainPtr<IFX_SeekableReadStream>& pStream) {
-  DCHECK(pStream);
+  ASSERT(pStream);
 
   auto proxy = pdfium::MakeRetain<CFX_SeekableStreamProxy>(pStream);
-  FX_CodePage wCodePage = proxy->GetCodePage();
-  if (wCodePage != FX_CodePage::kUTF16LE &&
-      wCodePage != FX_CodePage::kUTF16BE && wCodePage != FX_CodePage::kUTF8) {
-    proxy->SetCodePage(FX_CodePage::kUTF8);
+  uint16_t wCodePage = proxy->GetCodePage();
+  if (wCodePage != FX_CODEPAGE_UTF16LE && wCodePage != FX_CODEPAGE_UTF16BE &&
+      wCodePage != FX_CODEPAGE_UTF8) {
+    proxy->SetCodePage(FX_CODEPAGE_UTF8);
   }
   stream_ = proxy;
 
@@ -83,7 +80,7 @@ CFX_XMLParser::CFX_XMLParser(const RetainPtr<IFX_SeekableReadStream>& pStream) {
 CFX_XMLParser::~CFX_XMLParser() = default;
 
 std::unique_ptr<CFX_XMLDocument> CFX_XMLParser::Parse() {
-  auto doc = std::make_unique<CFX_XMLDocument>();
+  auto doc = pdfium::MakeUnique<CFX_XMLDocument>();
   current_node_ = doc->GetRoot();
 
   return DoSyntaxParse(doc.get()) ? std::move(doc) : nullptr;
@@ -98,16 +95,17 @@ bool CFX_XMLParser::DoSyntaxParse(CFX_XMLDocument* doc) {
   if (!alloc_size_safe.IsValid())
     return false;
 
-  size_t current_buffer_idx = 0;
-  size_t buffer_size = 0;
+  FX_FILESIZE current_buffer_idx = 0;
+  FX_FILESIZE buffer_size = 0;
 
-  DataVector<wchar_t> buffer;
+  std::vector<wchar_t, FxAllocAllocator<wchar_t>> buffer;
   buffer.resize(alloc_size_safe.ValueOrDie());
 
   std::stack<wchar_t> character_to_skip_too_stack;
   std::stack<CFX_XMLNode::Type> node_type_stack;
   WideString current_attribute_name;
   FDE_XmlSyntaxState current_parser_state = FDE_XmlSyntaxState::Text;
+  int32_t iCount = 0;
   wchar_t current_quote_character = 0;
   wchar_t current_character_to_skip_to = 0;
 
@@ -264,7 +262,7 @@ bool CFX_XMLParser::DoSyntaxParse(CFX_XMLDocument* doc) {
           break;
         case FDE_XmlSyntaxState::AttriValue:
           if (ch == current_quote_character) {
-            if (entity_start_.has_value())
+            if (entity_start_ > -1)
               return false;
 
             current_quote_character = 0;
@@ -330,6 +328,7 @@ bool CFX_XMLParser::DoSyntaxParse(CFX_XMLDocument* doc) {
               }
 
               current_node_ = current_node_->GetParent();
+              iCount++;
             } else if (!IsXMLWhiteSpace(ch)) {
               return false;
             }
@@ -471,27 +470,27 @@ bool CFX_XMLParser::DoSyntaxParse(CFX_XMLDocument* doc) {
 void CFX_XMLParser::ProcessTextChar(wchar_t character) {
   current_text_.push_back(character);
 
-  if (entity_start_.has_value() && character == L';') {
+  if (entity_start_ > -1 && character == L';') {
     // Copy the entity out into a string and remove from the vector. When we
     // copy the entity we don't want to copy out the & or the ; so we start
     // shifted by one and want to copy 2 less characters in total.
-    WideString csEntity(current_text_.data() + entity_start_.value() + 1,
-                        current_text_.size() - entity_start_.value() - 2);
-    current_text_.erase(current_text_.begin() + entity_start_.value(),
+    WideString csEntity(current_text_.data() + entity_start_ + 1,
+                        current_text_.size() - entity_start_ - 2);
+    current_text_.erase(current_text_.begin() + entity_start_,
                         current_text_.end());
 
-    size_t iLen = csEntity.GetLength();
+    int32_t iLen = csEntity.GetLength();
     if (iLen > 0) {
       if (csEntity[0] == L'#') {
         uint32_t ch = 0;
         if (iLen > 1 && csEntity[1] == L'x') {
-          for (size_t i = 2; i < iLen; i++) {
+          for (int32_t i = 2; i < iLen; i++) {
             if (!FXSYS_IsHexDigit(csEntity[i]))
               break;
             ch = (ch << 4) + FXSYS_HexCharToInt(csEntity[i]);
           }
         } else {
-          for (size_t i = 1; i < iLen; i++) {
+          for (int32_t i = 1; i < iLen; i++) {
             if (!FXSYS_IsDecimalDigit(csEntity[i]))
               break;
             ch = ch * 10 + FXSYS_DecimalCharToInt(csEntity[i]);
@@ -504,21 +503,22 @@ void CFX_XMLParser::ProcessTextChar(wchar_t character) {
         if (character != 0)
           current_text_.push_back(character);
       } else {
-        if (csEntity == L"amp") {
+        if (csEntity.Compare(L"amp") == 0) {
           current_text_.push_back(L'&');
-        } else if (csEntity == L"lt") {
+        } else if (csEntity.Compare(L"lt") == 0) {
           current_text_.push_back(L'<');
-        } else if (csEntity == L"gt") {
+        } else if (csEntity.Compare(L"gt") == 0) {
           current_text_.push_back(L'>');
-        } else if (csEntity == L"apos") {
+        } else if (csEntity.Compare(L"apos") == 0) {
           current_text_.push_back(L'\'');
-        } else if (csEntity == L"quot") {
+        } else if (csEntity.Compare(L"quot") == 0) {
           current_text_.push_back(L'"');
         }
       }
     }
-    entity_start_ = absl::nullopt;
-  } else if (!entity_start_.has_value() && character == L'&') {
+
+    entity_start_ = -1;
+  } else if (entity_start_ < 0 && character == L'&') {
     entity_start_ = current_text_.size() - 1;
   }
 }
@@ -535,7 +535,7 @@ void CFX_XMLParser::ProcessTargetData() {
 
 WideString CFX_XMLParser::GetTextData() {
   WideString ret(current_text_.data(), current_text_.size());
-  entity_start_ = absl::nullopt;
+  entity_start_ = -1;
   current_text_.clear();
   current_text_.reserve(kCurrentTextReserve);
   return ret;

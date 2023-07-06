@@ -1,12 +1,10 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "fxjs/cjs_runtime.h"
-
-#include <math.h>
 
 #include <algorithm>
 
@@ -21,6 +19,7 @@
 #include "fxjs/cjs_document.h"
 #include "fxjs/cjs_event.h"
 #include "fxjs/cjs_event_context.h"
+#include "fxjs/cjs_eventrecorder.h"
 #include "fxjs/cjs_field.h"
 #include "fxjs/cjs_font.h"
 #include "fxjs/cjs_global.h"
@@ -37,20 +36,14 @@
 #include "fxjs/cjs_timerobj.h"
 #include "fxjs/cjs_util.h"
 #include "fxjs/cjs_zoomtype.h"
-#include "fxjs/fxv8.h"
 #include "fxjs/js_define.h"
-#include "third_party/base/check_op.h"
-#include "v8/include/v8-context.h"
-#include "v8/include/v8-exception.h"
-#include "v8/include/v8-isolate.h"
+#include "third_party/base/ptr_util.h"
 
 CJS_Runtime::CJS_Runtime(CPDFSDK_FormFillEnvironment* pFormFillEnv)
     : m_pFormFillEnv(pFormFillEnv) {
   v8::Isolate* pIsolate = nullptr;
   IPDF_JSPLATFORM* pPlatform = m_pFormFillEnv->GetFormFillInfo()->m_pJsPlatform;
   if (pPlatform->version <= 2) {
-    // Backwards compatibility - JS now initialized earlier in more modern
-    // JSPLATFORM versions.
     unsigned int embedderDataSlot = 0;
     v8::Isolate* pExternalIsolate = nullptr;
     if (pPlatform->version == 2) {
@@ -127,12 +120,12 @@ void CJS_Runtime::DefineJSObjects() {
 }
 
 IJS_EventContext* CJS_Runtime::NewEventContext() {
-  m_EventContextArray.push_back(std::make_unique<CJS_EventContext>(this));
+  m_EventContextArray.push_back(pdfium::MakeUnique<CJS_EventContext>(this));
   return m_EventContextArray.back().get();
 }
 
 void CJS_Runtime::ReleaseEventContext(IJS_EventContext* pContext) {
-  DCHECK_EQ(pContext, m_EventContextArray.back().get());
+  ASSERT(pContext == m_EventContextArray.back().get());
   m_EventContextArray.pop_back();
 }
 
@@ -141,7 +134,7 @@ CJS_EventContext* CJS_Runtime::GetCurrentEventContext() const {
                                      : m_EventContextArray.back().get();
 }
 
-CFX_Timer::HandlerIface* CJS_Runtime::GetTimerHandler() const {
+TimerHandlerIface* CJS_Runtime::GetTimerHandler() const {
   return m_pFormFillEnv ? m_pFormFillEnv->GetTimerHandler() : nullptr;
 }
 
@@ -155,7 +148,7 @@ void CJS_Runtime::SetFormFillEnvToDocument() {
   if (pThis.IsEmpty())
     return;
 
-  auto pJSDocument = JSGetObject<CJS_Document>(GetIsolate(), pThis);
+  auto pJSDocument = JSGetObject<CJS_Document>(pThis);
   if (!pJSDocument)
     return;
 
@@ -166,7 +159,7 @@ CPDFSDK_FormFillEnvironment* CJS_Runtime::GetFormFillEnv() const {
   return m_pFormFillEnv.Get();
 }
 
-absl::optional<IJS_Runtime::JS_Error> CJS_Runtime::ExecuteScript(
+Optional<IJS_Runtime::JS_Error> CJS_Runtime::ExecuteScript(
     const WideString& script) {
   return Execute(script);
 }
@@ -183,16 +176,22 @@ CJS_Runtime* CJS_Runtime::AsCJSRuntime() {
   return this;
 }
 
-v8::Local<v8::Value> CJS_Runtime::GetValueByNameFromGlobalObject(
-    ByteStringView utf8Name) {
+bool CJS_Runtime::GetValueByNameFromGlobalObject(ByteStringView utf8Name,
+                                                 v8::Local<v8::Value>* pValue) {
   v8::Isolate::Scope isolate_scope(GetIsolate());
   v8::Local<v8::Context> context = GetV8Context();
   v8::Context::Scope context_scope(context);
-  v8::Local<v8::String> str = fxv8::NewStringHelper(GetIsolate(), utf8Name);
-  v8::MaybeLocal<v8::Value> maybe_value = context->Global()->Get(context, str);
-  if (maybe_value.IsEmpty())
-    return v8::Local<v8::Value>();
-  return maybe_value.ToLocalChecked();
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(GetIsolate(), utf8Name.unterminated_c_str(),
+                              v8::NewStringType::kNormal, utf8Name.GetLength())
+          .ToLocalChecked();
+  v8::MaybeLocal<v8::Value> maybe_propvalue =
+      context->Global()->Get(context, str);
+  if (maybe_propvalue.IsEmpty())
+    return false;
+
+  *pValue = maybe_propvalue.ToLocalChecked();
+  return true;
 }
 
 bool CJS_Runtime::SetValueByNameInGlobalObject(ByteStringView utf8Name,
@@ -204,7 +203,10 @@ bool CJS_Runtime::SetValueByNameInGlobalObject(ByteStringView utf8Name,
   v8::Isolate::Scope isolate_scope(pIsolate);
   v8::Local<v8::Context> context = GetV8Context();
   v8::Context::Scope context_scope(context);
-  v8::Local<v8::String> str = fxv8::NewStringHelper(pIsolate, utf8Name);
+  v8::Local<v8::String> str =
+      v8::String::NewFromUtf8(pIsolate, utf8Name.unterminated_c_str(),
+                              v8::NewStringType::kNormal, utf8Name.GetLength())
+          .ToLocalChecked();
   v8::Maybe<bool> result = context->Global()->Set(context, str, pValue);
   return result.IsJust() && result.FromJust();
 }
@@ -213,21 +215,22 @@ v8::Local<v8::Value> CJS_Runtime::MaybeCoerceToNumber(
     v8::Local<v8::Value> value) {
   bool bAllowNaN = false;
   if (value->IsString()) {
-    ByteString bstr = fxv8::ToByteString(GetIsolate(), value.As<v8::String>());
+    ByteString bstr = ToWideString(value).ToDefANSI();
     if (bstr.IsEmpty())
       return value;
     if (bstr == "NaN")
       bAllowNaN = true;
   }
 
-  v8::TryCatch try_catch(GetIsolate());
+  v8::Isolate* pIsolate = GetIsolate();
+  v8::TryCatch try_catch(pIsolate);
   v8::MaybeLocal<v8::Number> maybeNum =
-      value->ToNumber(GetIsolate()->GetCurrentContext());
+      value->ToNumber(pIsolate->GetCurrentContext());
   if (maybeNum.IsEmpty())
     return value;
 
   v8::Local<v8::Number> num = maybeNum.ToLocalChecked();
-  if (isnan(num->Value()) && !bAllowNaN)
+  if (std::isnan(num->Value()) && !bAllowNaN)
     return value;
 
   return num;

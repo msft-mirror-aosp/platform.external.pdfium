@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,10 @@
 #ifndef XFA_FXFA_PARSER_CXFA_DATAEXPORTER_H_
 #define XFA_FXFA_PARSER_CXFA_DATAEXPORTER_H_
 
+#include "core/fxcrt/fx_string.h"
 #include "core/fxcrt/retain_ptr.h"
 
+class CXFA_Document;
 class CXFA_Node;
 class IFX_SeekableStream;
 

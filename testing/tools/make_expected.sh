@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2015 The PDFium Authors
+# Copyright 2015 PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
@@ -23,9 +23,7 @@ while (( "$#" )); do
   if [ -f "$EVTFILE" ]; then
     SEND_EVENTS="--send-events"
   fi
-  FONT_DIR=`readlink -f third_party/test_fonts`
-  out/Debug/pdfium_test $SEND_EVENTS --time=$TEST_SEED_TIME --png \
-      --croscore-font-names --font-dir=$FONT_DIR $INFILE
+  out/Debug/pdfium_test $SEND_EVENTS --time=$TEST_SEED_TIME --png $INFILE
   RESULTS="$INFILE.*.png"
   for RESULT in $RESULTS ; do
     EXPECTED=`echo -n $RESULT | sed 's/[.]pdf[.]/_expected.pdf./'`

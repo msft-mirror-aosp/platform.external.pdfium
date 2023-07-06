@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "core/fxcrt/fx_safe_types.h"
 #include "core/fxcrt/fx_string.h"
 
 class FileAccessIface {
@@ -16,8 +17,8 @@ class FileAccessIface {
   static std::unique_ptr<FileAccessIface> Create();
   virtual ~FileAccessIface() = default;
 
-  // Opens in read-only mode. `fileName` is UTF-8 on all platforms.
-  virtual bool Open(ByteStringView fileName) = 0;
+  virtual bool Open(ByteStringView fileName, uint32_t dwMode) = 0;
+  virtual bool Open(WideStringView fileName, uint32_t dwMode) = 0;
   virtual void Close() = 0;
   virtual FX_FILESIZE GetSize() const = 0;
   virtual FX_FILESIZE GetPosition() const = 0;

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ class CScript_SignaturePseudoModel;
 
 class CJX_SignaturePseudoModel final : public CJX_Object {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_SignaturePseudoModel(CScript_SignaturePseudoModel* model);
   ~CJX_SignaturePseudoModel() override;
 
   // CJX_Object:
@@ -26,8 +26,6 @@ class CJX_SignaturePseudoModel final : public CJX_Object {
   JSE_METHOD(clear);
 
  private:
-  explicit CJX_SignaturePseudoModel(CScript_SignaturePseudoModel* model);
-
   using Type__ = CJX_SignaturePseudoModel;
   using ParentType__ = CJX_Object;
 

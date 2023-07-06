@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ class CXFA_WsdlConnection;
 
 class CJX_WsdlConnection final : public CJX_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_WsdlConnection(CXFA_WsdlConnection* connection);
   ~CJX_WsdlConnection() override;
 
   // CJX_Object:
@@ -23,8 +23,6 @@ class CJX_WsdlConnection final : public CJX_Node {
   JSE_METHOD(execute);
 
  private:
-  explicit CJX_WsdlConnection(CXFA_WsdlConnection* connection);
-
   using Type__ = CJX_WsdlConnection;
   using ParentType__ = CJX_Node;
 

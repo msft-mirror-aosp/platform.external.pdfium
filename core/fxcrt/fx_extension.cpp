@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,10 @@
 #include "core/fxcrt/fx_extension.h"
 
 #include <algorithm>
+#include <cwctype>
 #include <limits>
 
-#include "core/fxcrt/fx_system.h"
-#include "third_party/base/check.h"
+#include "third_party/base/compiler_specific.h"
 
 namespace {
 
@@ -27,36 +27,39 @@ struct tm* (*g_localtime_func)(const time_t*) = DefaultLocaltimeFunction;
 
 }  // namespace
 
-float FXSYS_wcstof(const wchar_t* pwsStr, size_t nLength, size_t* pUsedLen) {
-  DCHECK(pwsStr);
-  if (nLength == 0)
+float FXSYS_wcstof(const wchar_t* pwsStr, int32_t iLength, int32_t* pUsedLen) {
+  ASSERT(pwsStr);
+
+  if (iLength < 0)
+    iLength = static_cast<int32_t>(wcslen(pwsStr));
+  if (iLength == 0)
     return 0.0f;
 
-  size_t nUsedLen = 0;
+  int32_t iUsedLen = 0;
   bool bNegtive = false;
-  switch (pwsStr[nUsedLen]) {
+  switch (pwsStr[iUsedLen]) {
     case '-':
       bNegtive = true;
-      [[fallthrough]];
+      FALLTHROUGH;
     case '+':
-      nUsedLen++;
+      iUsedLen++;
       break;
   }
 
   float fValue = 0.0f;
-  while (nUsedLen < nLength) {
-    wchar_t wch = pwsStr[nUsedLen];
+  while (iUsedLen < iLength) {
+    wchar_t wch = pwsStr[iUsedLen];
     if (!FXSYS_IsDecimalDigit(wch))
       break;
 
     fValue = fValue * 10.0f + (wch - L'0');
-    nUsedLen++;
+    iUsedLen++;
   }
 
-  if (nUsedLen < nLength && pwsStr[nUsedLen] == L'.') {
+  if (iUsedLen < iLength && pwsStr[iUsedLen] == L'.') {
     float fPrecise = 0.1f;
-    while (++nUsedLen < nLength) {
-      wchar_t wch = pwsStr[nUsedLen];
+    while (++iUsedLen < iLength) {
+      wchar_t wch = pwsStr[iUsedLen];
       if (!FXSYS_IsDecimalDigit(wch))
         break;
 
@@ -65,20 +68,20 @@ float FXSYS_wcstof(const wchar_t* pwsStr, size_t nLength, size_t* pUsedLen) {
     }
   }
 
-  if (nUsedLen < nLength &&
-      (pwsStr[nUsedLen] == 'e' || pwsStr[nUsedLen] == 'E')) {
-    ++nUsedLen;
+  if (iUsedLen < iLength &&
+      (pwsStr[iUsedLen] == 'e' || pwsStr[iUsedLen] == 'E')) {
+    ++iUsedLen;
 
     bool negative_exponent = false;
-    if (nUsedLen < nLength &&
-        (pwsStr[nUsedLen] == '-' || pwsStr[nUsedLen] == '+')) {
-      negative_exponent = pwsStr[nUsedLen] == '-';
-      ++nUsedLen;
+    if (iUsedLen < iLength &&
+        (pwsStr[iUsedLen] == '-' || pwsStr[iUsedLen] == '+')) {
+      negative_exponent = pwsStr[iUsedLen] == '-';
+      ++iUsedLen;
     }
 
     int32_t exp_value = 0;
-    while (nUsedLen < nLength) {
-      wchar_t wch = pwsStr[nUsedLen];
+    while (iUsedLen < iLength) {
+      wchar_t wch = pwsStr[iUsedLen];
       if (!FXSYS_IsDecimalDigit(wch))
         break;
 
@@ -93,7 +96,7 @@ float FXSYS_wcstof(const wchar_t* pwsStr, size_t nLength, size_t* pUsedLen) {
         return 0.0f;
       }
 
-      ++nUsedLen;
+      ++iUsedLen;
     }
 
     for (size_t i = exp_value; i > 0; --i) {
@@ -107,15 +110,15 @@ float FXSYS_wcstof(const wchar_t* pwsStr, size_t nLength, size_t* pUsedLen) {
   }
 
   if (pUsedLen)
-    *pUsedLen = nUsedLen;
+    *pUsedLen = iUsedLen;
 
   return bNegtive ? -fValue : fValue;
 }
 
 wchar_t* FXSYS_wcsncpy(wchar_t* dstStr, const wchar_t* srcStr, size_t count) {
-  DCHECK(dstStr);
-  DCHECK(srcStr);
-  DCHECK(count > 0);
+  ASSERT(dstStr);
+  ASSERT(srcStr);
+  ASSERT(count > 0);
 
   for (size_t i = 0; i < count; ++i)
     if ((dstStr[i] = srcStr[i]) == L'\0')
@@ -124,9 +127,9 @@ wchar_t* FXSYS_wcsncpy(wchar_t* dstStr, const wchar_t* srcStr, size_t count) {
 }
 
 int32_t FXSYS_wcsnicmp(const wchar_t* s1, const wchar_t* s2, size_t count) {
-  DCHECK(s1);
-  DCHECK(s2);
-  DCHECK(count > 0);
+  ASSERT(s1);
+  ASSERT(s2);
+  ASSERT(count > 0);
 
   wchar_t wch1 = 0, wch2 = 0;
   while (count-- > 0) {
@@ -150,7 +153,7 @@ void FXSYS_IntToFourHexChars(uint16_t n, char* buf) {
 }
 
 size_t FXSYS_ToUTF16BE(uint32_t unicode, char* buf) {
-  DCHECK(unicode <= 0xD7FF || (unicode > 0xDFFF && unicode <= 0x10FFFF));
+  ASSERT(unicode <= 0xD7FF || (unicode > 0xDFFF && unicode <= 0x10FFFF));
   if (unicode <= 0xFFFF) {
     FXSYS_IntToFourHexChars(unicode, buf);
     return 4;

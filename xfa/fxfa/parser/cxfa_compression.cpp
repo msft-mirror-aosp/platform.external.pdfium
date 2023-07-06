@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,15 @@
 #include "xfa/fxfa/parser/cxfa_compression.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kCompressionPropertyData[] = {
-    {XFA_Element::Level, 1, {}},
-    {XFA_Element::Type, 1, {}},
-    {XFA_Element::CompressObjectStream, 1, {}},
-    {XFA_Element::CompressLogicalStructure, 1, {}},
+    {XFA_Element::Level, 1, 0},
+    {XFA_Element::Type, 1, 0},
+    {XFA_Element::CompressObjectStream, 1, 0},
+    {XFA_Element::CompressLogicalStructure, 1, 0},
 };
 
 const CXFA_Node::AttributeData kCompressionAttributeData[] = {
@@ -28,13 +28,11 @@ const CXFA_Node::AttributeData kCompressionAttributeData[] = {
 CXFA_Compression::CXFA_Compression(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                XFA_XDPPACKET::kConfig,
+                XFA_XDPPACKET_Config,
                 XFA_ObjectType::Node,
                 XFA_Element::Compression,
                 kCompressionPropertyData,
                 kCompressionAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Compression::~CXFA_Compression() = default;

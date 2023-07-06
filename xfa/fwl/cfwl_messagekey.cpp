@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,17 @@
 
 #include "xfa/fwl/cfwl_messagekey.h"
 
+#include <memory>
+
+#include "third_party/base/ptr_util.h"
+
 CFWL_MessageKey::CFWL_MessageKey(CFWL_Widget* pDstTarget,
-                                 KeyCommand cmd,
-                                 Mask<XFA_FWL_KeyFlag> flags,
-                                 uint32_t dwKeyCodeOrChar)
-    : CFWL_Message(CFWL_Message::Type::kKey, pDstTarget),
+                                 FWL_KeyCommand cmd,
+                                 uint32_t flags,
+                                 uint32_t keycode)
+    : CFWL_Message(CFWL_Message::Type::Key, nullptr, pDstTarget),
       m_dwCmd(cmd),
       m_dwFlags(flags),
-      m_dwKeyCodeOrChar(dwKeyCodeOrChar) {}
+      m_dwKeyCode(keycode) {}
 
 CFWL_MessageKey::~CFWL_MessageKey() = default;

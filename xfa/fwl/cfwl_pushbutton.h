@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,37 +8,36 @@
 #define XFA_FWL_CFWL_PUSHBUTTON_H_
 
 #include "xfa/fwl/cfwl_widget.h"
+#include "xfa/fwl/cfwl_widgetproperties.h"
 
-#define FWL_STATE_PSB_Hovered (1 << FWL_STATE_WGT_MAX)
-#define FWL_STATE_PSB_Pressed (1 << (FWL_STATE_WGT_MAX + 1))
-#define FWL_STATE_PSB_Default (1 << (FWL_STATE_WGT_MAX + 2))
+#define FWL_STATE_PSB_Hovered (1 << FWL_WGTSTATE_MAX)
+#define FWL_STATE_PSB_Pressed (1 << (FWL_WGTSTATE_MAX + 1))
 
-class CFWL_MessageKey;
 class CFWL_MessageMouse;
+class CFX_DIBitmap;
+class CFWL_Widget;
 
 class CFWL_PushButton final : public CFWL_Widget {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CFWL_PushButton(const CFWL_App*);
   ~CFWL_PushButton() override;
 
   // CFWL_Widget
   FWL_Type GetClassID() const override;
   void SetStates(uint32_t dwStates) override;
   void Update() override;
-  void DrawWidget(CFGAS_GEGraphics* pGraphics,
-                  const CFX_Matrix& matrix) override;
+  void DrawWidget(CXFA_Graphics* pGraphics, const CFX_Matrix& matrix) override;
   void OnProcessMessage(CFWL_Message* pMessage) override;
-  void OnDrawWidget(CFGAS_GEGraphics* pGraphics,
+  void OnDrawWidget(CXFA_Graphics* pGraphics,
                     const CFX_Matrix& matrix) override;
 
  private:
-  explicit CFWL_PushButton(CFWL_App* pApp);
-
-  void DrawBkground(CFGAS_GEGraphics* pGraphics, const CFX_Matrix& mtMatrix);
-  Mask<CFWL_PartState> GetPartStates();
+  void DrawBkground(CXFA_Graphics* pGraphics,
+                    IFWL_ThemeProvider* pTheme,
+                    const CFX_Matrix* pMatrix);
+  uint32_t GetPartStates();
   void UpdateTextOutStyles();
-  void OnFocusGained();
-  void OnFocusLost();
+  void OnFocusChanged(CFWL_Message* pMsg, bool bSet);
   void OnLButtonDown(CFWL_MessageMouse* pMsg);
   void OnLButtonUp(CFWL_MessageMouse* pMsg);
   void OnMouseMove(CFWL_MessageMouse* pMsg);
@@ -46,8 +45,8 @@ class CFWL_PushButton final : public CFWL_Widget {
   void OnKeyDown(CFWL_MessageKey* pMsg);
 
   bool m_bBtnDown = false;
-  CFX_RectF m_ClientRect;
-  CFX_RectF m_CaptionRect;
+  CFX_RectF m_rtClient;
+  CFX_RectF m_rtCaption;
 };
 
 #endif  // XFA_FWL_CFWL_PUSHBUTTON_H_

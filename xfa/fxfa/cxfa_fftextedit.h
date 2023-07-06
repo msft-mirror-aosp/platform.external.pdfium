@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 #define XFA_FXFA_CXFA_FFTEXTEDIT_H_
 
 #include "core/fxcrt/fx_coordinates.h"
-#include "core/fxcrt/widestring.h"
-#include "v8/include/cppgc/prefinalizer.h"
+#include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/unowned_ptr.h"
 #include "xfa/fxfa/cxfa_fffield.h"
 
 class CFWL_Event;
@@ -20,34 +20,24 @@ class CXFA_FFWidget;
 class IFWL_WidgetDelegate;
 
 class CXFA_FFTextEdit : public CXFA_FFField {
-  CPPGC_USING_PRE_FINALIZER(CXFA_FFTextEdit, PreFinalize);
-
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CXFA_FFTextEdit(CXFA_Node* pNode);
   ~CXFA_FFTextEdit() override;
-
-  void PreFinalize();
-
-  void Trace(cppgc::Visitor* visitor) const override;
 
   // CXFA_FFField
   bool LoadWidget() override;
   void UpdateWidgetProperty() override;
-  bool AcceptsFocusOnButtonDown(
-      Mask<XFA_FWL_KeyFlag> dwFlags,
-      const CFX_PointF& point,
-      CFWL_MessageMouse::MouseCommand command) override;
-  bool OnLButtonDown(Mask<XFA_FWL_KeyFlag> dwFlags,
-                     const CFX_PointF& point) override;
-  bool OnRButtonDown(Mask<XFA_FWL_KeyFlag> dwFlags,
-                     const CFX_PointF& point) override;
-  bool OnRButtonUp(Mask<XFA_FWL_KeyFlag> dwFlags,
-                   const CFX_PointF& point) override;
-  [[nodiscard]] bool OnSetFocus(CXFA_FFWidget* pOldWidget) override;
-  [[nodiscard]] bool OnKillFocus(CXFA_FFWidget* pNewWidget) override;
+  bool AcceptsFocusOnButtonDown(uint32_t dwFlags,
+                                const CFX_PointF& point,
+                                FWL_MouseCommand command) override;
+  bool OnLButtonDown(uint32_t dwFlags, const CFX_PointF& point) override;
+  bool OnRButtonDown(uint32_t dwFlags, const CFX_PointF& point) override;
+  bool OnRButtonUp(uint32_t dwFlags, const CFX_PointF& point) override;
+  bool OnSetFocus(CXFA_FFWidget* pOldWidget) override WARN_UNUSED_RESULT;
+  bool OnKillFocus(CXFA_FFWidget* pNewWidget) override WARN_UNUSED_RESULT;
   void OnProcessMessage(CFWL_Message* pMessage) override;
   void OnProcessEvent(CFWL_Event* pEvent) override;
-  void OnDrawWidget(CFGAS_GEGraphics* pGraphics,
+  void OnDrawWidget(CXFA_Graphics* pGraphics,
                     const CFX_Matrix& matrix) override;
 
   void OnTextWillChange(CFWL_Widget* pWidget, CFWL_EventTextWillChange* change);
@@ -56,14 +46,14 @@ class CXFA_FFTextEdit : public CXFA_FFField {
   // CXFA_FFWidget
   bool CanUndo() override;
   bool CanRedo() override;
+  bool Undo() override;
+  bool Redo() override;
   bool CanCopy() override;
   bool CanCut() override;
   bool CanPaste() override;
   bool CanSelectAll() override;
-  bool Undo() override;
-  bool Redo() override;
-  absl::optional<WideString> Copy() override;
-  absl::optional<WideString> Cut() override;
+  Optional<WideString> Copy() override;
+  Optional<WideString> Cut() override;
   bool Paste(const WideString& wsPaste) override;
   void SelectAll() override;
   void Delete() override;
@@ -72,10 +62,9 @@ class CXFA_FFTextEdit : public CXFA_FFField {
   FormFieldType GetFormFieldType() override;
 
  protected:
-  explicit CXFA_FFTextEdit(CXFA_Node* pNode);
   uint32_t GetAlignment();
 
-  cppgc::Member<IFWL_WidgetDelegate> m_pOldDelegate;
+  UnownedPtr<IFWL_WidgetDelegate> m_pOldDelegate;
 
  private:
   bool CommitData() override;

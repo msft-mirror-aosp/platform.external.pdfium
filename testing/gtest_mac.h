@@ -1,7 +1,6 @@
-// Copyright 2010 The PDFium Authors
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #ifndef TESTING_GTEST_MAC_H_
 #define TESTING_GTEST_MAC_H_
 #include <gtest/internal/gtest-port.h>

@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,15 @@
 #ifndef CORE_FXCRT_STRING_VIEW_TEMPLATE_H_
 #define CORE_FXCRT_STRING_VIEW_TEMPLATE_H_
 
-#include <ctype.h>
-
 #include <algorithm>
 #include <iterator>
 #include <type_traits>
+#include <vector>
 
 #include "core/fxcrt/fx_system.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 #include "third_party/base/span.h"
+#include "third_party/base/stl_util.h"
 
 namespace fxcrt {
 
@@ -25,11 +25,6 @@ namespace fxcrt {
 //
 // String view arguments should be passed by value, since they are small,
 // rather than const-ref, even if they are not modified.
-//
-// Front() and Back() tolerate empty strings and must return NUL in those
-// cases. Substr(), First(), and Last() tolerate out-of-range indices and
-// must return an empty string view in those cases. The aim here is allowing
-// callers to avoid range-checking first.
 template <typename T>
 class StringViewTemplate {
  public:
@@ -48,32 +43,40 @@ class StringViewTemplate {
       : m_Span(reinterpret_cast<const UnsignedType*>(ptr),
                ptr ? FXSYS_len(ptr) : 0) {}
 
-  constexpr StringViewTemplate(const CharType* ptr, size_t size) noexcept
-      : m_Span(reinterpret_cast<const UnsignedType*>(ptr), size) {}
-
-  template <typename E = typename std::enable_if<
-                !std::is_same<UnsignedType, CharType>::value>::type>
-  constexpr StringViewTemplate(const UnsignedType* ptr, size_t size) noexcept
-      : m_Span(ptr, size) {}
+  constexpr StringViewTemplate(const CharType* ptr, size_t len) noexcept
+      : m_Span(reinterpret_cast<const UnsignedType*>(ptr), len) {}
 
   explicit constexpr StringViewTemplate(
       const pdfium::span<const CharType>& other) noexcept
-      : m_Span(!other.empty()
-                   ? reinterpret_cast<const UnsignedType*>(other.data())
-                   : nullptr,
+      : m_Span(reinterpret_cast<const UnsignedType*>(other.data()),
                other.size()) {}
 
-  template <typename E = typename std::enable_if<
-                !std::is_same<UnsignedType, CharType>::value>::type>
+  template <typename U = UnsignedType>
   constexpr StringViewTemplate(
-      const pdfium::span<const UnsignedType>& other) noexcept
-      : m_Span(!other.empty() ? other.data() : nullptr, other.size()) {}
+      const UnsignedType* ptr,
+      size_t size,
+      typename std::enable_if<!std::is_same<U, CharType>::value>::type* =
+          0) noexcept
+      : m_Span(ptr, size) {}
 
-  // Deliberately implicit to avoid calling on every char literal.
+  template <typename U = UnsignedType>
+  StringViewTemplate(
+      const pdfium::span<U> other,
+      typename std::enable_if<!std::is_same<U, CharType>::value>::type* =
+          0) noexcept
+      : m_Span(other) {}
+
+  // Deliberately implicit to avoid calling on every string literal.
   // |ch| must be an lvalue that outlives the StringViewTemplate.
   // NOLINTNEXTLINE(runtime/explicit)
-  constexpr StringViewTemplate(const CharType& ch) noexcept
+  constexpr StringViewTemplate(CharType& ch) noexcept
       : m_Span(reinterpret_cast<const UnsignedType*>(&ch), 1) {}
+
+  // Any changes to |vec| invalidate the string.
+  template <typename AllocType>
+  explicit StringViewTemplate(
+      const std::vector<UnsignedType, AllocType>& vec) noexcept
+      : m_Span(!vec.empty() ? vec.data() : nullptr, vec.size()) {}
 
   StringViewTemplate& operator=(const CharType* src) {
     m_Span = pdfium::span<const UnsignedType>(
@@ -181,25 +184,18 @@ class StringViewTemplate {
     return !m_Span.empty() ? m_Span[m_Span.size() - 1] : 0;
   }
 
-  CharType CharAt(const size_t index) const {
+  const CharType CharAt(const size_t index) const {
     return static_cast<CharType>(m_Span[index]);
   }
 
-  absl::optional<size_t> Find(CharType ch) const {
+  Optional<size_t> Find(CharType ch) const {
     const auto* found = reinterpret_cast<const UnsignedType*>(FXSYS_chr(
         reinterpret_cast<const CharType*>(m_Span.data()), ch, m_Span.size()));
 
-    return found ? absl::optional<size_t>(found - m_Span.data())
-                 : absl::nullopt;
+    return found ? Optional<size_t>(found - m_Span.data()) : Optional<size_t>();
   }
 
   bool Contains(CharType ch) const { return Find(ch).has_value(); }
-
-  StringViewTemplate Substr(size_t offset) const {
-    // Unsigned underflow is well-defined and out-of-range is handled by
-    // Substr().
-    return Substr(offset, GetLength() - offset);
-  }
 
   StringViewTemplate Substr(size_t first, size_t count) const {
     if (!m_Span.data())
@@ -218,12 +214,14 @@ class StringViewTemplate {
   }
 
   StringViewTemplate First(size_t count) const {
+    if (count == 0 || !IsValidLength(count))
+      return StringViewTemplate();
     return Substr(0, count);
   }
 
   StringViewTemplate Last(size_t count) const {
-    // Unsigned underflow is well-defined and out-of-range is handled by
-    // Substr().
+    if (count == 0 || !IsValidLength(count))
+      return StringViewTemplate();
     return Substr(GetLength() - count, count);
   }
 
@@ -277,8 +275,12 @@ inline bool operator<(const T* lhs, const StringViewTemplate<T>& rhs) {
   return rhs > lhs;
 }
 
+// Workaround for one of the cases external template classes are
+// failing in GCC before version 7 with -O0
+#if !defined(__GNUC__) || __GNUC__ >= 7
 extern template class StringViewTemplate<char>;
 extern template class StringViewTemplate<wchar_t>;
+#endif
 
 using ByteStringView = StringViewTemplate<char>;
 using WideStringView = StringViewTemplate<wchar_t>;

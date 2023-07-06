@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,48 +7,33 @@
 #ifndef CORE_FXCRT_CFX_TIMER_H_
 #define CORE_FXCRT_CFX_TIMER_H_
 
-#include <stdint.h>
-
-#include "core/fxcrt/observed_ptr.h"
+#include "core/fxcrt/timerhandler_iface.h"
 #include "core/fxcrt/unowned_ptr.h"
+
+class CFX_TimerHandler;
 
 class CFX_Timer {
  public:
-  // HandlerIface is implemented by upper layers that actually perform
-  // the system-dependent actions of scheduling and triggering timers.
-  class HandlerIface : public Observable {
-   public:
-    static constexpr int32_t kInvalidTimerID = 0;
-    using TimerCallback = void (*)(int32_t idEvent);
-
-    virtual ~HandlerIface() = default;
-
-    virtual int32_t SetTimer(int32_t uElapse, TimerCallback lpTimerFunc) = 0;
-    virtual void KillTimer(int32_t nTimerID) = 0;
-  };
-
-  // CallbackIface is implemented by layers that want to perform a
-  // specific action on timer expiry.
   class CallbackIface {
    public:
     virtual ~CallbackIface() = default;
     virtual void OnTimerFired() = 0;
   };
 
-  CFX_Timer(HandlerIface* pHandlerIface,
+  CFX_Timer(TimerHandlerIface* pTimerHandler,
             CallbackIface* pCallbackIface,
             int32_t nInterval);
   ~CFX_Timer();
 
   bool HasValidID() const {
-    return m_nTimerID != HandlerIface::kInvalidTimerID;
+    return m_nTimerID != TimerHandlerIface::kInvalidTimerID;
   }
 
  private:
   static void TimerProc(int32_t idEvent);
 
-  int32_t m_nTimerID = HandlerIface::kInvalidTimerID;
-  ObservedPtr<HandlerIface> m_pHandlerIface;
+  const int32_t m_nTimerID;
+  UnownedPtr<TimerHandlerIface> const m_pTimerHandler;
   UnownedPtr<CallbackIface> const m_pCallbackIface;
 };
 

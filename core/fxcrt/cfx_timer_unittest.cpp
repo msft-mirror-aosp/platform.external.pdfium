@@ -1,4 +1,4 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,17 @@
 
 #include <memory>
 
+#include "core/fxcrt/timerhandler_iface.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/base/ptr_util.h"
 
 using testing::_;
 using testing::DoAll;
 using testing::Return;
 using testing::SaveArg;
 
-class MockTimerScheduler : public CFX_Timer::HandlerIface {
+class MockTimerScheduler : public TimerHandlerIface {
  public:
   MOCK_METHOD2(SetTimer, int(int32_t uElapse, TimerCallback lpTimerFunc));
   MOCK_METHOD1(KillTimer, void(int32_t nID));
@@ -26,8 +28,8 @@ class MockTimerCallback : public CFX_Timer::CallbackIface {
 };
 
 TEST(CFX_Timer, ValidTimers) {
-  CFX_Timer::HandlerIface::TimerCallback fn1 = nullptr;
-  CFX_Timer::HandlerIface::TimerCallback fn2 = nullptr;
+  TimerHandlerIface::TimerCallback fn1 = nullptr;
+  TimerHandlerIface::TimerCallback fn2 = nullptr;
 
   MockTimerScheduler scheduler;
   EXPECT_CALL(scheduler, SetTimer(100, _))
@@ -43,8 +45,8 @@ TEST(CFX_Timer, ValidTimers) {
   MockTimerCallback cb2;
   EXPECT_CALL(cb2, OnTimerFired()).Times(2);
 
-  auto timer1 = std::make_unique<CFX_Timer>(&scheduler, &cb1, 100);
-  auto timer2 = std::make_unique<CFX_Timer>(&scheduler, &cb2, 200);
+  auto timer1 = pdfium::MakeUnique<CFX_Timer>(&scheduler, &cb1, 100);
+  auto timer2 = pdfium::MakeUnique<CFX_Timer>(&scheduler, &cb2, 200);
   EXPECT_TRUE(timer1->HasValidID());
   EXPECT_TRUE(timer2->HasValidID());
 
@@ -57,7 +59,7 @@ TEST(CFX_Timer, ValidTimers) {
 }
 
 TEST(CFX_Timer, MisbehavingEmbedder) {
-  CFX_Timer::HandlerIface::TimerCallback fn1 = nullptr;
+  TimerHandlerIface::TimerCallback fn1 = nullptr;
 
   MockTimerScheduler scheduler;
   EXPECT_CALL(scheduler, SetTimer(100, _))
@@ -68,7 +70,7 @@ TEST(CFX_Timer, MisbehavingEmbedder) {
   EXPECT_CALL(cb1, OnTimerFired()).Times(0);
 
   {
-    auto timer1 = std::make_unique<CFX_Timer>(&scheduler, &cb1, 100);
+    auto timer1 = pdfium::MakeUnique<CFX_Timer>(&scheduler, &cb1, 100);
     EXPECT_TRUE(timer1->HasValidID());
 
     // Fire callback with bad arguments.

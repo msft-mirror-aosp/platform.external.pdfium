@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,31 +7,25 @@
 #ifndef XFA_FXFA_CXFA_FFNOTIFY_H_
 #define XFA_FXFA_CXFA_FFNOTIFY_H_
 
-#include "core/fxcrt/mask.h"
-#include "fxjs/gc/heap.h"
-#include "v8/include/cppgc/garbage-collected.h"
-#include "v8/include/cppgc/member.h"
-#include "v8/include/cppgc/visitor.h"
+#include <memory>
+
 #include "xfa/fxfa/cxfa_eventparam.h"
-#include "xfa/fxfa/cxfa_ffapp.h"
-#include "xfa/fxfa/cxfa_ffdoc.h"
-#include "xfa/fxfa/cxfa_ffdocview.h"
+#include "xfa/fxfa/fxfa.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 
+class CXFA_ContentLayoutItem;
+class CXFA_FFWidgetHandler;
 class CXFA_LayoutItem;
 class CXFA_LayoutProcessor;
 class CXFA_Script;
 class CXFA_ViewLayoutItem;
 
-class CXFA_FFNotify : public cppgc::GarbageCollected<CXFA_FFNotify> {
+class CXFA_FFNotify {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CXFA_FFNotify(CXFA_FFDoc* pDoc);
   ~CXFA_FFNotify();
 
-  void Trace(cppgc::Visitor* visitor) const;
-
-  void OnPageViewEvent(CXFA_ViewLayoutItem* pSender,
-                       CXFA_FFDoc::PageViewEvent eEvent);
+  void OnPageEvent(CXFA_ViewLayoutItem* pSender, uint32_t dwEvent);
 
   void OnWidgetListItemAdded(CXFA_Node* pSender,
                              const WideString& wsLabel,
@@ -45,20 +39,20 @@ class CXFA_FFNotify : public cppgc::GarbageCollected<CXFA_FFNotify> {
                       XFA_Attribute eAttr,
                       CXFA_Node* pParentNode,
                       CXFA_Node* pWidgetNode);
-  void OnContainerChanged();
+  void OnContainerChanged(CXFA_Node* pNode);
   void OnChildAdded(CXFA_Node* pSender);
   void OnChildRemoved();
 
-  // These two return new views/widgets from cppgc heap.
-  CXFA_FFPageView* OnCreateViewLayoutItem(CXFA_Node* pNode);
-  CXFA_FFWidget* OnCreateContentLayoutItem(CXFA_Node* pNode);
+  std::unique_ptr<CXFA_FFPageView> OnCreateViewLayoutItem(CXFA_Node* pNode);
+  std::unique_ptr<CXFA_FFWidget> OnCreateContentLayoutItem(CXFA_Node* pNode);
 
   void OnLayoutItemAdded(CXFA_LayoutProcessor* pLayout,
                          CXFA_LayoutItem* pSender,
                          int32_t iPageIdx,
-                         Mask<XFA_WidgetStatus> dwStatus);
+                         uint32_t dwStatus);
   void OnLayoutItemRemoving(CXFA_LayoutProcessor* pLayout,
                             CXFA_LayoutItem* pSender);
+
   void StartFieldDrawLayout(CXFA_Node* pItem,
                             float* pCalcWidth,
                             float* pCalcHeight);
@@ -68,21 +62,19 @@ class CXFA_FFNotify : public cppgc::GarbageCollected<CXFA_FFNotify> {
                                       bool bIsFormReady,
                                       bool bRecursive);
   void AddCalcValidate(CXFA_Node* pNode);
-  CXFA_FFDoc* GetFFDoc() const { return m_pDoc; }
-  CXFA_FFApp::CallbackIface* GetAppProvider();
-  void HandleWidgetEvent(CXFA_Node* pNode, CXFA_EventParam* pParam);
+  CXFA_FFDoc* GetHDOC() const { return m_pDoc.Get(); }
+  IXFA_AppProvider* GetAppProvider();
+  CXFA_FFWidgetHandler* GetWidgetHandler();
   void OpenDropDownList(CXFA_Node* pNode);
   void ResetData(CXFA_Node* pNode);
-  CXFA_FFDocView::LayoutStatus GetLayoutStatus();
+  int32_t GetLayoutStatus();
   void RunNodeInitialize(CXFA_Node* pNode);
-  void RunSubformIndexChange(CXFA_Subform* pSubformNode);
+  void RunSubformIndexChange(CXFA_Node* pSubformNode);
   CXFA_Node* GetFocusWidgetNode();
   void SetFocusWidgetNode(CXFA_Node* pNode);
 
  private:
-  explicit CXFA_FFNotify(CXFA_FFDoc* pDoc);
-
-  cppgc::Member<CXFA_FFDoc> const m_pDoc;
+  UnownedPtr<CXFA_FFDoc> const m_pDoc;
 };
 
 #endif  // XFA_FXFA_CXFA_FFNOTIFY_H_
