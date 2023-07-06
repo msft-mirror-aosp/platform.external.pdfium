@@ -7,11 +7,8 @@
 #ifndef _TIFFCONF_
 #define _TIFFCONF_
 
-#include <inttypes.h>
-#include <stddef.h>
-#include <stdint.h>
-
 #include "build/build_config.h"
+#include "core/fxcrt/fx_system.h"
 
 //NOTE: The tiff codec requires an ANSI C compiler environment for building and 
 //    presumes an ANSI C environment for use.
@@ -29,13 +26,11 @@
 #define HAVE_IEEEFP 1
 
 /* Define to 1 if you have the <string.h> header file. */
-#define HAVE_STRING_H 1
-
-/* Define to 1 if you have snprintf(). */
-#define HAVE_SNPRINTF 1
+//#define HAVE_STRING_H 1
+//fx_system.h already include the string.h in ANSIC
 
 /* Define to 1 if you have the <search.h> header file. */
-#if BUILDFLAG(IS_WIN)
+#if defined(OS_WIN)
 // search.h is always available in VS 2015 and above, and may be
 // available in earlier versions.
 #define HAVE_SEARCH_H 1
@@ -45,7 +40,10 @@
 /* According typedef int  int32_t; in the fx_system.h*/
 #define SIZEOF_INT 4
 
-#if defined(ARCH_CPU_64_BITS)
+/* Sunliang.Liu 20110325. We should config the correct long size for tif 
+   fax4decode optimize in tif_fax3.c  -- Linux64 decode issue. 
+   TESTDOC: Bug #23661 - z1.tif. */
+#if _FX_CPU_ == _FX_X64_ || _FX_CPU_ == _FX_IA64_
 /* The size of `unsigned long', as computed by sizeof. */
 #define SIZEOF_UNSIGNED_LONG 8
 #else
@@ -99,7 +97,7 @@
 
 #else           // linux/unix
 
-#if defined(ARCH_CPU_64_BITS)
+#if 0 //_FX_CPU_ == _FX_X64_  // linux/unix 64
 
 /* Signed 64-bit type formatter */
 #define TIFF_INT64_FORMAT "%ld"
@@ -109,9 +107,6 @@
 
 /* Signed 64-bit type */
 #define TIFF_INT64_T signed long
-
-/* Unsigned 64-bit type */
-#define TIFF_UINT64_T unsigned long
 
 #else           // linux/unix 32
 
@@ -124,25 +119,37 @@
 /* Signed 64-bit type */
 #define TIFF_INT64_T signed long long
 
+#endif            // end _FX_CPU_
+
 /* Unsigned 64-bit type */
 #define TIFF_UINT64_T unsigned long long
-
-#endif  // define(ARCH_CPU_64_BITS)
 
 #endif
 
 
-/* Signed size type, type formatter, and size of size_t */
-#if defined(ARCH_CPU_64_BITS)
-#define TIFF_SSIZE_T int64_t
-#define TIFF_SSIZE_FORMAT PRId64
+/* Signed size type */
+#ifdef _MSC_VER
+
+#if defined(_WIN64)
+#define TIFF_SSIZE_T signed __int64
 #define TIFF_SSIZE_T_MAX INT64_MAX
-#define SIZEOF_SIZE_T 8
 #else
-#define TIFF_SSIZE_T int32_t
-#define TIFF_SSIZE_FORMAT PRId32
-#define TIFF_SSIZE_T_MAX INT32_MAX
-#define SIZEOF_SIZE_T 4
+#define TIFF_SSIZE_T signed int
+#define TIFF_SSIZE_T_MAX INT_MAX
+#endif
+
+#else
+
+#define TIFF_SSIZE_T signed long
+#define TIFF_SSIZE_T_MAX LONG_MAX
+
+#endif
+
+/* Signed size type formatter */
+#if defined(_WIN64)
+#define TIFF_SSIZE_FORMAT "%I64d"
+#else
+#define TIFF_SSIZE_FORMAT "%ld"
 #endif
 
 /* Pointer difference type */
@@ -198,7 +205,7 @@
 
 /* Support Old JPEG compresson (read contrib/ojpeg/README first! Compilation
    fails with unpatched IJG JPEG library) */
-/* #undef OJPEG_SUPPORT */
+#define  OJPEG_SUPPORT  1
 
 /* Support Macintosh PackBits algorithm */
 #define PACKBITS_SUPPORT 1
@@ -210,7 +217,7 @@
 #define THUNDER_SUPPORT 1
 
 /* Support Deflate compression */
-/* #undef ZIP_SUPPORT */
+#define ZIP_SUPPORT 1
 
 /* Support strip chopping (whether or not to convert single-strip uncompressed
    images to mutiple strips of ~8Kb to reduce memory usage) */

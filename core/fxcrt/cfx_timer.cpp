@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 
 #include <map>
 
-#include "third_party/base/check.h"
 #include "third_party/base/no_destructor.h"
 
 namespace {
@@ -21,23 +20,21 @@ TimerMap& GetPWLTimerMap() {
 
 }  // namespace
 
-CFX_Timer::CFX_Timer(HandlerIface* pHandlerIface,
+CFX_Timer::CFX_Timer(TimerHandlerIface* pTimerHandler,
                      CallbackIface* pCallbackIface,
                      int32_t nInterval)
-    : m_pHandlerIface(pHandlerIface), m_pCallbackIface(pCallbackIface) {
-  DCHECK(m_pCallbackIface);
-  if (m_pHandlerIface) {
-    m_nTimerID = m_pHandlerIface->SetTimer(nInterval, TimerProc);
-    if (HasValidID())
-      GetPWLTimerMap()[m_nTimerID] = this;
-  }
+    : m_nTimerID(pTimerHandler->SetTimer(nInterval, TimerProc)),
+      m_pTimerHandler(pTimerHandler),
+      m_pCallbackIface(pCallbackIface) {
+  ASSERT(m_pCallbackIface);
+  if (HasValidID())
+    GetPWLTimerMap()[m_nTimerID] = this;
 }
 
 CFX_Timer::~CFX_Timer() {
   if (HasValidID()) {
+    m_pTimerHandler->KillTimer(m_nTimerID);
     GetPWLTimerMap().erase(m_nTimerID);
-    if (m_pHandlerIface)
-      m_pHandlerIface->KillTimer(m_nTimerID);
   }
 }
 

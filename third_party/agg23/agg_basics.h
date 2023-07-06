@@ -41,11 +41,8 @@
 #endif
 #define AGG_INLINE inline
 
-#include <math.h>
 #include "core/fxcrt/fx_system.h"
 
-namespace pdfium
-{
 namespace agg
 {
 typedef AGG_INT8   int8;
@@ -216,7 +213,7 @@ inline bool is_close(unsigned c)
 {
     c &= ~path_flags_jr;
     return (c & ~(path_flags_cw | path_flags_ccw)) ==
-           (unsigned{path_cmd_end_poly} | path_flags_close);
+           (path_cmd_end_poly | path_flags_close);
 }
 inline bool is_next_poly(unsigned c)
 {
@@ -277,5 +274,4 @@ struct vertex_type  {
         x(x_), y(y_), cmd(cmd_) {}
 };
 }
-}  // namespace pdfium
 #endif

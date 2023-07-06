@@ -1,12 +1,10 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "core/fpdfdoc/cpdf_structtree.h"
-
-#include <utility>
 
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
@@ -15,13 +13,13 @@
 #include "core/fpdfapi/parser/cpdf_reference.h"
 #include "core/fpdfdoc/cpdf_numbertree.h"
 #include "core/fpdfdoc/cpdf_structelement.h"
-#include "core/fxcrt/stl_util.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 bool IsTagged(const CPDF_Document* pDoc) {
-  RetainPtr<const CPDF_Dictionary> pMarkInfo =
-      pDoc->GetRoot()->GetDictFor("MarkInfo");
+  const CPDF_Dictionary* pCatalog = pDoc->GetRoot();
+  const CPDF_Dictionary* pMarkInfo = pCatalog->GetDictFor("MarkInfo");
   return pMarkInfo && pMarkInfo->GetIntegerFor("Marked");
 }
 
@@ -30,12 +28,12 @@ bool IsTagged(const CPDF_Document* pDoc) {
 // static
 std::unique_ptr<CPDF_StructTree> CPDF_StructTree::LoadPage(
     const CPDF_Document* pDoc,
-    RetainPtr<const CPDF_Dictionary> pPageDict) {
+    const CPDF_Dictionary* pPageDict) {
   if (!IsTagged(pDoc))
     return nullptr;
 
-  auto pTree = std::make_unique<CPDF_StructTree>(pDoc);
-  pTree->LoadPageTree(std::move(pPageDict));
+  auto pTree = pdfium::MakeUnique<CPDF_StructTree>(pDoc);
+  pTree->LoadPageTree(pPageDict);
   return pTree;
 }
 
@@ -45,21 +43,12 @@ CPDF_StructTree::CPDF_StructTree(const CPDF_Document* pDoc)
 
 CPDF_StructTree::~CPDF_StructTree() = default;
 
-ByteString CPDF_StructTree::GetRoleMapNameFor(const ByteString& type) const {
-  if (m_pRoleMap) {
-    ByteString mapped = m_pRoleMap->GetNameFor(type);
-    if (!mapped.IsEmpty())
-      return mapped;
-  }
-  return type;
-}
-
-void CPDF_StructTree::LoadPageTree(RetainPtr<const CPDF_Dictionary> pPageDict) {
-  m_pPage = std::move(pPageDict);
+void CPDF_StructTree::LoadPageTree(const CPDF_Dictionary* pPageDict) {
+  m_pPage.Reset(pPageDict);
   if (!m_pTreeRoot)
     return;
 
-  RetainPtr<const CPDF_Object> pKids = m_pTreeRoot->GetDirectObjectFor("K");
+  const CPDF_Object* pKids = m_pTreeRoot->GetDirectObjectFor("K");
   if (!pKids)
     return;
 
@@ -67,38 +56,34 @@ void CPDF_StructTree::LoadPageTree(RetainPtr<const CPDF_Dictionary> pPageDict) {
   if (pKids->IsDictionary())
     dwKids = 1;
   else if (const CPDF_Array* pArray = pKids->AsArray())
-    dwKids = fxcrt::CollectionSize<uint32_t>(*pArray);
+    dwKids = pArray->size();
   else
     return;
 
   m_Kids.clear();
   m_Kids.resize(dwKids);
-
-  RetainPtr<const CPDF_Dictionary> pParentTree =
-      m_pTreeRoot->GetDictFor("ParentTree");
+  const CPDF_Dictionary* pParentTree = m_pTreeRoot->GetDictFor("ParentTree");
   if (!pParentTree)
     return;
 
-  CPDF_NumberTree parent_tree(std::move(pParentTree));
-  int parents_id = m_pPage->GetIntegerFor("StructParents", -1);
+  CPDF_NumberTree parent_tree(pParentTree);
+  int parents_id = pPageDict->GetIntegerFor("StructParents", -1);
   if (parents_id < 0)
     return;
 
-  RetainPtr<const CPDF_Array> pParentArray =
-      ToArray(parent_tree.LookupValue(parents_id));
+  const CPDF_Array* pParentArray = ToArray(parent_tree.LookupValue(parents_id));
   if (!pParentArray)
     return;
 
   StructElementMap element_map;
   for (size_t i = 0; i < pParentArray->size(); i++) {
-    RetainPtr<const CPDF_Dictionary> pParent = pParentArray->GetDictAt(i);
-    if (pParent)
-      AddPageNode(std::move(pParent), &element_map, 0);
+    if (const CPDF_Dictionary* pParent = pParentArray->GetDictAt(i))
+      AddPageNode(pParent, &element_map, 0);
   }
 }
 
 RetainPtr<CPDF_StructElement> CPDF_StructTree::AddPageNode(
-    RetainPtr<const CPDF_Dictionary> pDict,
+    const CPDF_Dictionary* pDict,
     StructElementMap* map,
     int nLevel) {
   static constexpr int kStructTreeMaxRecursion = 32;
@@ -109,33 +94,33 @@ RetainPtr<CPDF_StructElement> CPDF_StructTree::AddPageNode(
   if (it != map->end())
     return it->second;
 
-  RetainPtr<const CPDF_Dictionary> key(pDict);
-  auto pElement = pdfium::MakeRetain<CPDF_StructElement>(this, pDict);
-  (*map)[key] = pElement;
-  RetainPtr<const CPDF_Dictionary> pParent = pDict->GetDictFor("P");
-  if (!pParent || pParent->GetNameFor("Type") == "StructTreeRoot") {
+  auto pElement = pdfium::MakeRetain<CPDF_StructElement>(this, nullptr, pDict);
+  (*map)[pDict] = pElement;
+  const CPDF_Dictionary* pParent = pDict->GetDictFor("P");
+  if (!pParent || pParent->GetStringFor("Type") == "StructTreeRoot") {
     if (!AddTopLevelNode(pDict, pElement))
-      map->erase(key);
+      map->erase(pDict);
     return pElement;
   }
 
   RetainPtr<CPDF_StructElement> pParentElement =
-      AddPageNode(std::move(pParent), map, nLevel + 1);
-  if (!pParentElement)
-    return pElement;
-
-  if (!pParentElement->UpdateKidIfElement(pDict, pElement.Get()))
-    map->erase(key);
-
-  pElement->SetParent(pParentElement.Get());
-
+      AddPageNode(pParent, map, nLevel + 1);
+  bool bSave = false;
+  for (CPDF_StructKid& kid : *pParentElement->GetKids()) {
+    if (kid.m_Type == CPDF_StructKid::kElement && kid.m_pDict == pDict) {
+      kid.m_pElement = pElement;
+      bSave = true;
+    }
+  }
+  if (!bSave)
+    map->erase(pDict);
   return pElement;
 }
 
 bool CPDF_StructTree::AddTopLevelNode(
     const CPDF_Dictionary* pDict,
     const RetainPtr<CPDF_StructElement>& pElement) {
-  RetainPtr<const CPDF_Object> pObj = m_pTreeRoot->GetDirectObjectFor("K");
+  const CPDF_Object* pObj = m_pTreeRoot->GetDirectObjectFor("K");
   if (!pObj)
     return false;
 
@@ -151,8 +136,7 @@ bool CPDF_StructTree::AddTopLevelNode(
 
   bool bSave = false;
   for (size_t i = 0; i < pTopKids->size(); i++) {
-    RetainPtr<const CPDF_Reference> pKidRef =
-        ToReference(pTopKids->GetObjectAt(i));
+    const CPDF_Reference* pKidRef = ToReference(pTopKids->GetObjectAt(i));
     if (pKidRef && pKidRef->GetRefObjNum() == pDict->GetObjNum()) {
       m_Kids[i] = pElement;
       bSave = true;

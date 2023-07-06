@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,9 +6,9 @@
 
 #include "fxjs/xfa/cjx_occur.h"
 
-#include "fxjs/fxv8.h"
+#include <algorithm>
+
 #include "fxjs/xfa/cfxjse_value.h"
-#include "v8/include/v8-primitive.h"
 #include "xfa/fxfa/parser/cxfa_occur.h"
 
 CJX_Occur::CJX_Occur(CXFA_Occur* node) : CJX_Node(node) {}
@@ -19,27 +19,24 @@ bool CJX_Occur::DynamicTypeIs(TypeTag eType) const {
   return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
 }
 
-void CJX_Occur::max(v8::Isolate* pIsolate,
-                    v8::Local<v8::Value>* pValue,
+void CJX_Occur::max(CFXJSE_Value* pValue,
                     bool bSetting,
                     XFA_Attribute eAttribute) {
   CXFA_Occur* occur = static_cast<CXFA_Occur*>(GetXFANode());
   if (!bSetting) {
-    *pValue = fxv8::NewNumberHelper(pIsolate, occur->GetMax());
+    pValue->SetInteger(occur->GetMax());
     return;
   }
-  occur->SetMax(fxv8::ReentrantToInt32Helper(pIsolate, *pValue));
+  occur->SetMax(pValue->ToInteger());
 }
 
-// NOLINTNEXTLINE(build/include_what_you_use)
-void CJX_Occur::min(v8::Isolate* pIsolate,
-                    v8::Local<v8::Value>* pValue,
+void CJX_Occur::min(CFXJSE_Value* pValue,
                     bool bSetting,
                     XFA_Attribute eAttribute) {
   CXFA_Occur* occur = static_cast<CXFA_Occur*>(GetXFANode());
   if (!bSetting) {
-    *pValue = fxv8::NewNumberHelper(pIsolate, occur->GetMin());
+    pValue->SetInteger(occur->GetMin());
     return;
   }
-  occur->SetMin(fxv8::ReentrantToInt32Helper(pIsolate, *pValue));
+  occur->SetMin(pValue->ToInteger());
 }

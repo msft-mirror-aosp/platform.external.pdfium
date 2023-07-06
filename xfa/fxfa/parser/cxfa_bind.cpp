@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,13 +8,13 @@
 
 #include "fxjs/xfa/cjx_node.h"
 #include "fxjs/xfa/cjx_object.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 #include "xfa/fxfa/parser/cxfa_picture.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kBindPropertyData[] = {
-    {XFA_Element::Picture, 1, {}},
+    {XFA_Element::Picture, 1, 0},
 };
 
 const CXFA_Node::AttributeData kBindAttributeData[] = {
@@ -35,19 +35,18 @@ const CXFA_Node::AttributeData kBindAttributeData[] = {
 CXFA_Bind::CXFA_Bind(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kSourceSet, XFA_XDPPACKET::kTemplate,
-                 XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_SourceSet | XFA_XDPPACKET_Template |
+                 XFA_XDPPACKET_Form),
                 XFA_ObjectType::Node,
                 XFA_Element::Bind,
                 kBindPropertyData,
                 kBindAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Bind::~CXFA_Bind() = default;
 
-WideString CXFA_Bind::GetPicture() const {
-  const auto* pPicture = GetChild<CXFA_Picture>(0, XFA_Element::Picture, false);
+WideString CXFA_Bind::GetPicture() {
+  CXFA_Picture* pPicture =
+      GetChild<CXFA_Picture>(0, XFA_Element::Picture, false);
   return pPicture ? pPicture->JSObject()->GetContent(false) : WideString();
 }

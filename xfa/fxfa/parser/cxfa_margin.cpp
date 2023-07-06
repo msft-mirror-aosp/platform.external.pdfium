@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #include "xfa/fxfa/parser/cxfa_margin.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kMarginPropertyData[] = {
-    {XFA_Element::Extras, 1, {}},
+    {XFA_Element::Extras, 1, 0},
 };
 
 const CXFA_Node::AttributeData kMarginAttributeData[] = {
@@ -30,14 +30,12 @@ const CXFA_Node::AttributeData kMarginAttributeData[] = {
 CXFA_Margin::CXFA_Margin(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::Node,
                 XFA_Element::Margin,
                 kMarginPropertyData,
                 kMarginAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Margin::~CXFA_Margin() = default;
 
@@ -57,18 +55,18 @@ float CXFA_Margin::GetBottomInset() const {
   return TryBottomInset().value_or(0);
 }
 
-absl::optional<float> CXFA_Margin::TryLeftInset() const {
+Optional<float> CXFA_Margin::TryLeftInset() const {
   return JSObject()->TryMeasureAsFloat(XFA_Attribute::LeftInset);
 }
 
-absl::optional<float> CXFA_Margin::TryTopInset() const {
+Optional<float> CXFA_Margin::TryTopInset() const {
   return JSObject()->TryMeasureAsFloat(XFA_Attribute::TopInset);
 }
 
-absl::optional<float> CXFA_Margin::TryRightInset() const {
+Optional<float> CXFA_Margin::TryRightInset() const {
   return JSObject()->TryMeasureAsFloat(XFA_Attribute::RightInset);
 }
 
-absl::optional<float> CXFA_Margin::TryBottomInset() const {
+Optional<float> CXFA_Margin::TryBottomInset() const {
   return JSObject()->TryMeasureAsFloat(XFA_Attribute::BottomInset);
 }

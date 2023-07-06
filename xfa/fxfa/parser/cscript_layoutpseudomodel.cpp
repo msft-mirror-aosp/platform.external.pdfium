@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,12 @@
 #include "xfa/fxfa/parser/cscript_layoutpseudomodel.h"
 
 #include "fxjs/xfa/cjx_layoutpseudomodel.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
-CScript_LayoutPseudoModel::CScript_LayoutPseudoModel(CXFA_Document* doc)
-    : CXFA_Object(doc,
+CScript_LayoutPseudoModel::CScript_LayoutPseudoModel(CXFA_Document* pDocument)
+    : CXFA_Object(pDocument,
                   XFA_ObjectType::Object,
                   XFA_Element::LayoutPseudoModel,
-                  cppgc::MakeGarbageCollected<CJX_LayoutPseudoModel>(
-                      doc->GetHeap()->GetAllocationHandle(),
-                      this)) {}
+                  pdfium::MakeUnique<CJX_LayoutPseudoModel>(this)) {}
 
 CScript_LayoutPseudoModel::~CScript_LayoutPseudoModel() = default;

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,15 +10,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "core/fxcrt/data_vector.h"
-#include "third_party/base/span.h"
+#include <vector>
 
 class CBC_QRCoderBitVector {
  public:
   CBC_QRCoderBitVector();
   ~CBC_QRCoderBitVector();
 
-  pdfium::span<const uint8_t> GetArray() const;
+  const uint8_t* GetArray() const;
   int32_t At(size_t index) const;
   size_t Size() const;
   size_t sizeInBytes() const;
@@ -32,7 +31,7 @@ class CBC_QRCoderBitVector {
   void AppendByte(int8_t value);
 
   size_t m_sizeInBits = 0;
-  DataVector<uint8_t> m_array;
+  std::vector<uint8_t> m_array;
 };
 
 #endif  // FXBARCODE_QRCODE_BC_QRCODERBITVECTOR_H_

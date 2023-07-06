@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,16 +6,13 @@
 
 #include "core/fpdfapi/page/cpdf_meshstream.h"
 
-#include <utility>
-
 #include "core/fpdfapi/page/cpdf_colorspace.h"
 #include "core/fpdfapi/page/cpdf_function.h"
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
-#include "core/fxcrt/cfx_bitstream.h"
-#include "third_party/base/check.h"
+#include "third_party/base/ptr_util.h"
 #include "third_party/base/span.h"
 
 namespace {
@@ -100,21 +97,33 @@ CPDF_MeshVertex::~CPDF_MeshVertex() = default;
 CPDF_MeshStream::CPDF_MeshStream(
     ShadingType type,
     const std::vector<std::unique_ptr<CPDF_Function>>& funcs,
-    RetainPtr<const CPDF_Stream> pShadingStream,
-    RetainPtr<CPDF_ColorSpace> pCS)
+    const CPDF_Stream* pShadingStream,
+    const RetainPtr<CPDF_ColorSpace>& pCS)
     : m_type(type),
       m_funcs(funcs),
-      m_pShadingStream(std::move(pShadingStream)),
-      m_pCS(std::move(pCS)),
-      m_pStream(pdfium::MakeRetain<CPDF_StreamAcc>(m_pShadingStream)) {}
+      m_pShadingStream(pShadingStream),
+      m_pCS(pCS),
+      m_nCoordBits(0),
+      m_nComponentBits(0),
+      m_nFlagBits(0),
+      m_nComponents(0),
+      m_CoordMax(0),
+      m_ComponentMax(0),
+      m_xmin(0),
+      m_xmax(0),
+      m_ymin(0),
+      m_ymax(0),
+      m_pStream(pdfium::MakeRetain<CPDF_StreamAcc>(pShadingStream)) {
+  memset(&m_ColorMin, 0, sizeof(m_ColorMin));
+  memset(&m_ColorMax, 0, sizeof(m_ColorMax));
+}
 
-CPDF_MeshStream::~CPDF_MeshStream() = default;
+CPDF_MeshStream::~CPDF_MeshStream() {}
 
 bool CPDF_MeshStream::Load() {
   m_pStream->LoadAllDataFiltered();
-  m_BitStream = std::make_unique<CFX_BitStream>(m_pStream->GetSpan());
-
-  RetainPtr<const CPDF_Dictionary> pDict = m_pShadingStream->GetDict();
+  m_BitStream = pdfium::MakeUnique<CFX_BitStream>(m_pStream->GetSpan());
+  const CPDF_Dictionary* pDict = m_pShadingStream->GetDict();
   m_nCoordBits = pDict->GetIntegerFor("BitsPerCoordinate");
   m_nComponentBits = pDict->GetIntegerFor("BitsPerComponent");
   if (ShouldCheckBPC(m_type)) {
@@ -133,17 +142,17 @@ bool CPDF_MeshStream::Load() {
     return false;
 
   m_nComponents = m_funcs.empty() ? nComponents : 1;
-  RetainPtr<const CPDF_Array> pDecode = pDict->GetArrayFor("Decode");
+  const CPDF_Array* pDecode = pDict->GetArrayFor("Decode");
   if (!pDecode || pDecode->size() != 4 + m_nComponents * 2)
     return false;
 
-  m_xmin = pDecode->GetFloatAt(0);
-  m_xmax = pDecode->GetFloatAt(1);
-  m_ymin = pDecode->GetFloatAt(2);
-  m_ymax = pDecode->GetFloatAt(3);
+  m_xmin = pDecode->GetNumberAt(0);
+  m_xmax = pDecode->GetNumberAt(1);
+  m_ymin = pDecode->GetNumberAt(2);
+  m_ymax = pDecode->GetNumberAt(3);
   for (uint32_t i = 0; i < m_nComponents; ++i) {
-    m_ColorMin[i] = pDecode->GetFloatAt(i * 2 + 4);
-    m_ColorMax[i] = pDecode->GetFloatAt(i * 2 + 5);
+    m_ColorMin[i] = pDecode->GetNumberAt(i * 2 + 4);
+    m_ColorMax[i] = pDecode->GetNumberAt(i * 2 + 5);
   }
 
   if (ShouldCheckBPC(m_type)) {
@@ -151,18 +160,6 @@ bool CPDF_MeshStream::Load() {
     m_ComponentMax = (1 << m_nComponentBits) - 1;
   }
   return true;
-}
-
-void CPDF_MeshStream::SkipBits(uint32_t nbits) {
-  m_BitStream->SkipBits(nbits);
-}
-
-void CPDF_MeshStream::ByteAlign() {
-  m_BitStream->ByteAlign();
-}
-
-bool CPDF_MeshStream::IsEOF() const {
-  return m_BitStream->IsEOF();
 }
 
 bool CPDF_MeshStream::CanReadFlag() const {
@@ -178,12 +175,12 @@ bool CPDF_MeshStream::CanReadColor() const {
 }
 
 uint32_t CPDF_MeshStream::ReadFlag() {
-  DCHECK(ShouldCheckBitsPerFlag(m_type));
+  ASSERT(ShouldCheckBitsPerFlag(m_type));
   return m_BitStream->GetBits(m_nFlagBits) & 0x03;
 }
 
 CFX_PointF CPDF_MeshStream::ReadCoords() {
-  DCHECK(ShouldCheckBPC(m_type));
+  ASSERT(ShouldCheckBPC(m_type));
 
   CFX_PointF pos;
   if (m_nCoordBits == 32) {
@@ -201,7 +198,7 @@ CFX_PointF CPDF_MeshStream::ReadCoords() {
 }
 
 std::tuple<float, float, float> CPDF_MeshStream::ReadColor() {
-  DCHECK(ShouldCheckBPC(m_type));
+  ASSERT(ShouldCheckBPC(m_type));
 
   float color_value[kMaxComponents];
   for (uint32_t i = 0; i < m_nComponents; ++i) {
@@ -218,10 +215,12 @@ std::tuple<float, float, float> CPDF_MeshStream::ReadColor() {
     return std::tuple<float, float, float>(r, g, b);
   }
 
-  float result[kMaxComponents] = {};
+  float result[kMaxComponents];
+  memset(result, 0, sizeof(result));
+  int nResults;
   for (const auto& func : m_funcs) {
     if (func && func->CountOutputs() <= kMaxComponents)
-      func->Call(pdfium::make_span(color_value, 1), result);
+      func->Call(color_value, 1, result, &nResults);
   }
 
   m_pCS->GetRGB(result, &r, &g, &b);
@@ -254,7 +253,7 @@ std::vector<CPDF_MeshVertex> CPDF_MeshStream::ReadVertexRow(
     if (m_BitStream->IsEOF() || !CanReadCoords())
       return std::vector<CPDF_MeshVertex>();
 
-    vertices.emplace_back();
+    vertices.push_back(CPDF_MeshVertex());
     CPDF_MeshVertex& vertex = vertices.back();
     vertex.position = pObject2Bitmap.Transform(ReadCoords());
     if (!CanReadColor())

@@ -1,6 +1,8 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 The PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include <memory>
 
 #include "core/fxcrt/fx_string.h"
 #include "fxbarcode/cfx_barcode.h"
@@ -9,8 +11,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (size < 2 * sizeof(uint16_t))
     return 0;
 
-  BC_TYPE type =
-      static_cast<BC_TYPE>(data[0] % (static_cast<int>(BC_TYPE::kLast) + 1));
+  BC_TYPE type = static_cast<BC_TYPE>(data[0] % (BC_LAST + 1));
 
   // Only used one byte, but align with uint16_t for string below.
   data += sizeof(uint16_t);

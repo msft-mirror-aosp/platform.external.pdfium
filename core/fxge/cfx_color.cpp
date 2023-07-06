@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,13 @@
 
 #include <algorithm>
 
-#include "third_party/base/notreached.h"
-
-// Color types are ordered by increasing number of components so we can choose
-// a best color type during some conversions.
-static_assert(CFX_Color::Type::kTransparent < CFX_Color::Type::kGray,
+// Color types are orded by increasing number of components so we can
+// choose a best color type during some conversions.
+static_assert(CFX_Color::kTransparent < CFX_Color::kGray,
               "color type values must be ordered");
-static_assert(CFX_Color::Type::kGray < CFX_Color::Type::kRGB,
+static_assert(CFX_Color::kGray < CFX_Color::kRGB,
               "color type values must be ordered");
-static_assert(CFX_Color::Type::kRGB < CFX_Color::Type::kCMYK,
+static_assert(CFX_Color::kRGB < CFX_Color::kCMYK,
               "color type values must be ordered");
 
 namespace {
@@ -27,103 +25,87 @@ bool InRange(float comp) {
 
 CFX_Color ConvertCMYK2GRAY(float dC, float dM, float dY, float dK) {
   if (!InRange(dC) || !InRange(dM) || !InRange(dY) || !InRange(dK))
-    return CFX_Color(CFX_Color::Type::kGray);
+    return CFX_Color(CFX_Color::kGray);
   return CFX_Color(
-      CFX_Color::Type::kGray,
+      CFX_Color::kGray,
       1.0f - std::min(1.0f, 0.3f * dC + 0.59f * dM + 0.11f * dY + dK));
 }
 
 CFX_Color ConvertGRAY2CMYK(float dGray) {
   if (!InRange(dGray))
-    return CFX_Color(CFX_Color::Type::kCMYK);
-  return CFX_Color(CFX_Color::Type::kCMYK, 0.0f, 0.0f, 0.0f, 1.0f - dGray);
+    return CFX_Color(CFX_Color::kCMYK);
+  return CFX_Color(CFX_Color::kCMYK, 0.0f, 0.0f, 0.0f, 1.0f - dGray);
 }
 
 CFX_Color ConvertGRAY2RGB(float dGray) {
   if (!InRange(dGray))
-    return CFX_Color(CFX_Color::Type::kRGB);
-  return CFX_Color(CFX_Color::Type::kRGB, dGray, dGray, dGray);
+    return CFX_Color(CFX_Color::kRGB);
+  return CFX_Color(CFX_Color::kRGB, dGray, dGray, dGray);
 }
 
 CFX_Color ConvertRGB2GRAY(float dR, float dG, float dB) {
   if (!InRange(dR) || !InRange(dG) || !InRange(dB))
-    return CFX_Color(CFX_Color::Type::kGray);
-  return CFX_Color(CFX_Color::Type::kGray, 0.3f * dR + 0.59f * dG + 0.11f * dB);
+    return CFX_Color(CFX_Color::kGray);
+  return CFX_Color(CFX_Color::kGray, 0.3f * dR + 0.59f * dG + 0.11f * dB);
 }
 
 CFX_Color ConvertCMYK2RGB(float dC, float dM, float dY, float dK) {
   if (!InRange(dC) || !InRange(dM) || !InRange(dY) || !InRange(dK))
-    return CFX_Color(CFX_Color::Type::kRGB);
-  return CFX_Color(CFX_Color::Type::kRGB, 1.0f - std::min(1.0f, dC + dK),
+    return CFX_Color(CFX_Color::kRGB);
+  return CFX_Color(CFX_Color::kRGB, 1.0f - std::min(1.0f, dC + dK),
                    1.0f - std::min(1.0f, dM + dK),
                    1.0f - std::min(1.0f, dY + dK));
 }
 
 CFX_Color ConvertRGB2CMYK(float dR, float dG, float dB) {
   if (!InRange(dR) || !InRange(dG) || !InRange(dB))
-    return CFX_Color(CFX_Color::Type::kCMYK);
+    return CFX_Color(CFX_Color::kCMYK);
 
   float c = 1.0f - dR;
   float m = 1.0f - dG;
   float y = 1.0f - dB;
-  return CFX_Color(CFX_Color::Type::kCMYK, c, m, y,
-                   std::min(c, std::min(m, y)));
+  return CFX_Color(CFX_Color::kCMYK, c, m, y, std::min(c, std::min(m, y)));
 }
 
 }  // namespace
 
-CFX_Color CFX_Color::ConvertColorType(Type nConvertColorType) const {
+CFX_Color CFX_Color::ConvertColorType(int32_t nConvertColorType) const {
   if (nColorType == nConvertColorType)
     return *this;
 
   CFX_Color ret;
   switch (nColorType) {
-    case CFX_Color::Type::kTransparent:
+    case CFX_Color::kTransparent:
       ret = *this;
-      ret.nColorType = CFX_Color::Type::kTransparent;
+      ret.nColorType = CFX_Color::kTransparent;
       break;
-    case CFX_Color::Type::kGray:
+    case CFX_Color::kGray:
       switch (nConvertColorType) {
-        case CFX_Color::Type::kTransparent:
-          break;
-        case CFX_Color::Type::kGray:
-          NOTREACHED();
-          break;
-        case CFX_Color::Type::kRGB:
+        case CFX_Color::kRGB:
           ret = ConvertGRAY2RGB(fColor1);
           break;
-        case CFX_Color::Type::kCMYK:
+        case CFX_Color::kCMYK:
           ret = ConvertGRAY2CMYK(fColor1);
           break;
       }
       break;
-    case CFX_Color::Type::kRGB:
+    case CFX_Color::kRGB:
       switch (nConvertColorType) {
-        case CFX_Color::Type::kTransparent:
-          break;
-        case CFX_Color::Type::kGray:
+        case CFX_Color::kGray:
           ret = ConvertRGB2GRAY(fColor1, fColor2, fColor3);
           break;
-        case CFX_Color::Type::kRGB:
-          NOTREACHED();
-          break;
-        case CFX_Color::Type::kCMYK:
+        case CFX_Color::kCMYK:
           ret = ConvertRGB2CMYK(fColor1, fColor2, fColor3);
           break;
       }
       break;
-    case CFX_Color::Type::kCMYK:
+    case CFX_Color::kCMYK:
       switch (nConvertColorType) {
-        case CFX_Color::Type::kTransparent:
-          break;
-        case CFX_Color::Type::kGray:
+        case CFX_Color::kGray:
           ret = ConvertCMYK2GRAY(fColor1, fColor2, fColor3, fColor4);
           break;
-        case CFX_Color::Type::kRGB:
+        case CFX_Color::kRGB:
           ret = ConvertCMYK2RGB(fColor1, fColor2, fColor3, fColor4);
-          break;
-        case CFX_Color::Type::kCMYK:
-          NOTREACHED();
           break;
       }
       break;
@@ -134,21 +116,21 @@ CFX_Color CFX_Color::ConvertColorType(Type nConvertColorType) const {
 FX_COLORREF CFX_Color::ToFXColor(int32_t nTransparency) const {
   CFX_Color ret;
   switch (nColorType) {
-    case CFX_Color::Type::kTransparent: {
-      ret = CFX_Color(CFX_Color::Type::kTransparent, 0, 0, 0, 0);
+    case CFX_Color::kTransparent: {
+      ret = CFX_Color(CFX_Color::kTransparent, 0, 0, 0, 0);
       break;
     }
-    case CFX_Color::Type::kGray: {
+    case CFX_Color::kGray: {
       ret = ConvertGRAY2RGB(fColor1);
       ret.fColor4 = nTransparency;
       break;
     }
-    case CFX_Color::Type::kRGB: {
-      ret = CFX_Color(CFX_Color::Type::kRGB, fColor1, fColor2, fColor3);
+    case CFX_Color::kRGB: {
+      ret = CFX_Color(CFX_Color::kRGB, fColor1, fColor2, fColor3);
       ret.fColor4 = nTransparency;
       break;
     }
-    case CFX_Color::Type::kCMYK: {
+    case CFX_Color::kCMYK: {
       ret = ConvertCMYK2RGB(fColor1, fColor2, fColor3, fColor4);
       ret.fColor4 = nTransparency;
       break;
@@ -162,15 +144,15 @@ FX_COLORREF CFX_Color::ToFXColor(int32_t nTransparency) const {
 CFX_Color CFX_Color::operator-(float fColorSub) const {
   CFX_Color sRet(nColorType);
   switch (nColorType) {
-    case CFX_Color::Type::kTransparent:
-      sRet.nColorType = CFX_Color::Type::kRGB;
+    case CFX_Color::kTransparent:
+      sRet.nColorType = CFX_Color::kRGB;
       sRet.fColor1 = std::max(1.0f - fColorSub, 0.0f);
       sRet.fColor2 = std::max(1.0f - fColorSub, 0.0f);
       sRet.fColor3 = std::max(1.0f - fColorSub, 0.0f);
       break;
-    case CFX_Color::Type::kRGB:
-    case CFX_Color::Type::kGray:
-    case CFX_Color::Type::kCMYK:
+    case CFX_Color::kRGB:
+    case CFX_Color::kGray:
+    case CFX_Color::kCMYK:
       sRet.fColor1 = std::max(fColor1 - fColorSub, 0.0f);
       sRet.fColor2 = std::max(fColor2 - fColorSub, 0.0f);
       sRet.fColor3 = std::max(fColor3 - fColorSub, 0.0f);
@@ -183,15 +165,15 @@ CFX_Color CFX_Color::operator-(float fColorSub) const {
 CFX_Color CFX_Color::operator/(float fColorDivide) const {
   CFX_Color sRet(nColorType);
   switch (nColorType) {
-    case CFX_Color::Type::kTransparent:
-      sRet.nColorType = CFX_Color::Type::kRGB;
+    case CFX_Color::kTransparent:
+      sRet.nColorType = CFX_Color::kRGB;
       sRet.fColor1 = 1.0f / fColorDivide;
       sRet.fColor2 = 1.0f / fColorDivide;
       sRet.fColor3 = 1.0f / fColorDivide;
       break;
-    case CFX_Color::Type::kRGB:
-    case CFX_Color::Type::kGray:
-    case CFX_Color::Type::kCMYK:
+    case CFX_Color::kRGB:
+    case CFX_Color::kGray:
+    case CFX_Color::kCMYK:
       sRet = *this;
       sRet.fColor1 /= fColorDivide;
       sRet.fColor2 /= fColorDivide;

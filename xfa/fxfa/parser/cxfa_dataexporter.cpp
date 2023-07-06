@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 #include "core/fxcrt/fx_codepage.h"
 #include "core/fxcrt/xml/cfx_xmlelement.h"
 #include "core/fxcrt/xml/cfx_xmlnode.h"
-#include "third_party/base/check.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
 #include "xfa/fxfa/parser/xfa_utils.h"
@@ -20,7 +19,10 @@ CXFA_DataExporter::~CXFA_DataExporter() = default;
 
 bool CXFA_DataExporter::Export(const RetainPtr<IFX_SeekableStream>& pStream,
                                CXFA_Node* pNode) {
-  DCHECK(pStream);
+  ASSERT(pStream);
+
+  if (!pStream)
+    return false;
 
   if (pNode->IsModelNode()) {
     switch (pNode->GetPacketType()) {
@@ -31,7 +33,7 @@ bool CXFA_DataExporter::Export(const RetainPtr<IFX_SeekableStream>& pStream,
              pChild = pChild->GetNextSibling()) {
           Export(pStream, pChild);
         }
-        pStream->WriteString("</xdp:xdp>\n");
+        pStream->WriteString("</xdp:xdp\n>");
         break;
       }
       case XFA_PacketType::Datasets: {
@@ -40,7 +42,7 @@ bool CXFA_DataExporter::Export(const RetainPtr<IFX_SeekableStream>& pStream,
           return false;
 
         CXFA_Node* pDataNode = pNode->GetFirstChild();
-        DCHECK(pDataNode);
+        ASSERT(pDataNode);
         XFA_DataExporter_DealWithDataGroupNode(pDataNode);
         pElement->Save(pStream);
         break;

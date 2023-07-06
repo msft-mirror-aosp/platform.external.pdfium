@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,16 @@
 #ifndef CORE_FPDFAPI_PARSER_CPDF_BOOLEAN_H_
 #define CORE_FPDFAPI_PARSER_CPDF_BOOLEAN_H_
 
+#include <memory>
+
 #include "core/fpdfapi/parser/cpdf_object.h"
-#include "core/fxcrt/bytestring.h"
-#include "core/fxcrt/retain_ptr.h"
+#include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/fx_system.h"
 
 class CPDF_Boolean final : public CPDF_Object {
  public:
-  CONSTRUCT_VIA_MAKE_RETAIN;
+  template <typename T, typename... Args>
+  friend RetainPtr<T> pdfium::MakeRetain(Args&&... args);
 
   // CPDF_Object:
   Type GetType() const override;
@@ -21,7 +24,9 @@ class CPDF_Boolean final : public CPDF_Object {
   ByteString GetString() const override;
   int GetInteger() const override;
   void SetString(const ByteString& str) override;
-  CPDF_Boolean* AsMutableBoolean() override;
+  bool IsBoolean() const override;
+  CPDF_Boolean* AsBoolean() override;
+  const CPDF_Boolean* AsBoolean() const override;
   bool WriteTo(IFX_ArchiveStream* archive,
                const CPDF_Encryptor* encryptor) const override;
 
@@ -34,7 +39,7 @@ class CPDF_Boolean final : public CPDF_Object {
 };
 
 inline CPDF_Boolean* ToBoolean(CPDF_Object* obj) {
-  return obj ? obj->AsMutableBoolean() : nullptr;
+  return obj ? obj->AsBoolean() : nullptr;
 }
 
 inline const CPDF_Boolean* ToBoolean(const CPDF_Object* obj) {

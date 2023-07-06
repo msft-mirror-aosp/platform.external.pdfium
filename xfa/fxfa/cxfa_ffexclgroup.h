@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,16 +12,13 @@
 
 class CXFA_FFExclGroup final : public CXFA_FFWidget {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CXFA_FFExclGroup(CXFA_Node* pNode);
   ~CXFA_FFExclGroup() override;
 
   // CXFA_FFWidget
-  void RenderWidget(CFGAS_GEGraphics* pGS,
+  void RenderWidget(CXFA_Graphics* pGS,
                     const CFX_Matrix& matrix,
                     HighlightOption highlight) override;
-
- private:
-  explicit CXFA_FFExclGroup(CXFA_Node* pNode);
 };
 
 #endif  // XFA_FXFA_CXFA_FFEXCLGROUP_H_

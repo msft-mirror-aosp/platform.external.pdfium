@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,11 +22,6 @@
 
 #include "fxbarcode/qrcode/BC_QRCodeWriter.h"
 
-#include <stdint.h>
-
-#include <memory>
-
-#include "core/fxcrt/data_vector.h"
 #include "fxbarcode/common/BC_CommonByteMatrix.h"
 #include "fxbarcode/common/reedsolomon/BC_ReedSolomonGF256.h"
 #include "fxbarcode/qrcode/BC_QRCoder.h"
@@ -34,6 +29,7 @@
 #include "fxbarcode/qrcode/BC_QRCoderErrorCorrectionLevel.h"
 #include "fxbarcode/qrcode/BC_QRCoderMode.h"
 #include "fxbarcode/qrcode/BC_QRCoderVersion.h"
+#include "third_party/base/stl_util.h"
 
 CBC_QRCodeWriter::CBC_QRCodeWriter() : CBC_TwoDimWriter(true) {}
 
@@ -47,10 +43,11 @@ bool CBC_QRCodeWriter::SetErrorCorrectionLevel(int32_t level) {
   return true;
 }
 
-DataVector<uint8_t> CBC_QRCodeWriter::Encode(WideStringView contents,
-                                             int32_t ecLevel,
-                                             int32_t* pOutWidth,
-                                             int32_t* pOutHeight) {
+std::vector<uint8_t> CBC_QRCodeWriter::Encode(WideStringView contents,
+                                              int32_t ecLevel,
+                                              int32_t* pOutWidth,
+                                              int32_t* pOutHeight) {
+  std::vector<uint8_t> results;
   CBC_QRCoderErrorCorrectionLevel* ec = nullptr;
   switch (ecLevel) {
     case 0:
@@ -66,14 +63,16 @@ DataVector<uint8_t> CBC_QRCodeWriter::Encode(WideStringView contents,
       ec = CBC_QRCoderErrorCorrectionLevel::H;
       break;
     default:
-      return DataVector<uint8_t>();
+      return results;
   }
   CBC_QRCoder qr;
   if (!CBC_QRCoderEncoder::Encode(contents, ec, &qr))
-    return DataVector<uint8_t>();
+    return results;
 
   *pOutWidth = qr.GetMatrixWidth();
   *pOutHeight = qr.GetMatrixWidth();
-  std::unique_ptr<CBC_CommonByteMatrix> matrix = qr.TakeMatrix();
-  return matrix->TakeArray();
+  results = pdfium::Vector2D<uint8_t>(*pOutWidth, *pOutHeight);
+  memcpy(results.data(), qr.GetMatrix()->GetArray().data(),
+         *pOutWidth * *pOutHeight);
+  return results;
 }

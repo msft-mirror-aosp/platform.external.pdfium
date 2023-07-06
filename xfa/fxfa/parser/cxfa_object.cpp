@@ -1,10 +1,12 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "xfa/fxfa/parser/cxfa_object.h"
+
+#include <utility>
 
 #include "core/fxcrt/fx_extension.h"
 #include "fxjs/xfa/cfxjse_engine.h"
@@ -20,19 +22,21 @@
 CXFA_Object::CXFA_Object(CXFA_Document* pDocument,
                          XFA_ObjectType objectType,
                          XFA_Element elementType,
-                         CJX_Object* jsObject)
-    : m_objectType(objectType),
+                         std::unique_ptr<CJX_Object> jsObject)
+    : m_pDocument(pDocument),
+      m_objectType(objectType),
       m_elementType(elementType),
       m_elementName(XFA_ElementToName(elementType)),
-      m_elementNameHash(FX_HashCode_GetAsIfW(m_elementName)),
-      m_pDocument(pDocument),
-      m_pJSObject(jsObject) {}
+      m_elementNameHash(FX_HashCode_GetAsIfW(m_elementName, false)),
+      m_pJSObject(std::move(jsObject)) {}
 
-CXFA_Object::~CXFA_Object() = default;
+CXFA_Object::~CXFA_Object() {
+  if (!GetDocument()->IsBeingDestroyed() && GetDocument()->HasScriptContext())
+    GetDocument()->GetScriptContext()->RemoveJSBindingFromMap(this);
+}
 
-void CXFA_Object::Trace(cppgc::Visitor* visitor) const {
-  visitor->Trace(m_pDocument);
-  visitor->Trace(m_pJSObject);
+CXFA_Object* CXFA_Object::AsCXFAObject() {
+  return this;
 }
 
 WideString CXFA_Object::GetSOMExpression() {

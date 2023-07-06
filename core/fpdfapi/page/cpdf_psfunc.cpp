@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,17 +11,16 @@
 
 CPDF_PSFunc::CPDF_PSFunc() : CPDF_Function(Type::kType4PostScript) {}
 
-CPDF_PSFunc::~CPDF_PSFunc() = default;
+CPDF_PSFunc::~CPDF_PSFunc() {}
 
-bool CPDF_PSFunc::v_Init(const CPDF_Object* pObj, VisitedSet* pVisited) {
-  auto pAcc =
-      pdfium::MakeRetain<CPDF_StreamAcc>(pdfium::WrapRetain(pObj->AsStream()));
+bool CPDF_PSFunc::v_Init(const CPDF_Object* pObj,
+                         std::set<const CPDF_Object*>* pVisited) {
+  auto pAcc = pdfium::MakeRetain<CPDF_StreamAcc>(pObj->AsStream());
   pAcc->LoadAllDataFiltered();
   return m_PS.Parse(pAcc->GetSpan());
 }
 
-bool CPDF_PSFunc::v_Call(pdfium::span<const float> inputs,
-                         pdfium::span<float> results) const {
+bool CPDF_PSFunc::v_Call(const float* inputs, float* results) const {
   m_PS.Reset();
   for (uint32_t i = 0; i < m_nInputs; i++)
     m_PS.Push(inputs[i]);

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #include "public/fpdf_edit.h"
 
-#include <memory>
 #include <utility>
 
 #include "core/fpdfapi/page/cpdf_dib.h"
@@ -17,53 +16,36 @@
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_name.h"
-#include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
-#include "core/fpdfapi/render/cpdf_imagerenderer.h"
-#include "core/fpdfapi/render/cpdf_rendercontext.h"
-#include "core/fpdfapi/render/cpdf_renderstatus.h"
-#include "core/fxcrt/stl_util.h"
-#include "core/fxge/cfx_defaultrenderdevice.h"
 #include "fpdfsdk/cpdfsdk_customaccess.h"
 #include "fpdfsdk/cpdfsdk_helpers.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 // These checks ensure the consistency of colorspace values across core/ and
 // public/.
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kDeviceGray) ==
-                  FPDF_COLORSPACE_DEVICEGRAY,
-              "kDeviceGray value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kDeviceRGB) ==
-                  FPDF_COLORSPACE_DEVICERGB,
-              "kDeviceRGB value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kDeviceCMYK) ==
-                  FPDF_COLORSPACE_DEVICECMYK,
-              "kDeviceCMYK value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kCalGray) ==
-                  FPDF_COLORSPACE_CALGRAY,
-              "kCalGray value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kCalRGB) ==
-                  FPDF_COLORSPACE_CALRGB,
-              "kCalRGB value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kLab) ==
-                  FPDF_COLORSPACE_LAB,
-              "kLab value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kICCBased) ==
-                  FPDF_COLORSPACE_ICCBASED,
-              "kICCBased value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kSeparation) ==
-                  FPDF_COLORSPACE_SEPARATION,
-              "kSeparation value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kDeviceN) ==
-                  FPDF_COLORSPACE_DEVICEN,
-              "kDeviceN value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kIndexed) ==
-                  FPDF_COLORSPACE_INDEXED,
-              "kIndexed value mismatch");
-static_assert(static_cast<int>(CPDF_ColorSpace::Family::kPattern) ==
-                  FPDF_COLORSPACE_PATTERN,
-              "kPattern value mismatch");
+static_assert(PDFCS_DEVICEGRAY == FPDF_COLORSPACE_DEVICEGRAY,
+              "PDFCS_DEVICEGRAY value mismatch");
+static_assert(PDFCS_DEVICERGB == FPDF_COLORSPACE_DEVICERGB,
+              "PDFCS_DEVICERGB value mismatch");
+static_assert(PDFCS_DEVICECMYK == FPDF_COLORSPACE_DEVICECMYK,
+              "PDFCS_DEVICECMYK value mismatch");
+static_assert(PDFCS_CALGRAY == FPDF_COLORSPACE_CALGRAY,
+              "PDFCS_CALGRAY value mismatch");
+static_assert(PDFCS_CALRGB == FPDF_COLORSPACE_CALRGB,
+              "PDFCS_CALRGB value mismatch");
+static_assert(PDFCS_LAB == FPDF_COLORSPACE_LAB, "PDFCS_LAB value mismatch");
+static_assert(PDFCS_ICCBASED == FPDF_COLORSPACE_ICCBASED,
+              "PDFCS_ICCBASED value mismatch");
+static_assert(PDFCS_SEPARATION == FPDF_COLORSPACE_SEPARATION,
+              "PDFCS_SEPARATION value mismatch");
+static_assert(PDFCS_DEVICEN == FPDF_COLORSPACE_DEVICEN,
+              "PDFCS_DEVICEN value mismatch");
+static_assert(PDFCS_INDEXED == FPDF_COLORSPACE_INDEXED,
+              "PDFCS_INDEXED value mismatch");
+static_assert(PDFCS_PATTERN == FPDF_COLORSPACE_PATTERN,
+              "PDFCS_PATTERN value mismatch");
 
 RetainPtr<IFX_SeekableReadStream> MakeSeekableReadStream(
     FPDF_FILEACCESS* pFileAccess) {
@@ -98,10 +80,9 @@ bool LoadJpegHelper(FPDF_PAGE* pages,
 
   RetainPtr<IFX_SeekableReadStream> pFile = MakeSeekableReadStream(file_access);
   if (inline_jpeg)
-    pImgObj->GetImage()->SetJpegImageInline(std::move(pFile));
+    pImgObj->GetImage()->SetJpegImageInline(pFile);
   else
-    pImgObj->GetImage()->SetJpegImage(std::move(pFile));
-
+    pImgObj->GetImage()->SetJpegImage(pFile);
   pImgObj->SetDirty(true);
   return true;
 }
@@ -114,7 +95,7 @@ FPDFPageObj_NewImageObj(FPDF_DOCUMENT document) {
   if (!pDoc)
     return nullptr;
 
-  auto pImageObj = std::make_unique<CPDF_ImageObject>();
+  auto pImageObj = pdfium::MakeUnique<CPDF_ImageObject>();
   pImageObj->SetImage(pdfium::MakeRetain<CPDF_Image>(pDoc));
 
   // Caller takes ownership.
@@ -138,6 +119,28 @@ FPDFImageObj_LoadJpegFileInline(FPDF_PAGE* pages,
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
+FPDFImageObj_GetMatrix(FPDF_PAGEOBJECT image_object,
+                       double* a,
+                       double* b,
+                       double* c,
+                       double* d,
+                       double* e,
+                       double* f) {
+  CPDF_ImageObject* pImgObj = CPDFImageObjectFromFPDFPageObject(image_object);
+  if (!pImgObj || !a || !b || !c || !d || !e || !f)
+    return false;
+
+  const CFX_Matrix& matrix = pImgObj->matrix();
+  *a = matrix.a;
+  *b = matrix.b;
+  *c = matrix.c;
+  *d = matrix.d;
+  *e = matrix.e;
+  *f = matrix.f;
+  return true;
+}
+
+FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FPDFImageObj_SetMatrix(FPDF_PAGEOBJECT image_object,
                        double a,
                        double b,
@@ -149,9 +152,10 @@ FPDFImageObj_SetMatrix(FPDF_PAGEOBJECT image_object,
   if (!pImgObj)
     return false;
 
-  pImgObj->SetImageMatrix(CFX_Matrix(
-      static_cast<float>(a), static_cast<float>(b), static_cast<float>(c),
-      static_cast<float>(d), static_cast<float>(e), static_cast<float>(f)));
+  pImgObj->set_matrix(CFX_Matrix(static_cast<float>(a), static_cast<float>(b),
+                                 static_cast<float>(c), static_cast<float>(d),
+                                 static_cast<float>(e), static_cast<float>(f)));
+  pImgObj->CalcBoundingBox();
   pImgObj->SetDirty(true);
   return true;
 }
@@ -197,73 +201,17 @@ FPDFImageObj_GetBitmap(FPDF_PAGEOBJECT image_object) {
   if (!pSource)
     return nullptr;
 
+  RetainPtr<CFX_DIBitmap> pBitmap;
   // If the source image has a representation of 1 bit per pixel, then convert
   // it to a grayscale bitmap having 1 byte per pixel, since bitmaps have no
   // concept of bits. Otherwise, convert the source image to a bitmap directly,
   // retaining its color representation.
-  RetainPtr<CFX_DIBitmap> pBitmap =
-      pSource->GetBPP() == 1 ? pSource->ConvertTo(FXDIB_Format::k8bppRgb)
-                             : pSource->Realize();
+  if (pSource->GetBPP() == 1)
+    pBitmap = pSource->CloneConvert(FXDIB_8bppRgb);
+  else
+    pBitmap = pSource->Clone(nullptr);
 
   return FPDFBitmapFromCFXDIBitmap(pBitmap.Leak());
-}
-
-FPDF_EXPORT FPDF_BITMAP FPDF_CALLCONV
-FPDFImageObj_GetRenderedBitmap(FPDF_DOCUMENT document,
-                               FPDF_PAGE page,
-                               FPDF_PAGEOBJECT image_object) {
-  CPDF_Document* doc = CPDFDocumentFromFPDFDocument(document);
-  if (!doc)
-    return nullptr;
-
-  CPDF_Page* optional_page = CPDFPageFromFPDFPage(page);
-  if (optional_page && optional_page->GetDocument() != doc)
-    return nullptr;
-
-  CPDF_ImageObject* image = CPDFImageObjectFromFPDFPageObject(image_object);
-  if (!image)
-    return nullptr;
-
-  // Create |result_bitmap|.
-  const CFX_Matrix& image_matrix = image->matrix();
-  int output_width = image_matrix.a;
-  int output_height = image_matrix.d;
-  auto result_bitmap = pdfium::MakeRetain<CFX_DIBitmap>();
-  if (!result_bitmap->Create(output_width, output_height, FXDIB_Format::kArgb))
-    return nullptr;
-
-  // Set up all the rendering code.
-  RetainPtr<CPDF_Dictionary> page_resources =
-      optional_page ? optional_page->GetMutablePageResources() : nullptr;
-  CPDF_RenderContext context(doc, std::move(page_resources),
-                             /*pPageCache=*/nullptr);
-  CFX_DefaultRenderDevice device;
-  device.Attach(result_bitmap);
-  CPDF_RenderStatus status(&context, &device);
-  CPDF_ImageRenderer renderer(&status);
-
-  // Need to first flip the image, as expected by |renderer|.
-  CFX_Matrix render_matrix(1, 0, 0, -1, 0, output_height);
-
-  // Then take |image_matrix|'s offset into account.
-  render_matrix.Translate(-image_matrix.e, image_matrix.f);
-
-  // Do the actual rendering.
-  bool should_continue = renderer.Start(image, render_matrix,
-                                        /*bStdCS=*/false, BlendMode::kNormal);
-  while (should_continue)
-    should_continue = renderer.Continue(/*pPause=*/nullptr);
-
-  if (!renderer.GetResult())
-    return nullptr;
-
-#if defined(_SKIA_SUPPORT_)
-  if (CFX_DefaultRenderDevice::SkiaIsDefaultRenderer())
-    result_bitmap->UnPreMultiply();
-#endif
-
-  // Caller takes ownership.
-  return FPDFBitmapFromCFXDIBitmap(result_bitmap.Leak());
 }
 
 FPDF_EXPORT unsigned long FPDF_CALLCONV
@@ -278,13 +226,11 @@ FPDFImageObj_GetImageDataDecoded(FPDF_PAGEOBJECT image_object,
   if (!pImg)
     return 0;
 
-  RetainPtr<const CPDF_Stream> pImgStream = pImg->GetStream();
+  CPDF_Stream* pImgStream = pImg->GetStream();
   if (!pImgStream)
     return 0;
 
-  return DecodeStreamMaybeCopyAndReturnLength(
-      std::move(pImgStream),
-      {static_cast<uint8_t*>(buffer), static_cast<size_t>(buflen)});
+  return DecodeStreamMaybeCopyAndReturnLength(pImgStream, buffer, buflen);
 }
 
 FPDF_EXPORT unsigned long FPDF_CALLCONV
@@ -299,13 +245,11 @@ FPDFImageObj_GetImageDataRaw(FPDF_PAGEOBJECT image_object,
   if (!pImg)
     return 0;
 
-  RetainPtr<const CPDF_Stream> pImgStream = pImg->GetStream();
+  CPDF_Stream* pImgStream = pImg->GetStream();
   if (!pImgStream)
     return 0;
 
-  return GetRawStreamMaybeCopyAndReturnLength(
-      std::move(pImgStream),
-      {static_cast<uint8_t*>(buffer), static_cast<size_t>(buflen)});
+  return GetRawStreamMaybeCopyAndReturnLength(pImgStream, buffer, buflen);
 }
 
 FPDF_EXPORT int FPDF_CALLCONV
@@ -318,17 +262,13 @@ FPDFImageObj_GetImageFilterCount(FPDF_PAGEOBJECT image_object) {
   if (!pImg)
     return 0;
 
-  RetainPtr<const CPDF_Dictionary> pDict = pImg->GetDict();
-  if (!pDict)
-    return 0;
-
-  RetainPtr<const CPDF_Object> pFilter = pDict->GetDirectObjectFor("Filter");
+  CPDF_Dictionary* pDict = pImg->GetDict();
+  CPDF_Object* pFilter = pDict ? pDict->GetDirectObjectFor("Filter") : nullptr;
   if (!pFilter)
     return 0;
 
   if (pFilter->IsArray())
-    return fxcrt::CollectionSize<int>(*pFilter->AsArray());
-
+    return pFilter->AsArray()->size();
   if (pFilter->IsName())
     return 1;
 
@@ -344,14 +284,18 @@ FPDFImageObj_GetImageFilter(FPDF_PAGEOBJECT image_object,
     return 0;
 
   CPDF_PageObject* pObj = CPDFPageObjectFromFPDFPageObject(image_object);
-  RetainPtr<const CPDF_Dictionary> pDict =
-      pObj->AsImage()->GetImage()->GetDict();
-  RetainPtr<const CPDF_Object> pFilter = pDict->GetDirectObjectFor("Filter");
-  ByteString bsFilter = pFilter->IsName()
-                            ? pFilter->AsName()->GetString()
-                            : pFilter->AsArray()->GetByteStringAt(index);
+  CPDF_Object* pFilter =
+      pObj->AsImage()->GetImage()->GetDict()->GetDirectObjectFor("Filter");
+  ByteString bsFilter;
+  if (pFilter->IsName())
+    bsFilter = pFilter->AsName()->GetString();
+  else
+    bsFilter = pFilter->AsArray()->GetStringAt(index);
 
-  return NulTerminateMaybeCopyAndReturnLength(bsFilter, buffer, buflen);
+  unsigned long len = bsFilter.GetLength() + 1;
+  if (buffer && len <= buflen)
+    memcpy(buffer, bsFilter.c_str(), len);
+  return len;
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
@@ -366,8 +310,7 @@ FPDFImageObj_GetImageMetadata(FPDF_PAGEOBJECT image_object,
   if (!pImg)
     return false;
 
-  metadata->marked_content_id =
-      pImgObj->GetContentMarks()->GetMarkedContentID();
+  metadata->marked_content_id = pImgObj->m_ContentMarks.GetMarkedContentID();
 
   const int nPixelWidth = pImg->GetPixelWidth();
   const int nPixelHeight = pImg->GetPixelHeight();
@@ -389,40 +332,16 @@ FPDFImageObj_GetImageMetadata(FPDF_PAGEOBJECT image_object,
   if (!pPage || !pPage->GetDocument() || !pImg->GetStream())
     return true;
 
-  // A cross-document image may have come from the embedder.
-  if (pPage->GetDocument() != pImg->GetDocument())
-    return false;
-
-  RetainPtr<CPDF_DIB> pSource = pImg->CreateNewDIB();
+  auto pSource = pdfium::MakeRetain<CPDF_DIB>();
   CPDF_DIB::LoadState ret = pSource->StartLoadDIBBase(
-      false, nullptr, pPage->GetPageResources().Get(), false,
-      CPDF_ColorSpace::Family::kUnknown, false, {0, 0});
+      pPage->GetDocument(), pImg->GetStream(), false, nullptr,
+      pPage->m_pPageResources.Get(), false, 0, false);
   if (ret == CPDF_DIB::LoadState::kFail)
     return true;
 
   metadata->bits_per_pixel = pSource->GetBPP();
-  if (pSource->GetColorSpace()) {
-    metadata->colorspace =
-        static_cast<int>(pSource->GetColorSpace()->GetFamily());
-  }
-  return true;
-}
+  if (pSource->GetColorSpace())
+    metadata->colorspace = pSource->GetColorSpace()->GetFamily();
 
-FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
-FPDFImageObj_GetImagePixelSize(FPDF_PAGEOBJECT image_object,
-                               unsigned int* width,
-                               unsigned int* height) {
-  CPDF_ImageObject* pImgObj = CPDFImageObjectFromFPDFPageObject(image_object);
-  if (!pImgObj || !width || !height) {
-    return false;
-  }
-
-  RetainPtr<CPDF_Image> pImg = pImgObj->GetImage();
-  if (!pImg) {
-    return false;
-  }
-
-  *width = pImg->GetPixelWidth();
-  *height = pImg->GetPixelHeight();
   return true;
 }

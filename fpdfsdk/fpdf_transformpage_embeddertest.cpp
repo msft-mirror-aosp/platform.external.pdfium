@@ -1,29 +1,15 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "public/fpdf_transformpage.h"
 
 #include "build/build_config.h"
-#include "core/fxge/cfx_defaultrenderdevice.h"
 #include "testing/embedder_test.h"
-#include "testing/embedder_test_constants.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
+#if defined(OS_LINUX) || defined(OS_FUCHSIA)
 #include "third_party/base/test/scoped_locale.h"
 #endif
-
-using pdfium::RectanglesChecksum;
-
-namespace {
-
-const char* ShrunkChecksum() {
-  if (CFX_DefaultRenderDevice::SkiaIsDefaultRenderer())
-    return "78c52d6029283090036e6db6683401e2";
-  return "f4136cc9209207ab60eb8381a3df2e69";
-}
-
-}  // namespace
 
 class FPDFTransformEmbedderTest : public EmbedderTest {};
 
@@ -208,12 +194,16 @@ TEST_F(FPDFTransformEmbedderTest, NoArtBox) {
   UnloadPage(page);
 }
 
-TEST_F(FPDFTransformEmbedderTest, SetCropBox) {
-  const char* cropped_checksum = []() {
-    if (CFX_DefaultRenderDevice::SkiaIsDefaultRenderer())
-      return "4b9d2d2246be61c583f454245fe3172f";
-    return "9937883715d5144c079fb8f7e3d4f395";
-  }();
+// TODO(crbug.com/pdfium/11): Fix this test and enable.
+#if defined(_SKIA_SUPPORT_) || defined(_SKIA_SUPPORT_PATHS_)
+#define MAYBE_SetCropBox DISABLED_SetCropBox
+#else
+#define MAYBE_SetCropBox SetCropBox
+#endif
+TEST_F(FPDFTransformEmbedderTest, MAYBE_SetCropBox) {
+  const char kOriginalMD5[] = "0a90de37f52127619c3dfb642b5fa2fe";
+  const char kCroppedMD5[] = "9937883715d5144c079fb8f7e3d4f395";
+
   {
     ASSERT_TRUE(OpenDocument("rectangles.pdf"));
     FPDF_PAGE page = LoadPage(0);
@@ -229,8 +219,7 @@ TEST_F(FPDFTransformEmbedderTest, SetCropBox) {
       EXPECT_EQ(200, page_width);
       EXPECT_EQ(300, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    RectanglesChecksum());
+      CompareBitmap(bitmap.get(), page_width, page_height, kOriginalMD5);
     }
 
     FPDFPage_SetCropBox(page, 10, 20, 100, 150);
@@ -251,7 +240,7 @@ TEST_F(FPDFTransformEmbedderTest, SetCropBox) {
       EXPECT_EQ(90, page_width);
       EXPECT_EQ(130, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height, cropped_checksum);
+      CompareBitmap(bitmap.get(), page_width, page_height, kCroppedMD5);
     }
 
     UnloadPage(page);
@@ -277,19 +266,22 @@ TEST_F(FPDFTransformEmbedderTest, SetCropBox) {
     EXPECT_EQ(90, page_width);
     EXPECT_EQ(130, page_height);
     ScopedFPDFBitmap bitmap = RenderSavedPage(saved_page);
-    CompareBitmap(bitmap.get(), page_width, page_height, cropped_checksum);
+    CompareBitmap(bitmap.get(), page_width, page_height, kCroppedMD5);
 
     CloseSavedPage(saved_page);
     CloseSavedDocument();
   }
 }
 
-TEST_F(FPDFTransformEmbedderTest, SetMediaBox) {
-  const char* shrunk_checksum_set_media_box = []() {
-    if (CFX_DefaultRenderDevice::SkiaIsDefaultRenderer())
-      return "9f28f0610a7f789c24cfd5f9bd5dc3de";
-    return "eab5958f62f7ce65d7c32de98389fee1";
-  }();
+// TODO(crbug.com/pdfium/11): Fix this test and enable.
+#if defined(_SKIA_SUPPORT_) || defined(_SKIA_SUPPORT_PATHS_)
+#define MAYBE_SetMediaBox DISABLED_SetMediaBox
+#else
+#define MAYBE_SetMediaBox SetMediaBox
+#endif
+TEST_F(FPDFTransformEmbedderTest, MAYBE_SetMediaBox) {
+  const char kOriginalMD5[] = "0a90de37f52127619c3dfb642b5fa2fe";
+  const char kShrunkMD5[] = "eab5958f62f7ce65d7c32de98389fee1";
 
   {
     ASSERT_TRUE(OpenDocument("rectangles.pdf"));
@@ -306,8 +298,7 @@ TEST_F(FPDFTransformEmbedderTest, SetMediaBox) {
       EXPECT_EQ(200, page_width);
       EXPECT_EQ(300, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    RectanglesChecksum());
+      CompareBitmap(bitmap.get(), page_width, page_height, kOriginalMD5);
     }
 
     FPDFPage_SetMediaBox(page, 20, 30, 100, 150);
@@ -328,8 +319,7 @@ TEST_F(FPDFTransformEmbedderTest, SetMediaBox) {
       EXPECT_EQ(80, page_width);
       EXPECT_EQ(120, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    shrunk_checksum_set_media_box);
+      CompareBitmap(bitmap.get(), page_width, page_height, kShrunkMD5);
     }
 
     UnloadPage(page);
@@ -356,8 +346,7 @@ TEST_F(FPDFTransformEmbedderTest, SetMediaBox) {
     EXPECT_EQ(80, page_width);
     EXPECT_EQ(120, page_height);
     ScopedFPDFBitmap bitmap = RenderSavedPage(saved_page);
-    CompareBitmap(bitmap.get(), page_width, page_height,
-                  shrunk_checksum_set_media_box);
+    CompareBitmap(bitmap.get(), page_width, page_height, kShrunkMD5);
 
     CloseSavedPage(saved_page);
     CloseSavedDocument();
@@ -423,7 +412,16 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipWithPatterns) {
   UnloadPage(page);
 }
 
-TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSave) {
+// TODO(crbug.com/pdfium/11): Fix this test and enable.
+#if defined(_SKIA_SUPPORT_) || defined(_SKIA_SUPPORT_PATHS_)
+#define MAYBE_TransFormWithClipAndSave DISABLED_TransFormWithClipAndSave
+#else
+#define MAYBE_TransFormWithClipAndSave TransFormWithClipAndSave
+#endif
+TEST_F(FPDFTransformEmbedderTest, MAYBE_TransFormWithClipAndSave) {
+  const char kOriginalMD5[] = "0a90de37f52127619c3dfb642b5fa2fe";
+  const char kShrunkMD5[] = "f4136cc9209207ab60eb8381a3df2e69";
+
   {
     ASSERT_TRUE(OpenDocument("rectangles.pdf"));
     FPDF_PAGE page = LoadPage(0);
@@ -436,16 +434,14 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSave) {
       EXPECT_EQ(200, page_width);
       EXPECT_EQ(300, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    RectanglesChecksum());
+      CompareBitmap(bitmap.get(), page_width, page_height, kOriginalMD5);
     }
 
     {
       // Render the page after transforming.
       // Note that the change should affect the rendering, but does not.
       // It should behaves just like the case below, rather than the case above.
-      // TODO(crbug.com/pdfium/1328): The checksum after invoking
-      // `FPDFPage_TransFormWithClip()` below should match `ShrunkChecksum()`.
+      // TODO(bug_1328): The checksum below should be |kShrunkMD5|.
       const FS_MATRIX half_matrix{0.5, 0, 0, 0.5, 0, 0};
       EXPECT_TRUE(FPDFPage_TransFormWithClip(page, &half_matrix, nullptr));
       const int page_width = static_cast<int>(FPDF_GetPageWidth(page));
@@ -453,8 +449,7 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSave) {
       EXPECT_EQ(200, page_width);
       EXPECT_EQ(300, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    RectanglesChecksum());
+      CompareBitmap(bitmap.get(), page_width, page_height, kOriginalMD5);
     }
 
     UnloadPage(page);
@@ -473,15 +468,26 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSave) {
     EXPECT_EQ(200, page_width);
     EXPECT_EQ(300, page_height);
     ScopedFPDFBitmap bitmap = RenderSavedPage(saved_page);
-    CompareBitmap(bitmap.get(), page_width, page_height, ShrunkChecksum());
+    CompareBitmap(bitmap.get(), page_width, page_height, kShrunkMD5);
 
     CloseSavedPage(saved_page);
     CloseSavedDocument();
   }
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
-TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSaveWithLocale) {
+#if defined(OS_LINUX) || defined(OS_FUCHSIA)
+// TODO(crbug.com/pdfium/11): Fix this test and enable.
+#if defined(_SKIA_SUPPORT_) || defined(_SKIA_SUPPORT_PATHS_)
+#define MAYBE_TransFormWithClipAndSaveWithLocale \
+  DISABLED_TransFormWithClipAndSaveWithLocale
+#else
+#define MAYBE_TransFormWithClipAndSaveWithLocale \
+  TransFormWithClipAndSaveWithLocale
+#endif
+TEST_F(FPDFTransformEmbedderTest, MAYBE_TransFormWithClipAndSaveWithLocale) {
+  const char kOriginalMD5[] = "0a90de37f52127619c3dfb642b5fa2fe";
+  const char kShrunkMD5[] = "f4136cc9209207ab60eb8381a3df2e69";
+
   pdfium::base::ScopedLocale scoped_locale("da_DK.UTF-8");
 
   {
@@ -496,16 +502,14 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSaveWithLocale) {
       EXPECT_EQ(200, page_width);
       EXPECT_EQ(300, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    RectanglesChecksum());
+      CompareBitmap(bitmap.get(), page_width, page_height, kOriginalMD5);
     }
 
     {
       // Render the page after transforming.
       // Note that the change should affect the rendering, but does not.
       // It should behaves just like the case below, rather than the case above.
-      // TODO(crbug.com/pdfium/1328): The checksum after invoking
-      // `FPDFPage_TransFormWithClip()` below should match `ShrunkChecksum()`.
+      // TODO(bug_1328): The checksum below should be |kShrunkMD5|.
       const FS_MATRIX half_matrix{0.5, 0, 0, 0.5, 0, 0};
       EXPECT_TRUE(FPDFPage_TransFormWithClip(page, &half_matrix, nullptr));
       const int page_width = static_cast<int>(FPDF_GetPageWidth(page));
@@ -513,8 +517,7 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSaveWithLocale) {
       EXPECT_EQ(200, page_width);
       EXPECT_EQ(300, page_height);
       ScopedFPDFBitmap bitmap = RenderLoadedPage(page);
-      CompareBitmap(bitmap.get(), page_width, page_height,
-                    RectanglesChecksum());
+      CompareBitmap(bitmap.get(), page_width, page_height, kOriginalMD5);
     }
 
     UnloadPage(page);
@@ -533,11 +536,10 @@ TEST_F(FPDFTransformEmbedderTest, TransFormWithClipAndSaveWithLocale) {
     EXPECT_EQ(200, page_width);
     EXPECT_EQ(300, page_height);
     ScopedFPDFBitmap bitmap = RenderSavedPage(saved_page);
-    CompareBitmap(bitmap.get(), page_width, page_height, ShrunkChecksum());
+    CompareBitmap(bitmap.get(), page_width, page_height, kShrunkMD5);
 
     CloseSavedPage(saved_page);
     CloseSavedDocument();
   }
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
-        // BUILDFLAG(IS_FUCHSIA)
+#endif  // defined(OS_LINUX) || defined(OS_FUCHSIA)

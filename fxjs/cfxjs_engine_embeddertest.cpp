@@ -1,16 +1,11 @@
-// Copyright 2015 The PDFium Authors
+// Copyright 2015 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "fxjs/cfxjs_engine.h"
 
-#include "testing/external_engine_embedder_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "v8/include/v8-context.h"
-#include "v8/include/v8-isolate.h"
-#include "v8/include/v8-local-handle.h"
-#include "v8/include/v8-object.h"
-#include "v8/include/v8-value.h"
+#include "testing/js_embedder_test.h"
 
 namespace {
 
@@ -24,7 +19,7 @@ const wchar_t kScript2[] = L"fred = 8";
 
 }  // namespace
 
-class CFXJSEngineEmbedderTest : public ExternalEngineEmbedderTest {};
+using CFXJSEngineEmbedderTest = JSEmbedderTest;
 
 void CheckAssignmentInEngineContext(CFXJS_Engine* current_engine,
                                     double expected) {
@@ -40,8 +35,7 @@ TEST_F(CFXJSEngineEmbedderTest, Getters) {
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(GetV8Context());
 
-  absl::optional<IJS_Runtime::JS_Error> err =
-      engine()->Execute(WideString(kScript1));
+  Optional<IJS_Runtime::JS_Error> err = engine()->Execute(WideString(kScript1));
   EXPECT_FALSE(err);
   CheckAssignmentInEngineContext(engine(), kExpected1);
 }
@@ -58,7 +52,7 @@ TEST_F(CFXJSEngineEmbedderTest, MultipleEngines) {
 
   v8::Context::Scope context_scope(GetV8Context());
   {
-    absl::optional<IJS_Runtime::JS_Error> err =
+    Optional<IJS_Runtime::JS_Error> err =
         engine()->Execute(WideString(kScript0));
     EXPECT_FALSE(err);
     CheckAssignmentInEngineContext(engine(), kExpected0);
@@ -66,8 +60,7 @@ TEST_F(CFXJSEngineEmbedderTest, MultipleEngines) {
   {
     // engine1 executing in engine1's context doesn't affect main.
     v8::Context::Scope context_scope1(engine1.GetV8Context());
-    absl::optional<IJS_Runtime::JS_Error> err =
-        engine1.Execute(WideString(kScript1));
+    Optional<IJS_Runtime::JS_Error> err = engine1.Execute(WideString(kScript1));
     EXPECT_FALSE(err);
     CheckAssignmentInEngineContext(engine(), kExpected0);
     CheckAssignmentInEngineContext(&engine1, kExpected1);
@@ -75,8 +68,7 @@ TEST_F(CFXJSEngineEmbedderTest, MultipleEngines) {
   {
     // engine1 executing in engine2's context doesn't affect engine1.
     v8::Context::Scope context_scope2(engine2.GetV8Context());
-    absl::optional<IJS_Runtime::JS_Error> err =
-        engine1.Execute(WideString(kScript2));
+    Optional<IJS_Runtime::JS_Error> err = engine1.Execute(WideString(kScript2));
     EXPECT_FALSE(err);
     CheckAssignmentInEngineContext(engine(), kExpected0);
     CheckAssignmentInEngineContext(&engine1, kExpected1);
@@ -91,7 +83,7 @@ TEST_F(CFXJSEngineEmbedderTest, JSCompileError) {
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(GetV8Context());
 
-  absl::optional<IJS_Runtime::JS_Error> err =
+  Optional<IJS_Runtime::JS_Error> err =
       engine()->Execute(L"functoon(x) { return x+1; }");
   EXPECT_TRUE(err);
   EXPECT_STREQ(L"SyntaxError: Unexpected token '{'", err->exception.c_str());
@@ -104,12 +96,11 @@ TEST_F(CFXJSEngineEmbedderTest, JSRuntimeError) {
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(GetV8Context());
 
-  absl::optional<IJS_Runtime::JS_Error> err =
+  Optional<IJS_Runtime::JS_Error> err =
       engine()->Execute(L"let a = 3;\nundefined.colour");
   EXPECT_TRUE(err);
-  EXPECT_EQ(
-      L"TypeError: Cannot read properties of undefined (reading 'colour')",
-      err->exception);
+  EXPECT_EQ(L"TypeError: Cannot read property 'colour' of undefined",
+            err->exception);
   EXPECT_EQ(2, err->line);
   EXPECT_EQ(10, err->column);
 }

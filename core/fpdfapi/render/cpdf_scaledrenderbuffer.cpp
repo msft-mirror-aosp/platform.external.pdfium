@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 
 #include "core/fpdfapi/render/cpdf_scaledrenderbuffer.h"
 
-#include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/render/cpdf_devicebuffer.h"
 #include "core/fpdfapi/render/cpdf_rendercontext.h"
 #include "core/fxge/cfx_defaultrenderdevice.h"
 #include "core/fxge/dib/cfx_dibitmap.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -18,9 +18,9 @@ constexpr size_t kImageSizeLimitBytes = 30 * 1024 * 1024;
 
 }  // namespace
 
-CPDF_ScaledRenderBuffer::CPDF_ScaledRenderBuffer() = default;
+CPDF_ScaledRenderBuffer::CPDF_ScaledRenderBuffer() {}
 
-CPDF_ScaledRenderBuffer::~CPDF_ScaledRenderBuffer() = default;
+CPDF_ScaledRenderBuffer::~CPDF_ScaledRenderBuffer() {}
 
 bool CPDF_ScaledRenderBuffer::Initialize(CPDF_RenderContext* pContext,
                                          CFX_RenderDevice* pDevice,
@@ -32,39 +32,41 @@ bool CPDF_ScaledRenderBuffer::Initialize(CPDF_RenderContext* pContext,
   if (m_pDevice->GetDeviceCaps(FXDC_RENDER_CAPS) & FXRC_GET_BITS)
     return true;
 
+  m_pContext = pContext;
   m_Rect = rect;
+  m_pObject = pObj;
   m_Matrix = CPDF_DeviceBuffer::CalculateMatrix(pDevice, rect, max_dpi,
                                                 /*scale=*/true);
-  m_pBitmapDevice = std::make_unique<CFX_DefaultRenderDevice>();
+  m_pBitmapDevice = pdfium::MakeUnique<CFX_DefaultRenderDevice>();
   bool bIsAlpha =
       !!(m_pDevice->GetDeviceCaps(FXDC_RENDER_CAPS) & FXRC_ALPHA_OUTPUT);
-  FXDIB_Format dibFormat = bIsAlpha ? FXDIB_Format::kArgb : FXDIB_Format::kRgb;
-  while (true) {
+  FXDIB_Format dibFormat = bIsAlpha ? FXDIB_Argb : FXDIB_Rgb;
+  while (1) {
     FX_RECT bitmap_rect =
         m_Matrix.TransformRect(CFX_FloatRect(rect)).GetOuterRect();
     int32_t width = bitmap_rect.Width();
     int32_t height = bitmap_rect.Height();
     // Set to 0 to make CalculatePitchAndSize() calculate it.
-    constexpr uint32_t kNoPitch = 0;
-    absl::optional<CFX_DIBitmap::PitchAndSize> pitch_size =
-        CFX_DIBitmap::CalculatePitchAndSize(width, height, dibFormat, kNoPitch);
-    if (!pitch_size.has_value())
+    uint32_t pitch = 0;
+    uint32_t size;
+    if (!CFX_DIBitmap::CalculatePitchAndSize(width, height, dibFormat, &pitch,
+                                             &size)) {
       return false;
+    }
 
-    if (pitch_size.value().size <= kImageSizeLimitBytes &&
+    if (size <= kImageSizeLimitBytes &&
         m_pBitmapDevice->Create(width, height, dibFormat, nullptr)) {
       break;
     }
     m_Matrix.Scale(0.5f, 0.5f);
   }
-  pContext->GetBackground(m_pBitmapDevice->GetBitmap(), pObj, pOptions,
-                          m_Matrix);
+  m_pContext->GetBackground(m_pBitmapDevice->GetBitmap(), m_pObject.Get(),
+                            pOptions, m_Matrix);
   return true;
 }
 
 CFX_RenderDevice* CPDF_ScaledRenderBuffer::GetDevice() const {
-  return m_pBitmapDevice ? static_cast<CFX_RenderDevice*>(m_pBitmapDevice.get())
-                         : m_pDevice.get();
+  return m_pBitmapDevice ? m_pBitmapDevice.get() : m_pDevice.Get();
 }
 
 void CPDF_ScaledRenderBuffer::OutputToDevice() {

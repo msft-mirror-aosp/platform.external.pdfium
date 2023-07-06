@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "core/fpdfdoc/cpvt_wordplace.h"
+#include "core/fxcrt/fx_system.h"
 
 struct CPVT_WordRange {
   CPVT_WordRange() = default;

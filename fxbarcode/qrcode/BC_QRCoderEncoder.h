@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #ifndef FXBARCODE_QRCODE_BC_QRCODERENCODER_H_
 #define FXBARCODE_QRCODE_BC_QRCODERENCODER_H_
 
-#include "core/fxcrt/widestring.h"
+#include "core/fxcrt/fx_string.h"
 
 class CBC_QRCoder;
 class CBC_QRCoderErrorCorrectionLevel;

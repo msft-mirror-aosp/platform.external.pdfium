@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,12 +21,10 @@
 
 #include "fxbarcode/cbc_pdf417i.h"
 
-#include <stdint.h>
+#include <vector>
 
-#include <memory>
-
-#include "core/fxcrt/data_vector.h"
 #include "fxbarcode/pdf417/BC_PDF417Writer.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -37,9 +35,9 @@ constexpr size_t kMaxPDF417InputLengthBytes = 2710;
 }  // namespace
 
 CBC_PDF417I::CBC_PDF417I()
-    : CBC_CodeBase(std::make_unique<CBC_PDF417Writer>()) {}
+    : CBC_CodeBase(pdfium::MakeUnique<CBC_PDF417Writer>()) {}
 
-CBC_PDF417I::~CBC_PDF417I() = default;
+CBC_PDF417I::~CBC_PDF417I() {}
 
 bool CBC_PDF417I::Encode(WideStringView contents) {
   if (contents.GetLength() > kMaxPDF417InputLengthBytes)
@@ -48,18 +46,18 @@ bool CBC_PDF417I::Encode(WideStringView contents) {
   int32_t width;
   int32_t height;
   auto* pWriter = GetPDF417Writer();
-  DataVector<uint8_t> data = pWriter->Encode(contents, &width, &height);
+  std::vector<uint8_t> data = pWriter->Encode(contents, &width, &height);
   return pWriter->RenderResult(data, width, height);
 }
 
 bool CBC_PDF417I::RenderDevice(CFX_RenderDevice* device,
-                               const CFX_Matrix& matrix) {
+                               const CFX_Matrix* matrix) {
   GetPDF417Writer()->RenderDeviceResult(device, matrix);
   return true;
 }
 
 BC_TYPE CBC_PDF417I::GetType() {
-  return BC_TYPE::kPDF417;
+  return BC_PDF417;
 }
 
 CBC_PDF417Writer* CBC_PDF417I::GetPDF417Writer() {

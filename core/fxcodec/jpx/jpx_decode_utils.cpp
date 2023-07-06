@@ -1,4 +1,4 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,10 @@
 
 #include "core/fxcodec/jpx/jpx_decode_utils.h"
 
-#include <stddef.h>
 #include <string.h>
 
 #include <algorithm>
 #include <limits>
-#include <type_traits>
 
 namespace fxcodec {
 

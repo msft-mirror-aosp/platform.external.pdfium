@@ -1,10 +1,9 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "core/fpdfapi/render/cpdf_docrenderdata.h"
 
-#include <iterator>
 #include <memory>
 #include <utility>
 
@@ -13,8 +12,9 @@
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_number.h"
 #include "core/fpdfapi/parser/cpdf_stream.h"
-#include "core/fxcrt/data_vector.h"
+#include "core/fxcrt/fx_memory_wrappers.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -73,23 +73,26 @@ constexpr uint8_t kExpectedType4FunctionSamples[] = {
 RetainPtr<CPDF_Stream> CreateType0FunctionStream() {
   auto func_dict = pdfium::MakeRetain<CPDF_Dictionary>();
   func_dict->SetNewFor<CPDF_Number>("FunctionType", 0);
+
+  CPDF_Array* domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
+  domain_array->AddNew<CPDF_Number>(0);
+  domain_array->AddNew<CPDF_Number>(1);
+
+  CPDF_Array* range_array = func_dict->SetNewFor<CPDF_Array>("Range");
+  range_array->AddNew<CPDF_Number>(0);
+  range_array->AddNew<CPDF_Number>(0.5f);
+
+  CPDF_Array* size_array = func_dict->SetNewFor<CPDF_Array>("Size");
+  size_array->AddNew<CPDF_Number>(4);
+
   func_dict->SetNewFor<CPDF_Number>("BitsPerSample", 8);
 
-  auto domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
-  domain_array->AppendNew<CPDF_Number>(0);
-  domain_array->AppendNew<CPDF_Number>(1);
-
-  auto range_array = func_dict->SetNewFor<CPDF_Array>("Range");
-  range_array->AppendNew<CPDF_Number>(0);
-  range_array->AppendNew<CPDF_Number>(0.5f);
-
-  auto size_array = func_dict->SetNewFor<CPDF_Array>("Size");
-  size_array->AppendNew<CPDF_Number>(4);
-
-  static constexpr uint8_t kContents[] = "1234";
-  return pdfium::MakeRetain<CPDF_Stream>(
-      DataVector<uint8_t>(std::begin(kContents), std::end(kContents)),
-      std::move(func_dict));
+  static const char content[] = "1234";
+  size_t len = FX_ArraySize(content);
+  std::unique_ptr<uint8_t, FxFreeDeleter> buf(FX_Alloc(uint8_t, len));
+  memcpy(buf.get(), content, len);
+  return pdfium::MakeRetain<CPDF_Stream>(std::move(buf), len,
+                                         std::move(func_dict));
 }
 
 RetainPtr<CPDF_Dictionary> CreateType2FunctionDict() {
@@ -97,19 +100,19 @@ RetainPtr<CPDF_Dictionary> CreateType2FunctionDict() {
   func_dict->SetNewFor<CPDF_Number>("FunctionType", 2);
   func_dict->SetNewFor<CPDF_Number>("N", 1);
 
-  auto domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
-  domain_array->AppendNew<CPDF_Number>(0);
-  domain_array->AppendNew<CPDF_Number>(1);
+  CPDF_Array* domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
+  domain_array->AddNew<CPDF_Number>(0);
+  domain_array->AddNew<CPDF_Number>(1);
 
-  auto c0_array = func_dict->SetNewFor<CPDF_Array>("C0");
-  c0_array->AppendNew<CPDF_Number>(0.1f);
-  c0_array->AppendNew<CPDF_Number>(0.2f);
-  c0_array->AppendNew<CPDF_Number>(0.8f);
+  CPDF_Array* c0_array = func_dict->SetNewFor<CPDF_Array>("C0");
+  c0_array->AddNew<CPDF_Number>(0.1f);
+  c0_array->AddNew<CPDF_Number>(0.2f);
+  c0_array->AddNew<CPDF_Number>(0.8f);
 
-  auto c1_array = func_dict->SetNewFor<CPDF_Array>("C1");
-  c1_array->AppendNew<CPDF_Number>(0.05f);
-  c1_array->AppendNew<CPDF_Number>(0.01f);
-  c1_array->AppendNew<CPDF_Number>(0.4f);
+  CPDF_Array* c1_array = func_dict->SetNewFor<CPDF_Array>("C1");
+  c1_array->AddNew<CPDF_Number>(0.05f);
+  c1_array->AddNew<CPDF_Number>(0.01f);
+  c1_array->AddNew<CPDF_Number>(0.4f);
 
   return func_dict;
 }
@@ -118,45 +121,49 @@ RetainPtr<CPDF_Stream> CreateType4FunctionStream() {
   auto func_dict = pdfium::MakeRetain<CPDF_Dictionary>();
   func_dict->SetNewFor<CPDF_Number>("FunctionType", 4);
 
-  auto domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
-  domain_array->AppendNew<CPDF_Number>(0);
-  domain_array->AppendNew<CPDF_Number>(1);
+  CPDF_Array* domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
+  domain_array->AddNew<CPDF_Number>(0);
+  domain_array->AddNew<CPDF_Number>(1);
 
-  auto range_array = func_dict->SetNewFor<CPDF_Array>("Range");
-  range_array->AppendNew<CPDF_Number>(-1);
-  range_array->AppendNew<CPDF_Number>(1);
+  CPDF_Array* range_array = func_dict->SetNewFor<CPDF_Array>("Range");
+  range_array->AddNew<CPDF_Number>(-1);
+  range_array->AddNew<CPDF_Number>(1);
 
-  static constexpr uint8_t kContents[] = "{ 360 mul sin 2 div }";
-  return pdfium::MakeRetain<CPDF_Stream>(
-      DataVector<uint8_t>(std::begin(kContents), std::end(kContents)),
-      std::move(func_dict));
+  static const char content[] = "{ 360 mul sin 2 div }";
+  size_t len = FX_ArraySize(content);
+  std::unique_ptr<uint8_t, FxFreeDeleter> buf(FX_Alloc(uint8_t, len));
+  memcpy(buf.get(), content, len);
+  return pdfium::MakeRetain<CPDF_Stream>(std::move(buf), len,
+                                         std::move(func_dict));
 }
 
 RetainPtr<CPDF_Stream> CreateBadType4FunctionStream() {
   auto func_dict = pdfium::MakeRetain<CPDF_Dictionary>();
   func_dict->SetNewFor<CPDF_Number>("FunctionType", 4);
 
-  auto domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
-  domain_array->AppendNew<CPDF_Number>(0);
-  domain_array->AppendNew<CPDF_Number>(1);
+  CPDF_Array* domain_array = func_dict->SetNewFor<CPDF_Array>("Domain");
+  domain_array->AddNew<CPDF_Number>(0);
+  domain_array->AddNew<CPDF_Number>(1);
 
-  auto range_array = func_dict->SetNewFor<CPDF_Array>("Range");
-  range_array->AppendNew<CPDF_Number>(-1);
-  range_array->AppendNew<CPDF_Number>(1);
+  CPDF_Array* range_array = func_dict->SetNewFor<CPDF_Array>("Range");
+  range_array->AddNew<CPDF_Number>(-1);
+  range_array->AddNew<CPDF_Number>(1);
 
-  static constexpr uint8_t kContents[] = "garbage";
-  return pdfium::MakeRetain<CPDF_Stream>(
-      DataVector<uint8_t>(std::begin(kContents), std::end(kContents)),
-      std::move(func_dict));
+  static const char content[] = "garbage";
+  size_t len = FX_ArraySize(content);
+  std::unique_ptr<uint8_t, FxFreeDeleter> buf(FX_Alloc(uint8_t, len));
+  memcpy(buf.get(), content, len);
+  return pdfium::MakeRetain<CPDF_Stream>(std::move(buf), len,
+                                         std::move(func_dict));
 }
 
 class TestDocRenderData : public CPDF_DocRenderData {
  public:
-  TestDocRenderData() = default;
+  TestDocRenderData() : CPDF_DocRenderData() {}
 
   RetainPtr<CPDF_TransferFunc> CreateTransferFuncForTesting(
-      RetainPtr<const CPDF_Object> pObj) const {
-    return CreateTransferFunc(std::move(pObj));
+      const CPDF_Object* pObj) const {
+    return CreateTransferFunc(pObj);
   }
 };
 
@@ -164,18 +171,18 @@ TEST(CPDF_DocRenderDataTest, TransferFunctionOne) {
   RetainPtr<CPDF_Dictionary> func_dict = CreateType2FunctionDict();
 
   TestDocRenderData render_data;
-  auto func = render_data.CreateTransferFuncForTesting(func_dict);
+  auto func = render_data.CreateTransferFuncForTesting(func_dict.Get());
   ASSERT_TRUE(func);
   EXPECT_FALSE(func->GetIdentity());
 
   auto r_samples = func->GetSamplesR();
   auto g_samples = func->GetSamplesG();
   auto b_samples = func->GetSamplesB();
-  ASSERT_EQ(std::size(kExpectedType2FunctionSamples), r_samples.size());
-  ASSERT_EQ(std::size(kExpectedType2FunctionSamples), g_samples.size());
-  ASSERT_EQ(std::size(kExpectedType2FunctionSamples), b_samples.size());
+  ASSERT_EQ(FX_ArraySize(kExpectedType2FunctionSamples), r_samples.size());
+  ASSERT_EQ(FX_ArraySize(kExpectedType2FunctionSamples), g_samples.size());
+  ASSERT_EQ(FX_ArraySize(kExpectedType2FunctionSamples), b_samples.size());
 
-  for (size_t i = 0; i < std::size(kExpectedType2FunctionSamples); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kExpectedType2FunctionSamples); ++i) {
     EXPECT_EQ(kExpectedType2FunctionSamples[i], r_samples[i]);
     EXPECT_EQ(kExpectedType2FunctionSamples[i], g_samples[i]);
     EXPECT_EQ(kExpectedType2FunctionSamples[i], b_samples[i]);
@@ -195,23 +202,23 @@ TEST(CPDF_DocRenderDataTest, TransferFunctionOne) {
 
 TEST(CPDF_DocRenderDataTest, TransferFunctionArray) {
   auto func_array = pdfium::MakeRetain<CPDF_Array>();
-  func_array->Append(CreateType0FunctionStream());
-  func_array->Append(CreateType2FunctionDict());
-  func_array->Append(CreateType4FunctionStream());
+  func_array->Add(CreateType0FunctionStream());
+  func_array->Add(CreateType2FunctionDict());
+  func_array->Add(CreateType4FunctionStream());
 
   TestDocRenderData render_data;
-  auto func = render_data.CreateTransferFuncForTesting(func_array);
+  auto func = render_data.CreateTransferFuncForTesting(func_array.Get());
   ASSERT_TRUE(func);
   EXPECT_FALSE(func->GetIdentity());
 
   auto r_samples = func->GetSamplesR();
   auto g_samples = func->GetSamplesG();
   auto b_samples = func->GetSamplesB();
-  ASSERT_EQ(std::size(kExpectedType0FunctionSamples), r_samples.size());
-  ASSERT_EQ(std::size(kExpectedType2FunctionSamples), g_samples.size());
-  ASSERT_EQ(std::size(kExpectedType4FunctionSamples), b_samples.size());
+  ASSERT_EQ(FX_ArraySize(kExpectedType0FunctionSamples), r_samples.size());
+  ASSERT_EQ(FX_ArraySize(kExpectedType2FunctionSamples), g_samples.size());
+  ASSERT_EQ(FX_ArraySize(kExpectedType4FunctionSamples), b_samples.size());
 
-  for (size_t i = 0; i < std::size(kExpectedType2FunctionSamples); ++i) {
+  for (size_t i = 0; i < FX_ArraySize(kExpectedType2FunctionSamples); ++i) {
     EXPECT_EQ(kExpectedType0FunctionSamples[i], r_samples[i]);
     EXPECT_EQ(kExpectedType2FunctionSamples[i], g_samples[i]);
     EXPECT_EQ(kExpectedType4FunctionSamples[i], b_samples[i]);
@@ -234,7 +241,7 @@ TEST(CPDF_DocRenderDataTest, BadTransferFunctions) {
     auto func_stream = CreateBadType4FunctionStream();
 
     TestDocRenderData render_data;
-    auto func = render_data.CreateTransferFuncForTesting(func_stream);
+    auto func = render_data.CreateTransferFuncForTesting(func_stream.Get());
     EXPECT_FALSE(func);
   }
 
@@ -242,18 +249,18 @@ TEST(CPDF_DocRenderDataTest, BadTransferFunctions) {
     auto func_array = pdfium::MakeRetain<CPDF_Array>();
 
     TestDocRenderData render_data;
-    auto func = render_data.CreateTransferFuncForTesting(func_array);
+    auto func = render_data.CreateTransferFuncForTesting(func_array.Get());
     EXPECT_FALSE(func);
   }
 
   {
     auto func_array = pdfium::MakeRetain<CPDF_Array>();
-    func_array->Append(CreateType0FunctionStream());
-    func_array->Append(CreateType2FunctionDict());
-    func_array->Append(CreateBadType4FunctionStream());
+    func_array->Add(CreateType0FunctionStream());
+    func_array->Add(CreateType2FunctionDict());
+    func_array->Add(CreateBadType4FunctionStream());
 
     TestDocRenderData render_data;
-    auto func = render_data.CreateTransferFuncForTesting(func_array);
+    auto func = render_data.CreateTransferFuncForTesting(func_array.Get());
     EXPECT_FALSE(func);
   }
 }

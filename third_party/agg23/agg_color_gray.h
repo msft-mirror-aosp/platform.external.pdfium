@@ -28,8 +28,6 @@
 #ifndef AGG_COLOR_GRAY_INCLUDED
 #define AGG_COLOR_GRAY_INCLUDED
 #include "agg_basics.h"
-namespace pdfium
-{
 namespace agg
 {
 struct gray8 {
@@ -49,5 +47,4 @@ struct gray8 {
         v(int8u(v_)), a(int8u(a_)) {}
 };
 }
-}  // namespace pdfium
 #endif

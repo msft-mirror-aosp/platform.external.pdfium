@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,23 +7,27 @@
 #ifndef FXBARCODE_COMMON_BC_COMMONBITMATRIX_H_
 #define FXBARCODE_COMMON_BC_COMMONBITMATRIX_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include <vector>
 
-#include "core/fxcrt/fixed_zeroed_data_vector.h"
+#include "core/fxcrt/fx_system.h"
 
 class CBC_CommonBitMatrix {
  public:
-  CBC_CommonBitMatrix(size_t width, size_t height);
+  CBC_CommonBitMatrix();
   ~CBC_CommonBitMatrix();
 
-  bool Get(size_t x, size_t y) const;
-  void Set(size_t x, size_t y);
+  void Init(int32_t width, int32_t height);
+
+  bool Get(int32_t x, int32_t y) const;
+  void Set(int32_t x, int32_t y);
+  int32_t GetWidth() const { return m_width; }
+  int32_t GetHeight() const { return m_height; }
 
  private:
-  const size_t m_height;
-  const size_t m_rowSize;
-  FixedZeroedDataVector<uint32_t> m_bits;
+  int32_t m_width = 0;
+  int32_t m_height = 0;
+  int32_t m_rowSize = 0;
+  std::vector<int32_t> m_bits;
 };
 
 #endif  // FXBARCODE_COMMON_BC_COMMONBITMATRIX_H_
