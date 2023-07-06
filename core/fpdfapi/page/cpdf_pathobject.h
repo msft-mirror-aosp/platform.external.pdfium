@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,11 @@
 #ifndef CORE_FPDFAPI_PAGE_CPDF_PATHOBJECT_H_
 #define CORE_FPDFAPI_PAGE_CPDF_PATHOBJECT_H_
 
-#include <stdint.h>
-
 #include "core/fpdfapi/page/cpdf_pageobject.h"
 #include "core/fpdfapi/page/cpdf_path.h"
 #include "core/fxcrt/fx_coordinates.h"
-#include "core/fxge/cfx_fillrenderoptions.h"
+#include "core/fxcrt/fx_system.h"
+#include "core/fxge/render_defines.h"
 
 class CPDF_PathObject final : public CPDF_PageObject {
  public:
@@ -32,41 +31,26 @@ class CPDF_PathObject final : public CPDF_PageObject {
   bool stroke() const { return m_bStroke; }
   void set_stroke(bool stroke) { m_bStroke = stroke; }
 
-  // Layering, avoid caller knowledge of CFX_FillRenderOptions::FillType values.
-  bool has_no_filltype() const {
-    return m_FillType == CFX_FillRenderOptions::FillType::kNoFill;
-  }
-  bool has_winding_filltype() const {
-    return m_FillType == CFX_FillRenderOptions::FillType::kWinding;
-  }
-  bool has_alternate_filltype() const {
-    return m_FillType == CFX_FillRenderOptions::FillType::kEvenOdd;
-  }
-  void set_no_filltype() {
-    m_FillType = CFX_FillRenderOptions::FillType::kNoFill;
-  }
-  void set_winding_filltype() {
-    m_FillType = CFX_FillRenderOptions::FillType::kWinding;
-  }
-  void set_alternate_filltype() {
-    m_FillType = CFX_FillRenderOptions::FillType::kEvenOdd;
-  }
+  // Layering, avoid caller knowledge of FXFILL_ values.
+  bool has_no_filltype() const { return m_FillType == 0; }
+  bool has_winding_filltype() const { return m_FillType == FXFILL_WINDING; }
+  bool has_alternate_filltype() const { return m_FillType == FXFILL_ALTERNATE; }
+  void set_no_filltype() { m_FillType = 0; }
+  void set_winding_filltype() { m_FillType = FXFILL_WINDING; }
+  void set_alternate_filltype() { m_FillType = FXFILL_ALTERNATE; }
 
-  CFX_FillRenderOptions::FillType filltype() const { return m_FillType; }
-  void set_filltype(CFX_FillRenderOptions::FillType fill_type) {
-    m_FillType = fill_type;
-  }
+  int filltype() const { return m_FillType; }
+  void set_filltype(int filltype) { m_FillType = filltype; }
 
   CPDF_Path& path() { return m_Path; }
   const CPDF_Path& path() const { return m_Path; }
 
   const CFX_Matrix& matrix() const { return m_Matrix; }
-  void SetPathMatrix(const CFX_Matrix& matrix);
+  void set_matrix(const CFX_Matrix& matrix) { m_Matrix = matrix; }
 
  private:
   bool m_bStroke = false;
-  CFX_FillRenderOptions::FillType m_FillType =
-      CFX_FillRenderOptions::FillType::kNoFill;
+  int m_FillType = 0;
   CPDF_Path m_Path;
   CFX_Matrix m_Matrix;
 };

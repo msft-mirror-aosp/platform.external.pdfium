@@ -1,21 +1,12 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "core/fpdfapi/page/cpdf_pageobjectholder.h"
 
-#include <math.h>
-
-#include <algorithm>
 #include <limits>
-#include <vector>
 
-#include "core/fxcrt/fx_extension.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-bool SafeCompare(const float& x, const float& y) {
-  return FXSYS_SafeLT(x, y);
-}
 
 // See https://crbug.com/852273
 TEST(CPDFPageObjectHolder, GraphicsDataAsKey) {
@@ -31,14 +22,6 @@ TEST(CPDFPageObjectHolder, GraphicsDataAsKey) {
         EXPECT_FALSE(GraphicsData({c1, c2, c3}) < GraphicsData({c1, c2, c3}));
     }
   }
-
-  // Validate the documented sort order.
-  std::vector<float> data = {fMax, fInf, fNan, fMin};
-  std::sort(data.begin(), data.end(), SafeCompare);
-  EXPECT_EQ(data[0], fMin);
-  EXPECT_EQ(data[1], fMax);
-  EXPECT_EQ(data[2], fInf);
-  EXPECT_EQ(isnan(data[3]), isnan(fNan));
 
   std::map<GraphicsData, int> graphics_map;
 

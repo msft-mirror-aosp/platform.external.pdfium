@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,14 @@
 #ifndef CORE_FPDFAPI_PAGE_CPDF_SHADINGPATTERN_H_
 #define CORE_FPDFAPI_PAGE_CPDF_SHADINGPATTERN_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
 #include "core/fpdfapi/page/cpdf_colorspace.h"
 #include "core/fpdfapi/page/cpdf_pattern.h"
+#include "core/fxcrt/fx_system.h"
 #include "core/fxcrt/retain_ptr.h"
+#include "core/fxcrt/unowned_ptr.h"
 
 // Values used in PDFs except for |kInvalidShading| and |kMaxShading|.
 // Do not change.
@@ -38,7 +38,9 @@ class CPDF_Object;
 
 class CPDF_ShadingPattern final : public CPDF_Pattern {
  public:
-  CONSTRUCT_VIA_MAKE_RETAIN;
+  template <typename T, typename... Args>
+  friend RetainPtr<T> pdfium::MakeRetain(Args&&... args);
+
   ~CPDF_ShadingPattern() override;
 
   // CPDF_Pattern:
@@ -54,7 +56,7 @@ class CPDF_ShadingPattern final : public CPDF_Pattern {
 
   ShadingType GetShadingType() const { return m_ShadingType; }
   bool IsShadingObject() const { return m_bShading; }
-  RetainPtr<const CPDF_Object> GetShadingObject() const;
+  const CPDF_Object* GetShadingObject() const;
   RetainPtr<CPDF_ColorSpace> GetCS() const { return m_pCS; }
   const std::vector<std::unique_ptr<CPDF_Function>>& GetFuncs() const {
     return m_pFunctions;
@@ -62,7 +64,7 @@ class CPDF_ShadingPattern final : public CPDF_Pattern {
 
  private:
   CPDF_ShadingPattern(CPDF_Document* pDoc,
-                      RetainPtr<CPDF_Object> pPatternObj,
+                      CPDF_Object* pPatternObj,
                       bool bShading,
                       const CFX_Matrix& parentMatrix);
   CPDF_ShadingPattern(const CPDF_ShadingPattern&) = delete;

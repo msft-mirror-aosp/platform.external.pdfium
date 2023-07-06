@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,13 @@
 #ifndef CORE_FPDFDOC_CPDF_STRUCTTREE_H_
 #define CORE_FPDFDOC_CPDF_STRUCTTREE_H_
 
-#include <functional>
 #include <map>
 #include <memory>
 #include <vector>
 
-#include "core/fpdfapi/parser/cpdf_dictionary.h"
-#include "core/fxcrt/bytestring.h"
 #include "core/fxcrt/retain_ptr.h"
 
+class CPDF_Dictionary;
 class CPDF_Document;
 class CPDF_StructElement;
 
@@ -23,26 +21,25 @@ class CPDF_StructTree {
  public:
   static std::unique_ptr<CPDF_StructTree> LoadPage(
       const CPDF_Document* pDoc,
-      RetainPtr<const CPDF_Dictionary> pPageDict);
+      const CPDF_Dictionary* pPageDict);
 
   explicit CPDF_StructTree(const CPDF_Document* pDoc);
   ~CPDF_StructTree();
 
   size_t CountTopElements() const { return m_Kids.size(); }
   CPDF_StructElement* GetTopElement(size_t i) const { return m_Kids[i].Get(); }
-  uint32_t GetPageObjNum() const { return m_pPage->GetObjNum(); }
-  ByteString GetRoleMapNameFor(const ByteString& type) const;
+  const CPDF_Dictionary* GetRoleMap() const { return m_pRoleMap.Get(); }
+  const CPDF_Dictionary* GetPage() const { return m_pPage.Get(); }
+  const CPDF_Dictionary* GetTreeRoot() const { return m_pTreeRoot.Get(); }
 
  private:
-  using StructElementMap = std::map<RetainPtr<const CPDF_Dictionary>,
-                                    RetainPtr<CPDF_StructElement>,
-                                    std::less<>>;
+  using StructElementMap =
+      std::map<const CPDF_Dictionary*, RetainPtr<CPDF_StructElement>>;
 
-  void LoadPageTree(RetainPtr<const CPDF_Dictionary> pPageDict);
-  RetainPtr<CPDF_StructElement> AddPageNode(
-      RetainPtr<const CPDF_Dictionary> pDict,
-      StructElementMap* map,
-      int nLevel);
+  void LoadPageTree(const CPDF_Dictionary* pPageDict);
+  RetainPtr<CPDF_StructElement> AddPageNode(const CPDF_Dictionary* pDict,
+                                            StructElementMap* map,
+                                            int nLevel);
   bool AddTopLevelNode(const CPDF_Dictionary* pDict,
                        const RetainPtr<CPDF_StructElement>& pElement);
 

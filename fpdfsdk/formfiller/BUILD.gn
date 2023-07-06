@@ -1,9 +1,8 @@
-# Copyright 2018 The PDFium Authors
+# Copyright 2018 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import("../../pdfium.gni")
-import("../../testing/test.gni")
 
 source_set("formfiller") {
   sources = [
@@ -13,16 +12,12 @@ source_set("formfiller") {
     "cffl_checkbox.h",
     "cffl_combobox.cpp",
     "cffl_combobox.h",
-    "cffl_fieldaction.cpp",
-    "cffl_fieldaction.h",
-    "cffl_formfield.cpp",
-    "cffl_formfield.h",
+    "cffl_formfiller.cpp",
+    "cffl_formfiller.h",
     "cffl_interactiveformfiller.cpp",
     "cffl_interactiveformfiller.h",
     "cffl_listbox.cpp",
     "cffl_listbox.h",
-    "cffl_perwindowdata.cpp",
-    "cffl_perwindowdata.h",
     "cffl_pushbutton.cpp",
     "cffl_pushbutton.h",
     "cffl_radiobutton.cpp",
@@ -32,10 +27,7 @@ source_set("formfiller") {
     "cffl_textobject.cpp",
     "cffl_textobject.h",
   ]
-  configs += [
-    "../../:pdfium_strict_config",
-    "../../:pdfium_noshorten_config",
-  ]
+  configs += [ "../../:pdfium_core_config" ]
   deps = [
     "../../:pdfium_public_headers",
     "../../constants",
@@ -46,13 +38,4 @@ source_set("formfiller") {
     "../pwl",
   ]
   visibility = [ "../../*" ]
-}
-
-pdfium_embeddertest_source_set("embeddertests") {
-  sources = [ "cffl_combobox_embeddertest.cpp" ]
-  deps = [
-    ":formfiller",
-    "../pwl:embedder_test_support",
-  ]
-  pdfium_root_dir = "../../"
 }

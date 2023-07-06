@@ -1,4 +1,4 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,9 @@
 
 #include "core/fxge/cfx_windowsrenderdevice.h"
 
-class CFX_PSFontTracker;
-
 class CPDF_WindowsRenderDevice final : public CFX_WindowsRenderDevice {
  public:
-  CPDF_WindowsRenderDevice(HDC hDC, CFX_PSFontTracker* ps_font_tracker);
+  explicit CPDF_WindowsRenderDevice(HDC hDC);
   ~CPDF_WindowsRenderDevice() override;
 };
 

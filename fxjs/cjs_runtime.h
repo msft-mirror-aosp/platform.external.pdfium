@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,19 +12,20 @@
 #include <utility>
 #include <vector>
 
-#include "core/fxcrt/cfx_timer.h"
 #include "core/fxcrt/observed_ptr.h"
+#include "core/fxcrt/timerhandler_iface.h"
 #include "fxjs/cfxjs_engine.h"
-#include "fxjs/cjs_event_context.h"
+#include "fxjs/cjs_eventrecorder.h"
 #include "fxjs/ijs_runtime.h"
 
+class CJS_EventContext;
 class CPDFSDK_FormFillEnvironment;
 
 class CJS_Runtime final : public IJS_Runtime,
                           public CFXJS_Engine,
                           public Observable {
  public:
-  using FieldEvent = std::pair<WideString, CJS_EventContext::Kind>;
+  using FieldEvent = std::pair<WideString, JS_EVENT_T>;
 
   explicit CJS_Runtime(CPDFSDK_FormFillEnvironment* pFormFillEnv);
   ~CJS_Runtime() override;
@@ -34,11 +35,11 @@ class CJS_Runtime final : public IJS_Runtime,
   IJS_EventContext* NewEventContext() override;
   void ReleaseEventContext(IJS_EventContext* pContext) override;
   CPDFSDK_FormFillEnvironment* GetFormFillEnv() const override;
-  absl::optional<IJS_Runtime::JS_Error> ExecuteScript(
+  Optional<IJS_Runtime::JS_Error> ExecuteScript(
       const WideString& script) override;
 
   CJS_EventContext* GetCurrentEventContext() const;
-  CFX_Timer::HandlerIface* GetTimerHandler() const;
+  TimerHandlerIface* GetTimerHandler() const;
 
   // Returns true if the event isn't already found in the set.
   bool AddEventToSet(const FieldEvent& event);
@@ -52,7 +53,8 @@ class CJS_Runtime final : public IJS_Runtime,
   // value will be returned, otherwise |value| is returned.
   v8::Local<v8::Value> MaybeCoerceToNumber(v8::Local<v8::Value> value);
 
-  v8::Local<v8::Value> GetValueByNameFromGlobalObject(ByteStringView utf8Name);
+  bool GetValueByNameFromGlobalObject(ByteStringView utf8Name,
+                                      v8::Local<v8::Value>* pValue);
   bool SetValueByNameInGlobalObject(ByteStringView utf8Name,
                                     v8::Local<v8::Value> pValue);
 

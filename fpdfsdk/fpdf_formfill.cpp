@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,29 +8,31 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
-#include "constants/form_fields.h"
-#include "core/fpdfapi/page/cpdf_annotcontext.h"
 #include "core/fpdfapi/page/cpdf_occontext.h"
 #include "core/fpdfapi/page/cpdf_page.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_document.h"
-#include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fpdfapi/render/cpdf_renderoptions.h"
 #include "core/fpdfdoc/cpdf_formcontrol.h"
 #include "core/fpdfdoc/cpdf_formfield.h"
 #include "core/fpdfdoc/cpdf_interactiveform.h"
 #include "core/fxge/cfx_defaultrenderdevice.h"
-#include "fpdfsdk/cpdfsdk_annot.h"
+#include "fpdfsdk/cpdfsdk_actionhandler.h"
+#include "fpdfsdk/cpdfsdk_baannothandler.h"
 #include "fpdfsdk/cpdfsdk_formfillenvironment.h"
 #include "fpdfsdk/cpdfsdk_helpers.h"
 #include "fpdfsdk/cpdfsdk_interactiveform.h"
 #include "fpdfsdk/cpdfsdk_pageview.h"
+#include "fpdfsdk/cpdfsdk_widgethandler.h"
 #include "public/fpdfview.h"
+#include "third_party/base/ptr_util.h"
 
 #ifdef PDF_ENABLE_XFA
 #include "fpdfsdk/fpdfxfa/cpdfxfa_context.h"
 #include "fpdfsdk/fpdfxfa/cpdfxfa_page.h"
+#include "fpdfsdk/fpdfxfa/cpdfxfa_widgethandler.h"
 
 static_assert(static_cast<int>(AlertButton::kDefault) ==
                   JSPLATFORM_ALERT_BUTTON_DEFAULT,
@@ -166,7 +168,7 @@ CPDFSDK_PageView* FormHandleToPageView(FPDF_FORMHANDLE hHandle,
 
   CPDFSDK_FormFillEnvironment* pFormFillEnv =
       CPDFSDKFormFillEnvironmentFromFPDFFormHandle(hHandle);
-  return pFormFillEnv ? pFormFillEnv->GetOrCreatePageView(pPage) : nullptr;
+  return pFormFillEnv ? pFormFillEnv->GetPageView(pPage, true) : nullptr;
 }
 
 void FFLCommon(FPDF_FORMHANDLE hHandle,
@@ -192,14 +194,13 @@ void FFLCommon(FPDF_FORMHANDLE hHandle,
   const FX_RECT rect(start_x, start_y, start_x + size_x, start_y + size_y);
   CFX_Matrix matrix = pPage->GetDisplayMatrix(rect, rotate);
 
-  auto pDevice = std::make_unique<CFX_DefaultRenderDevice>();
-#if defined(_SKIA_SUPPORT_)
-  if (CFX_DefaultRenderDevice::SkiaIsDefaultRenderer())
-    pDevice->AttachRecorder(static_cast<SkPictureRecorder*>(recorder));
+  auto pDevice = pdfium::MakeUnique<CFX_DefaultRenderDevice>();
+#ifdef _SKIA_SUPPORT_
+  pDevice->AttachRecorder(static_cast<SkPictureRecorder*>(recorder));
 #endif
 
   RetainPtr<CFX_DIBitmap> holder(CFXDIBitmapFromFPDFBitmap(bitmap));
-  pDevice->AttachWithRgbByteOrder(holder, !!(flags & FPDF_REVERSE_BYTE_ORDER));
+  pDevice->Attach(holder, !!(flags & FPDF_REVERSE_BYTE_ORDER), nullptr, false);
   {
     CFX_RenderDevice::StateRestorer restorer(pDevice.get());
     pDevice->SetClip_Rect(rect);
@@ -213,25 +214,16 @@ void FFLCommon(FPDF_FORMHANDLE hHandle,
 
     options.SetDrawAnnots(flags & FPDF_ANNOT);
     options.SetOCContext(
-        pdfium::MakeRetain<CPDF_OCContext>(pPDFDoc, CPDF_OCContext::kView));
+        pdfium::MakeRetain<CPDF_OCContext>(pPDFDoc, CPDF_OCContext::View));
 
     if (pPageView)
       pPageView->PageView_OnDraw(pDevice.get(), matrix, &options, rect);
   }
-}
 
-// Returns true if formfill version is correctly set. See |version| in
-// FPDF_FORMFILLINFO for details regarding correct version.
-bool CheckFormfillVersion(FPDF_FORMFILLINFO* formInfo) {
-  if (!formInfo || formInfo->version < 1 || formInfo->version > 2)
-    return false;
-
-#ifdef PDF_ENABLE_XFA
-  if (formInfo->version != 2)
-    return false;
-#endif  // PDF_ENABLE_XFA
-
-  return true;
+#ifdef _SKIA_SUPPORT_PATHS_
+  pDevice->Flush(true);
+  holder->UnPreMultiply();
+#endif
 }
 
 }  // namespace
@@ -241,25 +233,25 @@ FPDFPage_HasFormFieldAtPoint(FPDF_FORMHANDLE hHandle,
                              FPDF_PAGE page,
                              double page_x,
                              double page_y) {
-  const CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
+  CPDF_Page* pPage = CPDFPageFromFPDFPage(page);
   if (pPage) {
     CPDFSDK_InteractiveForm* pForm = FormHandleToInteractiveForm(hHandle);
     if (!pForm)
       return -1;
 
-    const CPDF_InteractiveForm* pPDFForm = pForm->GetInteractiveForm();
-    const CPDF_FormControl* pFormCtrl = pPDFForm->GetControlAtPoint(
+    CPDF_InteractiveForm* pPDFForm = pForm->GetInteractiveForm();
+    CPDF_FormControl* pFormCtrl = pPDFForm->GetControlAtPoint(
         pPage,
         CFX_PointF(static_cast<float>(page_x), static_cast<float>(page_y)),
         nullptr);
     if (!pFormCtrl)
       return -1;
-    const CPDF_FormField* pFormField = pFormCtrl->GetField();
+    CPDF_FormField* pFormField = pFormCtrl->GetField();
     return pFormField ? static_cast<int>(pFormField->GetFieldType()) : -1;
   }
 
 #ifdef PDF_ENABLE_XFA
-  const CPDFXFA_Page* pXFAPage = ToXFAPage(IPDFPageFromFPDFPage(page));
+  CPDFXFA_Page* pXFAPage = ToXFAPage(IPDFPageFromFPDFPage(page));
   if (pXFAPage) {
     return pXFAPage->HasFormFieldAtPoint(
         CFX_PointF(static_cast<float>(page_x), static_cast<float>(page_y)));
@@ -293,18 +285,24 @@ FPDFPage_FormFieldZOrderAtPoint(FPDF_FORMHANDLE hHandle,
 FPDF_EXPORT FPDF_FORMHANDLE FPDF_CALLCONV
 FPDFDOC_InitFormFillEnvironment(FPDF_DOCUMENT document,
                                 FPDF_FORMFILLINFO* formInfo) {
-  if (!CheckFormfillVersion(formInfo))
+#ifdef PDF_ENABLE_XFA
+  constexpr int kRequiredVersion = 2;
+#else   // PDF_ENABLE_XFA
+  constexpr int kRequiredVersion = 1;
+#endif  // PDF_ENABLE_XFA
+  if (!formInfo || formInfo->version != kRequiredVersion)
     return nullptr;
 
   auto* pDocument = CPDFDocumentFromFPDFDocument(document);
   if (!pDocument)
     return nullptr;
 
+  std::unique_ptr<IPDFSDK_AnnotHandler> pXFAHandler;
 #ifdef PDF_ENABLE_XFA
   CPDFXFA_Context* pContext = nullptr;
   if (!formInfo->xfa_disabled) {
     if (!pDocument->GetExtension()) {
-      pDocument->SetExtension(std::make_unique<CPDFXFA_Context>(pDocument));
+      pDocument->SetExtension(pdfium::MakeUnique<CPDFXFA_Context>(pDocument));
     }
 
     // If the CPDFXFA_Context has a FormFillEnvironment already then we've done
@@ -315,11 +313,15 @@ FPDFDOC_InitFormFillEnvironment(FPDF_DOCUMENT document,
       return FPDFFormHandleFromCPDFSDKFormFillEnvironment(
           pContext->GetFormFillEnv());
     }
+    pXFAHandler = pdfium::MakeUnique<CPDFXFA_WidgetHandler>();
   }
 #endif  // PDF_ENABLE_XFA
 
-  auto pFormFillEnv =
-      std::make_unique<CPDFSDK_FormFillEnvironment>(pDocument, formInfo);
+  auto pFormFillEnv = pdfium::MakeUnique<CPDFSDK_FormFillEnvironment>(
+      pDocument, formInfo,
+      pdfium::MakeUnique<CPDFSDK_AnnotHandlerMgr>(
+          pdfium::MakeUnique<CPDFSDK_BAAnnotHandler>(),
+          pdfium::MakeUnique<CPDFSDK_WidgetHandler>(), std::move(pXFAHandler)));
 
 #ifdef PDF_ENABLE_XFA
   if (pContext)
@@ -361,27 +363,9 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnMouseMove(FPDF_FORMHANDLE hHandle,
                                                      double page_x,
                                                      double page_y) {
   CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnMouseMove(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
-}
-
-FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
-FORM_OnMouseWheel(FPDF_FORMHANDLE hHandle,
-                  FPDF_PAGE page,
-                  int modifier,
-                  const FS_POINTF* page_coord,
-                  int delta_x,
-                  int delta_y) {
-  if (!page_coord)
+  if (!pPageView)
     return false;
-
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnMouseWheel(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFXPointFFromFSPointF(*page_coord), CFX_Vector(delta_x, delta_y));
+  return pPageView->OnMouseMove(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnFocus(FPDF_FORMHANDLE hHandle,
@@ -390,10 +374,9 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnFocus(FPDF_FORMHANDLE hHandle,
                                                  double page_x,
                                                  double page_y) {
   CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnFocus(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
+  if (!pPageView)
+    return false;
+  return pPageView->OnFocus(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnLButtonDown(FPDF_FORMHANDLE hHandle,
@@ -401,15 +384,14 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnLButtonDown(FPDF_FORMHANDLE hHandle,
                                                        int modifier,
                                                        double page_x,
                                                        double page_y) {
+  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
+  if (!pPageView)
+    return false;
 #ifdef PDF_ENABLE_CLICK_LOGGING
   fprintf(stderr, "mousedown,left,%d,%d\n", static_cast<int>(round(page_x)),
           static_cast<int>(round(page_y)));
 #endif  // PDF_ENABLE_CLICK_LOGGING
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnLButtonDown(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
+  return pPageView->OnLButtonDown(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnLButtonUp(FPDF_FORMHANDLE hHandle,
@@ -417,15 +399,14 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnLButtonUp(FPDF_FORMHANDLE hHandle,
                                                      int modifier,
                                                      double page_x,
                                                      double page_y) {
+  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
+  if (!pPageView)
+    return false;
 #ifdef PDF_ENABLE_CLICK_LOGGING
   fprintf(stderr, "mouseup,left,%d,%d\n", static_cast<int>(round(page_x)),
           static_cast<int>(round(page_y)));
 #endif  // PDF_ENABLE_CLICK_LOGGING
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnLButtonUp(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
+  return pPageView->OnLButtonUp(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
@@ -434,15 +415,14 @@ FORM_OnLButtonDoubleClick(FPDF_FORMHANDLE hHandle,
                           int modifier,
                           double page_x,
                           double page_y) {
+  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
+  if (!pPageView)
+    return false;
 #ifdef PDF_ENABLE_CLICK_LOGGING
   fprintf(stderr, "mousedown,doubleleft,%d,%d\n",
           static_cast<int>(round(page_x)), static_cast<int>(round(page_y)));
 #endif  // PDF_ENABLE_CLICK_LOGGING
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnLButtonDblClk(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
+  return pPageView->OnLButtonDblClk(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnRButtonDown(FPDF_FORMHANDLE hHandle,
@@ -450,15 +430,14 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnRButtonDown(FPDF_FORMHANDLE hHandle,
                                                        int modifier,
                                                        double page_x,
                                                        double page_y) {
+  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
+  if (!pPageView)
+    return false;
 #ifdef PDF_ENABLE_CLICK_LOGGING
   fprintf(stderr, "mousedown,right,%d,%d\n", static_cast<int>(round(page_x)),
           static_cast<int>(round(page_y)));
 #endif  // PDF_ENABLE_CLICK_LOGGING
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnRButtonDown(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
+  return pPageView->OnRButtonDown(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnRButtonUp(FPDF_FORMHANDLE hHandle,
@@ -466,15 +445,14 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnRButtonUp(FPDF_FORMHANDLE hHandle,
                                                      int modifier,
                                                      double page_x,
                                                      double page_y) {
+  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
+  if (!pPageView)
+    return false;
 #ifdef PDF_ENABLE_CLICK_LOGGING
   fprintf(stderr, "mouseup,right,%d,%d\n", static_cast<int>(round(page_x)),
           static_cast<int>(round(page_y)));
 #endif  // PDF_ENABLE_CLICK_LOGGING
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnRButtonUp(
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier),
-             CFX_PointF(page_x, page_y));
+  return pPageView->OnRButtonUp(CFX_PointF(page_x, page_y), modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnKeyDown(FPDF_FORMHANDLE hHandle,
@@ -482,17 +460,19 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnKeyDown(FPDF_FORMHANDLE hHandle,
                                                    int nKeyCode,
                                                    int modifier) {
   CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnKeyDown(
-             static_cast<FWL_VKEYCODE>(nKeyCode),
-             Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier));
+  if (!pPageView)
+    return false;
+  return pPageView->OnKeyDown(nKeyCode, modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnKeyUp(FPDF_FORMHANDLE hHandle,
                                                  FPDF_PAGE page,
                                                  int nKeyCode,
                                                  int modifier) {
-  return false;
+  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
+  if (!pPageView)
+    return false;
+  return pPageView->OnKeyUp(nKeyCode, modifier);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnChar(FPDF_FORMHANDLE hHandle,
@@ -500,9 +480,9 @@ FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_OnChar(FPDF_FORMHANDLE hHandle,
                                                 int nChar,
                                                 int modifier) {
   CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView &&
-         pPageView->OnChar(
-             nChar, Mask<FWL_EVENTFLAG>::FromUnderlyingUnchecked(modifier));
+  if (!pPageView)
+    return false;
+  return pPageView->OnChar(nChar, modifier);
 }
 
 FPDF_EXPORT unsigned long FPDF_CALLCONV
@@ -531,17 +511,6 @@ FORM_GetSelectedText(FPDF_FORMHANDLE hHandle,
                                              buffer, buflen);
 }
 
-FPDF_EXPORT void FPDF_CALLCONV
-FORM_ReplaceAndKeepSelection(FPDF_FORMHANDLE hHandle,
-                             FPDF_PAGE page,
-                             FPDF_WIDESTRING wsText) {
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  if (!pPageView)
-    return;
-
-  pPageView->ReplaceAndKeepSelection(WideStringFromFPDFWideString(wsText));
-}
-
 FPDF_EXPORT void FPDF_CALLCONV FORM_ReplaceSelection(FPDF_FORMHANDLE hHandle,
                                                      FPDF_PAGE page,
                                                      FPDF_WIDESTRING wsText) {
@@ -550,12 +519,6 @@ FPDF_EXPORT void FPDF_CALLCONV FORM_ReplaceSelection(FPDF_FORMHANDLE hHandle,
     return;
 
   pPageView->ReplaceSelection(WideStringFromFPDFWideString(wsText));
-}
-
-FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_SelectAllText(FPDF_FORMHANDLE hHandle,
-                                                       FPDF_PAGE page) {
-  CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView && pPageView->SelectAllText();
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV FORM_CanUndo(FPDF_FORMHANDLE hHandle,
@@ -596,76 +559,7 @@ FORM_ForceToKillFocus(FPDF_FORMHANDLE hHandle) {
       CPDFSDKFormFillEnvironmentFromFPDFFormHandle(hHandle);
   if (!pFormFillEnv)
     return false;
-  return pFormFillEnv->KillFocusAnnot({});
-}
-
-FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
-FORM_GetFocusedAnnot(FPDF_FORMHANDLE handle,
-                     int* page_index,
-                     FPDF_ANNOTATION* annot) {
-  if (!page_index || !annot)
-    return false;
-
-  CPDFSDK_FormFillEnvironment* form_fill_env =
-      CPDFSDKFormFillEnvironmentFromFPDFFormHandle(handle);
-  if (!form_fill_env)
-    return false;
-
-  // Set |page_index| and |annot| to default values. This is returned when there
-  // is no focused annotation.
-  *page_index = -1;
-  *annot = nullptr;
-
-  CPDFSDK_Annot* cpdfsdk_annot = form_fill_env->GetFocusAnnot();
-  if (!cpdfsdk_annot)
-    return true;
-
-  // TODO(crbug.com/pdfium/1482): Handle XFA case.
-  if (cpdfsdk_annot->AsXFAWidget())
-    return true;
-
-  CPDFSDK_PageView* page_view = cpdfsdk_annot->GetPageView();
-  if (!page_view->IsValid())
-    return true;
-
-  IPDF_Page* page = cpdfsdk_annot->GetPage();
-  if (!page)
-    return true;
-
-  RetainPtr<CPDF_Dictionary> annot_dict =
-      cpdfsdk_annot->GetPDFAnnot()->GetMutableAnnotDict();
-  auto annot_context =
-      std::make_unique<CPDF_AnnotContext>(std::move(annot_dict), page);
-
-  *page_index = page_view->GetPageIndex();
-  // Caller takes ownership.
-  *annot = FPDFAnnotationFromCPDFAnnotContext(annot_context.release());
-  return true;
-}
-
-FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
-FORM_SetFocusedAnnot(FPDF_FORMHANDLE handle, FPDF_ANNOTATION annot) {
-  CPDFSDK_FormFillEnvironment* form_fill_env =
-      CPDFSDKFormFillEnvironmentFromFPDFFormHandle(handle);
-  if (!form_fill_env)
-    return false;
-
-  CPDF_AnnotContext* annot_context = CPDFAnnotContextFromFPDFAnnotation(annot);
-  if (!annot_context)
-    return false;
-
-  CPDFSDK_PageView* page_view =
-      form_fill_env->GetOrCreatePageView(annot_context->GetPage());
-  if (!page_view->IsValid())
-    return false;
-
-  RetainPtr<CPDF_Dictionary> annot_dict = annot_context->GetMutableAnnotDict();
-  ObservedPtr<CPDFSDK_Annot> cpdfsdk_annot(
-      page_view->GetAnnotByDict(annot_dict.Get()));
-  if (!cpdfsdk_annot)
-    return false;
-
-  return form_fill_env->SetFocusAnnot(cpdfsdk_annot);
+  return pFormFillEnv->KillFocusAnnot(0);
 }
 
 FPDF_EXPORT void FPDF_CALLCONV FPDF_FFLDraw(FPDF_FORMHANDLE hHandle,
@@ -681,7 +575,7 @@ FPDF_EXPORT void FPDF_CALLCONV FPDF_FFLDraw(FPDF_FORMHANDLE hHandle,
             rotate, flags);
 }
 
-#if defined(_SKIA_SUPPORT_)
+#ifdef _SKIA_SUPPORT_
 FPDF_EXPORT void FPDF_CALLCONV FPDF_FFLRecord(FPDF_FORMHANDLE hHandle,
                                               FPDF_RECORDER recorder,
                                               FPDF_PAGE page,
@@ -704,17 +598,15 @@ FPDF_SetFormFieldHighlightColor(FPDF_FORMHANDLE hHandle,
   if (!pForm)
     return;
 
-  absl::optional<FormFieldType> cast_input =
+  Optional<FormFieldType> cast_input =
       CPDF_FormField::IntToFormFieldType(fieldType);
-  if (!cast_input.has_value())
+  if (!cast_input)
     return;
 
-  if (cast_input.value() == FormFieldType::kUnknown) {
-    pForm->SetAllHighlightColors(static_cast<FX_COLORREF>(color));
-  } else {
-    pForm->SetHighlightColor(static_cast<FX_COLORREF>(color),
-                             cast_input.value());
-  }
+  if (cast_input.value() == FormFieldType::kUnknown)
+    pForm->SetAllHighlightColors(color);
+  else
+    pForm->SetHighlightColor(color, cast_input.value());
 }
 
 FPDF_EXPORT void FPDF_CALLCONV
@@ -746,7 +638,7 @@ FPDF_EXPORT void FPDF_CALLCONV FORM_OnBeforeClosePage(FPDF_PAGE page,
   if (!pPage)
     return;
 
-  CPDFSDK_PageView* pPageView = pFormFillEnv->GetPageView(pPage);
+  CPDFSDK_PageView* pPageView = pFormFillEnv->GetPageView(pPage, false);
   if (pPageView) {
     pPageView->SetValid(false);
     // RemovePageView() takes care of the delete for us.
@@ -766,7 +658,7 @@ FPDF_EXPORT void FPDF_CALLCONV
 FORM_DoDocumentOpenAction(FPDF_FORMHANDLE hHandle) {
   CPDFSDK_FormFillEnvironment* pFormFillEnv =
       CPDFSDKFormFillEnvironmentFromFPDFFormHandle(hHandle);
-  if (pFormFillEnv)
+  if (pFormFillEnv && pFormFillEnv->IsJSPlatformPresent())
     pFormFillEnv->ProcOpenAction();
 }
 
@@ -778,14 +670,17 @@ FPDF_EXPORT void FPDF_CALLCONV FORM_DoDocumentAAction(FPDF_FORMHANDLE hHandle,
     return;
 
   CPDF_Document* pDoc = pFormFillEnv->GetPDFDocument();
-  const CPDF_Dictionary* pDict = pDoc->GetRoot();
+  CPDF_Dictionary* pDict = pDoc->GetRoot();
   if (!pDict)
     return;
 
-  CPDF_AAction aa(pDict->GetDictFor(pdfium::form_fields::kAA));
+  CPDF_AAction aa(pDict->GetDictFor("AA"));
   auto type = static_cast<CPDF_AAction::AActionType>(aaType);
-  if (aa.ActionExist(type))
-    pFormFillEnv->DoActionDocument(aa.GetAction(type), type);
+  if (aa.ActionExist(type)) {
+    CPDF_Action action = aa.GetAction(type);
+    pFormFillEnv->GetActionHandler()->DoAction_Document(action, type,
+                                                        pFormFillEnv);
+  }
 }
 
 FPDF_EXPORT void FPDF_CALLCONV FORM_DoPageAAction(FPDF_PAGE page,
@@ -801,15 +696,19 @@ FPDF_EXPORT void FPDF_CALLCONV FORM_DoPageAAction(FPDF_PAGE page,
   if (!pPDFPage)
     return;
 
-  if (!pFormFillEnv->GetPageView(pPage))
+  if (!pFormFillEnv->GetPageView(pPage, false))
     return;
 
-  CPDF_AAction aa(pPDFPage->GetDict()->GetDictFor(pdfium::form_fields::kAA));
+  CPDFSDK_ActionHandler* pActionHandler = pFormFillEnv->GetActionHandler();
+  CPDF_Dictionary* pPageDict = pPDFPage->GetDict();
+  CPDF_AAction aa(pPageDict->GetDictFor("AA"));
   CPDF_AAction::AActionType type = aaType == FPDFPAGE_AACTION_OPEN
                                        ? CPDF_AAction::kOpenPage
                                        : CPDF_AAction::kClosePage;
-  if (aa.ActionExist(type))
-    pFormFillEnv->DoActionPage(aa.GetAction(type), type);
+  if (aa.ActionExist(type)) {
+    CPDF_Action action = aa.GetAction(type);
+    pActionHandler->DoAction_Page(action, type, pFormFillEnv);
+  }
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
@@ -818,11 +717,15 @@ FORM_SetIndexSelected(FPDF_FORMHANDLE hHandle,
                       int index,
                       FPDF_BOOL selected) {
   CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView && pPageView->SetIndexSelected(index, selected);
+  if (!pPageView)
+    return false;
+  return pPageView->SetIndexSelected(index, selected);
 }
 
 FPDF_EXPORT FPDF_BOOL FPDF_CALLCONV
 FORM_IsIndexSelected(FPDF_FORMHANDLE hHandle, FPDF_PAGE page, int index) {
   CPDFSDK_PageView* pPageView = FormHandleToPageView(hHandle, page);
-  return pPageView && pPageView->IsIndexSelected(index);
+  if (!pPageView)
+    return false;
+  return pPageView->IsIndexSelected(index);
 }

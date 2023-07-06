@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,9 @@
 
 #include "core/fpdfapi/page/cpdf_textstate.h"
 
-#include <math.h>
-
-#include <utility>
-
 #include "core/fpdfapi/font/cpdf_font.h"
 #include "core/fpdfapi/page/cpdf_docpagedata.h"
+#include "core/fpdfapi/parser/cpdf_document.h"
 
 CPDF_TextState::CPDF_TextState() = default;
 
@@ -25,8 +22,8 @@ RetainPtr<CPDF_Font> CPDF_TextState::GetFont() const {
   return m_Ref.GetObject()->m_pFont;
 }
 
-void CPDF_TextState::SetFont(RetainPtr<CPDF_Font> pFont) {
-  m_Ref.GetPrivateCopy()->SetFont(std::move(pFont));
+void CPDF_TextState::SetFont(const RetainPtr<CPDF_Font>& pFont) {
+  m_Ref.GetPrivateCopy()->SetFont(pFont);
 }
 
 float CPDF_TextState::GetFontSize() const {
@@ -37,11 +34,11 @@ void CPDF_TextState::SetFontSize(float size) {
   m_Ref.GetPrivateCopy()->m_FontSize = size;
 }
 
-pdfium::span<const float> CPDF_TextState::GetMatrix() const {
+const float* CPDF_TextState::GetMatrix() const {
   return m_Ref.GetObject()->m_Matrix;
 }
 
-pdfium::span<float> CPDF_TextState::GetMutableMatrix() {
+float* CPDF_TextState::GetMutableMatrix() {
   return m_Ref.GetPrivateCopy()->m_Matrix;
 }
 
@@ -73,15 +70,26 @@ void CPDF_TextState::SetTextMode(TextRenderingMode mode) {
   m_Ref.GetPrivateCopy()->m_TextMode = mode;
 }
 
-pdfium::span<const float> CPDF_TextState::GetCTM() const {
+const float* CPDF_TextState::GetCTM() const {
   return m_Ref.GetObject()->m_CTM;
 }
 
-pdfium::span<float> CPDF_TextState::GetMutableCTM() {
+float* CPDF_TextState::GetMutableCTM() {
   return m_Ref.GetPrivateCopy()->m_CTM;
 }
 
-CPDF_TextState::TextData::TextData() = default;
+CPDF_TextState::TextData::TextData()
+    : m_pFont(nullptr),
+      m_pDocument(nullptr),
+      m_FontSize(1.0f),
+      m_CharSpace(0),
+      m_WordSpace(0),
+      m_TextMode(TextRenderingMode::MODE_FILL) {
+  m_Matrix[0] = m_Matrix[3] = 1.0f;
+  m_Matrix[1] = m_Matrix[2] = 0;
+  m_CTM[0] = m_CTM[3] = 1.0f;
+  m_CTM[1] = m_CTM[2] = 0;
+}
 
 CPDF_TextState::TextData::TextData(const TextData& that)
     : m_pFont(that.m_pFont),
@@ -97,8 +105,8 @@ CPDF_TextState::TextData::TextData(const TextData& that)
     m_CTM[i] = that.m_CTM[i];
 
   if (m_pDocument && m_pFont) {
-    auto* pPageData = CPDF_DocPageData::FromDocument(m_pDocument);
-    m_pFont = pPageData->GetFont(m_pFont->GetMutableFontDict());
+    auto* pPageData = CPDF_DocPageData::FromDocument(m_pDocument.Get());
+    m_pFont = pPageData->GetFont(m_pFont->GetFontDict());
   }
 }
 
@@ -108,9 +116,9 @@ RetainPtr<CPDF_TextState::TextData> CPDF_TextState::TextData::Clone() const {
   return pdfium::MakeRetain<CPDF_TextState::TextData>(*this);
 }
 
-void CPDF_TextState::TextData::SetFont(RetainPtr<CPDF_Font> pFont) {
+void CPDF_TextState::TextData::SetFont(const RetainPtr<CPDF_Font>& pFont) {
   m_pDocument = pFont ? pFont->GetDocument() : nullptr;
-  m_pFont = std::move(pFont);
+  m_pFont = pFont;
 }
 
 float CPDF_TextState::TextData::GetFontSizeH() const {

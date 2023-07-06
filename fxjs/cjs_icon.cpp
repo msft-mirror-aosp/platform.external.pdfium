@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,11 @@
 const JSPropertySpec CJS_Icon::PropertySpecs[] = {
     {"name", get_name_static, set_name_static}};
 
-uint32_t CJS_Icon::ObjDefnID = 0;
+int CJS_Icon::ObjDefnID = -1;
 const char CJS_Icon::kName[] = "Icon";
 
 // static
-uint32_t CJS_Icon::GetObjDefnID() {
+int CJS_Icon::GetObjDefnID() {
   return ObjDefnID;
 }
 

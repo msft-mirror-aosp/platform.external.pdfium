@@ -1,13 +1,15 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "xfa/fxfa/parser/xfa_basic_data.h"
 
+#include <utility>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST(XFABasicDataTest, GetPacketByName) {
-  absl::optional<XFA_PACKETINFO> result = XFA_GetPacketByName(L"");
+  Optional<XFA_PACKETINFO> result = XFA_GetPacketByName(L"");
   EXPECT_FALSE(result.has_value());
 
   result = XFA_GetPacketByName(L"nonesuch");
@@ -24,10 +26,10 @@ TEST(XFABasicDataTest, GetPacketByName) {
 
 TEST(XFABasicDataTest, PacketToName) {
   XFA_PACKETINFO result = XFA_GetPacketByIndex(XFA_PacketType::Datasets);
-  EXPECT_STREQ("datasets", result.name);
+  EXPECT_STREQ(L"datasets", result.name);
 
   result = XFA_GetPacketByIndex(XFA_PacketType::ConnectionSet);
-  EXPECT_STREQ("connectionSet", result.name);
+  EXPECT_STREQ(L"connectionSet", result.name);
 }
 
 TEST(XFABasicDataTest, GetElementByName) {
@@ -49,7 +51,7 @@ TEST(XFABasicDataTest, ElementToName) {
 }
 
 TEST(XFABasicDataTest, GetAttributeByName) {
-  absl::optional<XFA_ATTRIBUTEINFO> result = XFA_GetAttributeByName(L"");
+  Optional<XFA_ATTRIBUTEINFO> result = XFA_GetAttributeByName(L"");
   EXPECT_FALSE(result.has_value());
 
   result = XFA_GetAttributeByName(L"nonesuch");
@@ -74,7 +76,7 @@ TEST(XFABasicDataTest, AttributeToName) {
 }
 
 TEST(XFABasicDataTest, GetAttributeValueByName) {
-  absl::optional<XFA_AttributeValue> result = XFA_GetAttributeValueByName(L"");
+  Optional<XFA_AttributeValue> result = XFA_GetAttributeValueByName(L"");
   EXPECT_FALSE(result.has_value());
 
   result = XFA_GetAttributeValueByName(L"nonesuch");

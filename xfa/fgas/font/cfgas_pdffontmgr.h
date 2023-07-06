@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,22 +8,21 @@
 #define XFA_FGAS_FONT_CFGAS_PDFFONTMGR_H_
 
 #include <map>
-#include <utility>
 
 #include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/observed_ptr.h"
 #include "core/fxcrt/retain_ptr.h"
-#include "core/fxcrt/unowned_ptr.h"
-#include "xfa/fgas/font/cfgas_fontmgr.h"
 
+class CFGAS_FontMgr;
 class CFGAS_GEFont;
 class CPDF_Document;
 
-class CFGAS_PDFFontMgr final {
+class CFGAS_PDFFontMgr final : public Observable {
  public:
-  explicit CFGAS_PDFFontMgr(const CPDF_Document* pDoc);
+  explicit CFGAS_PDFFontMgr(CPDF_Document* pDoc, CFGAS_FontMgr* pFontMgr);
   ~CFGAS_PDFFontMgr();
 
-  RetainPtr<CFGAS_GEFont> GetFont(const WideString& wsFontFamily,
+  RetainPtr<CFGAS_GEFont> GetFont(WideStringView wsFontFamily,
                                   uint32_t dwFontStyles,
                                   bool bStrictMatch);
 
@@ -41,8 +40,9 @@ class CFGAS_PDFFontMgr final {
                              const ByteString& bsDRFontName,
                              bool bStrictMatch);
 
-  UnownedPtr<const CPDF_Document> const m_pDoc;
-  std::map<std::pair<WideString, uint32_t>, RetainPtr<CFGAS_GEFont>> m_FontMap;
+  UnownedPtr<CPDF_Document> const m_pDoc;
+  UnownedPtr<CFGAS_FontMgr> const m_pFontMgr;
+  std::map<ByteString, RetainPtr<CFGAS_GEFont>> m_FontMap;
 };
 
 #endif  // XFA_FGAS_FONT_CFGAS_PDFFONTMGR_H_

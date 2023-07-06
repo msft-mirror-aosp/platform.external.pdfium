@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,9 @@
 #include <vector>
 
 #include "fxjs/cfx_v8.h"
-#include "fxjs/fxv8.h"
 #include "fxjs/js_resources.h"
 #include "fxjs/xfa/cfxjse_engine.h"
-#include "v8/include/v8-object.h"
+#include "fxjs/xfa/cfxjse_value.h"
 #include "xfa/fxfa/cxfa_eventparam.h"
 #include "xfa/fxfa/cxfa_ffnotify.h"
 #include "xfa/fxfa/fxfa.h"
@@ -29,14 +28,14 @@ CJX_Subform::CJX_Subform(CXFA_Node* node) : CJX_Container(node) {
   DefineMethods(MethodSpecs);
 }
 
-CJX_Subform::~CJX_Subform() = default;
+CJX_Subform::~CJX_Subform() {}
 
 bool CJX_Subform::DynamicTypeIs(TypeTag eType) const {
   return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
 }
 
 CJS_Result CJX_Subform::execEvent(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -47,7 +46,7 @@ CJS_Result CJX_Subform::execEvent(
 }
 
 CJS_Result CJX_Subform::execInitialize(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (!params.empty())
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -60,7 +59,7 @@ CJS_Result CJX_Subform::execInitialize(
 }
 
 CJS_Result CJX_Subform::execCalculate(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (!params.empty())
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -73,7 +72,7 @@ CJS_Result CJX_Subform::execCalculate(
 }
 
 CJS_Result CJX_Subform::execValidate(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (!params.empty())
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -88,34 +87,29 @@ CJS_Result CJX_Subform::execValidate(
       runtime->NewBoolean(iRet != XFA_EventError::kError));
 }
 
-void CJX_Subform::locale(v8::Isolate* pIsolate,
-                         v8::Local<v8::Value>* pValue,
+void CJX_Subform::locale(CFXJSE_Value* pValue,
                          bool bSetting,
                          XFA_Attribute eAttribute) {
   if (bSetting) {
-    SetCDataImpl(XFA_Attribute::Locale,
-                 fxv8::ReentrantToWideStringHelper(pIsolate, *pValue), true,
-                 true);
+    SetCData(XFA_Attribute::Locale, pValue->ToWideString(), true, true);
     return;
   }
 
   WideString wsLocaleName = GetXFANode()->GetLocaleName().value_or(L"");
-  *pValue =
-      fxv8::NewStringHelper(pIsolate, wsLocaleName.ToUTF8().AsStringView());
+  pValue->SetString(wsLocaleName.ToUTF8().AsStringView());
 }
 
-void CJX_Subform::instanceManager(v8::Isolate* pIsolate,
-                                  v8::Local<v8::Value>* pValue,
+void CJX_Subform::instanceManager(CFXJSE_Value* pValue,
                                   bool bSetting,
                                   XFA_Attribute eAttribute) {
   if (bSetting) {
-    ThrowInvalidPropertyException(pIsolate);
+    ThrowInvalidPropertyException();
     return;
   }
 
   WideString wsName = GetCData(XFA_Attribute::Name);
   CXFA_Node* pInstanceMgr = nullptr;
-  for (CXFA_Node* pNode = GetXFANode()->GetPrevSibling(); pNode;
+  for (CXFA_Node* pNode = ToNode(GetXFAObject())->GetPrevSibling(); pNode;
        pNode = pNode->GetPrevSibling()) {
     if (pNode->GetElementType() == XFA_Element::InstanceManager) {
       WideString wsInstMgrName =
@@ -127,9 +121,11 @@ void CJX_Subform::instanceManager(v8::Isolate* pIsolate,
       break;
     }
   }
-  *pValue = pInstanceMgr ? GetDocument()
-                               ->GetScriptContext()
-                               ->GetOrCreateJSBindingFromMap(pInstanceMgr)
-                               .As<v8::Value>()
-                         : fxv8::NewNullHelper(pIsolate).As<v8::Value>();
+  if (!pInstanceMgr) {
+    pValue->SetNull();
+    return;
+  }
+
+  pValue->Assign(GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(
+      pInstanceMgr));
 }

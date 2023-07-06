@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,12 @@
 
 #include <memory>
 
-#include "core/fxcrt/fx_memory.h"
+#include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/fx_system.h"
 #include "core/fxcrt/unowned_ptr.h"
-#include "core/fxcrt/widestring.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 
+class CFXJSE_Value;
 class CJS_Runtime;
 class CPDFSDK_FormFillEnvironment;
 class IJS_EventContext;
@@ -33,20 +34,18 @@ class IJS_Runtime {
 
   class ScopedEventContext {
    public:
-    FX_STACK_ALLOCATED();
-
     explicit ScopedEventContext(IJS_Runtime* pRuntime);
     ~ScopedEventContext();
 
-    IJS_EventContext* Get() const { return m_pContext; }
-    IJS_EventContext* operator->() const { return m_pContext; }
+    IJS_EventContext* Get() const { return m_pContext.Get(); }
+    IJS_EventContext* operator->() const { return m_pContext.Get(); }
 
    private:
     UnownedPtr<IJS_Runtime> const m_pRuntime;
     UnownedPtr<IJS_EventContext> m_pContext;
   };
 
-  static void Initialize(unsigned int slot, void* isolate, void* platform);
+  static void Initialize(unsigned int slot, void* isolate);
   static void Destroy();
   static std::unique_ptr<IJS_Runtime> Create(
       CPDFSDK_FormFillEnvironment* pFormFillEnv);
@@ -57,7 +56,7 @@ class IJS_Runtime {
   virtual IJS_EventContext* NewEventContext() = 0;
   virtual void ReleaseEventContext(IJS_EventContext* pContext) = 0;
   virtual CPDFSDK_FormFillEnvironment* GetFormFillEnv() const = 0;
-  virtual absl::optional<JS_Error> ExecuteScript(const WideString& script) = 0;
+  virtual Optional<JS_Error> ExecuteScript(const WideString& script) = 0;
 
  protected:
   IJS_Runtime() = default;

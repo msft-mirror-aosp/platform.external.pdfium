@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ class CXFA_Extras;
 
 class CJX_Extras final : public CJX_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_Extras(CXFA_Extras* node);
   ~CJX_Extras() override;
 
   // CJX_Object:
@@ -23,8 +23,6 @@ class CJX_Extras final : public CJX_Node {
   JSE_PROP(type);
 
  private:
-  explicit CJX_Extras(CXFA_Extras* node);
-
   using Type__ = CJX_Extras;
   using ParentType__ = CJX_Node;
 

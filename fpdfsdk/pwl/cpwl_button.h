@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,18 +10,17 @@
 #include <memory>
 
 #include "fpdfsdk/pwl/cpwl_wnd.h"
-#include "fpdfsdk/pwl/ipwl_fillernotify.h"
+#include "fpdfsdk/pwl/ipwl_systemhandler.h"
 
 class CPWL_Button : public CPWL_Wnd {
  public:
   CPWL_Button(const CreateParams& cp,
-              std::unique_ptr<IPWL_FillerNotify::PerWindowData> pAttachedData);
+              std::unique_ptr<IPWL_SystemHandler::PerWindowData> pAttachedData);
   ~CPWL_Button() override;
 
   // CPWL_Wnd
-  bool OnLButtonDown(Mask<FWL_EVENTFLAG> nFlag,
-                     const CFX_PointF& point) override;
-  bool OnLButtonUp(Mask<FWL_EVENTFLAG> nFlag, const CFX_PointF& point) override;
+  bool OnLButtonDown(const CFX_PointF& point, uint32_t nFlag) override;
+  bool OnLButtonUp(const CFX_PointF& point, uint32_t nFlag) override;
 
  protected:
   bool m_bMouseDown = false;

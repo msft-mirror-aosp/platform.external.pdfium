@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,22 +11,20 @@
 
 CJX_TextNode::CJX_TextNode(CXFA_Node* node) : CJX_Node(node) {}
 
-CJX_TextNode::~CJX_TextNode() = default;
+CJX_TextNode::~CJX_TextNode() {}
 
 bool CJX_TextNode::DynamicTypeIs(TypeTag eType) const {
   return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
 }
 
-void CJX_TextNode::defaultValue(v8::Isolate* pIsolate,
-                                v8::Local<v8::Value>* pValue,
+void CJX_TextNode::defaultValue(CFXJSE_Value* pValue,
                                 bool bSetting,
                                 XFA_Attribute attr) {
-  ScriptSomDefaultValue(pIsolate, pValue, bSetting, attr);
+  ScriptSomDefaultValue(pValue, bSetting, attr);
 }
 
-void CJX_TextNode::value(v8::Isolate* pIsolate,
-                         v8::Local<v8::Value>* pValue,
+void CJX_TextNode::value(CFXJSE_Value* pValue,
                          bool bSetting,
                          XFA_Attribute attr) {
-  ScriptSomDefaultValue(pIsolate, pValue, bSetting, attr);
+  ScriptSomDefaultValue(pValue, bSetting, attr);
 }

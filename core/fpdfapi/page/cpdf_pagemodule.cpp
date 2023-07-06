@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "core/fpdfapi/page/cpdf_colorspace.h"
 #include "core/fpdfapi/page/cpdf_devicecs.h"
 #include "core/fpdfapi/page/cpdf_patterncs.h"
-#include "third_party/base/check.h"
+#include "core/fxcodec/fx_codec.h"
 
 namespace {
 
@@ -20,31 +20,30 @@ CPDF_PageModule* g_PageModule = nullptr;
 
 // static
 void CPDF_PageModule::Create() {
-  DCHECK(!g_PageModule);
+  ASSERT(!g_PageModule);
+  fxcodec::ModuleMgr::Create();
   g_PageModule = new CPDF_PageModule();
 }
 
 // static
 void CPDF_PageModule::Destroy() {
-  DCHECK(g_PageModule);
+  ASSERT(g_PageModule);
   delete g_PageModule;
   g_PageModule = nullptr;
+  fxcodec::ModuleMgr::Destroy();
 }
 
 // static
 CPDF_PageModule* CPDF_PageModule::GetInstance() {
-  DCHECK(g_PageModule);
+  ASSERT(g_PageModule);
   return g_PageModule;
 }
 
 CPDF_PageModule::CPDF_PageModule()
-    : m_StockGrayCS(pdfium::MakeRetain<CPDF_DeviceCS>(
-          CPDF_ColorSpace::Family::kDeviceGray)),
-      m_StockRGBCS(pdfium::MakeRetain<CPDF_DeviceCS>(
-          CPDF_ColorSpace::Family::kDeviceRGB)),
-      m_StockCMYKCS(pdfium::MakeRetain<CPDF_DeviceCS>(
-          CPDF_ColorSpace::Family::kDeviceCMYK)),
-      m_StockPatternCS(pdfium::MakeRetain<CPDF_PatternCS>()) {
+    : m_StockGrayCS(pdfium::MakeRetain<CPDF_DeviceCS>(PDFCS_DEVICEGRAY)),
+      m_StockRGBCS(pdfium::MakeRetain<CPDF_DeviceCS>(PDFCS_DEVICERGB)),
+      m_StockCMYKCS(pdfium::MakeRetain<CPDF_DeviceCS>(PDFCS_DEVICECMYK)),
+      m_StockPatternCS(pdfium::MakeRetain<CPDF_PatternCS>(nullptr)) {
   m_StockPatternCS->InitializeStockPattern();
   CPDF_FontGlobals::Create();
   CPDF_FontGlobals::GetInstance()->LoadEmbeddedMaps();
@@ -54,15 +53,14 @@ CPDF_PageModule::~CPDF_PageModule() {
   CPDF_FontGlobals::Destroy();
 }
 
-RetainPtr<CPDF_ColorSpace> CPDF_PageModule::GetStockCS(
-    CPDF_ColorSpace::Family family) {
-  if (family == CPDF_ColorSpace::Family::kDeviceGray)
+RetainPtr<CPDF_ColorSpace> CPDF_PageModule::GetStockCS(int family) {
+  if (family == PDFCS_DEVICEGRAY)
     return m_StockGrayCS;
-  if (family == CPDF_ColorSpace::Family::kDeviceRGB)
+  if (family == PDFCS_DEVICERGB)
     return m_StockRGBCS;
-  if (family == CPDF_ColorSpace::Family::kDeviceCMYK)
+  if (family == PDFCS_DEVICECMYK)
     return m_StockCMYKCS;
-  if (family == CPDF_ColorSpace::Family::kPattern)
+  if (family == PDFCS_PATTERN)
     return m_StockPatternCS;
   return nullptr;
 }

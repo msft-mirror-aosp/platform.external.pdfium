@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,18 +12,15 @@
 #include "core/fxcrt/widestring.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/js_define.h"
-#include "v8/include/v8-forward.h"
+
+// Return values for ParseDataType() below.
+#define UTIL_INT 0
+#define UTIL_DOUBLE 1
+#define UTIL_STRING 2
 
 class CJS_Util final : public CJS_Object {
  public:
-  enum class DataType {
-    kInvalid = -1,
-    kInt = 0,
-    kDouble = 1,
-    kString = 2,
-  };
-
-  static uint32_t GetObjDefnID();
+  static int GetObjDefnID();
   static void DefineJSObjects(CFXJS_Engine* pEngine);
 
   CJS_Util(v8::Local<v8::Object> pObject, CJS_Runtime* pRuntime);
@@ -36,7 +33,7 @@ class CJS_Util final : public CJS_Object {
   // byte-by-byte.
   //
   // Exposed for testing.
-  static DataType ParseDataType(WideString* sFormat);
+  static int ParseDataType(WideString* sFormat);
 
   // Exposed for testing.
   static WideString StringPrintx(const WideString& cFormat,
@@ -49,7 +46,7 @@ class CJS_Util final : public CJS_Object {
   JS_STATIC_METHOD(byteToChar, CJS_Util)
 
  private:
-  static uint32_t ObjDefnID;
+  static int ObjDefnID;
   static const char kName[];
   static const JSMethodSpec MethodSpecs[];
 

@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,33 +14,16 @@
 #include "core/fpdfapi/parser/cpdf_parser.h"
 #include "core/fpdfapi/parser/cpdf_reference.h"
 #include "core/fxcrt/fx_string.h"
-#include "third_party/base/notreached.h"
+#include "third_party/base/logging.h"
+#include "third_party/base/ptr_util.h"
 
-CPDF_Object::~CPDF_Object() = default;
+CPDF_Object::~CPDF_Object() {}
 
-static_assert(sizeof(uint64_t) >= sizeof(CPDF_Object*),
-              "Need a bigger type for cache keys");
-
-static_assert(CPDF_Parser::kMaxObjectNumber < static_cast<uint32_t>(1) << 31,
-              "Need a smaller kMaxObjNumber for cache keys");
-
-uint64_t CPDF_Object::KeyForCache() const {
-  if (IsInline())
-    return (static_cast<uint64_t>(1) << 63) | reinterpret_cast<uint64_t>(this);
-
-  return (static_cast<uint64_t>(m_ObjNum) << 32) |
-         static_cast<uint64_t>(m_GenNum);
+CPDF_Object* CPDF_Object::GetDirect() {
+  return this;
 }
 
-RetainPtr<CPDF_Object> CPDF_Object::GetMutableDirect() {
-  return pdfium::WrapRetain(const_cast<CPDF_Object*>(GetDirectInternal()));
-}
-
-RetainPtr<const CPDF_Object> CPDF_Object::GetDirect() const {
-  return pdfium::WrapRetain(GetDirectInternal());
-}
-
-const CPDF_Object* CPDF_Object::GetDirectInternal() const {
+const CPDF_Object* CPDF_Object::GetDirect() const {
   return this;
 }
 
@@ -75,15 +58,11 @@ int CPDF_Object::GetInteger() const {
   return 0;
 }
 
-RetainPtr<const CPDF_Dictionary> CPDF_Object::GetDict() const {
-  return pdfium::WrapRetain(GetDictInternal());
+CPDF_Dictionary* CPDF_Object::GetDict() {
+  return nullptr;
 }
 
-RetainPtr<CPDF_Dictionary> CPDF_Object::GetMutableDict() {
-  return pdfium::WrapRetain(const_cast<CPDF_Dictionary*>(GetDictInternal()));
-}
-
-const CPDF_Dictionary* CPDF_Object::GetDictInternal() const {
+const CPDF_Dictionary* CPDF_Object::GetDict() const {
   return nullptr;
 }
 
@@ -91,79 +70,107 @@ void CPDF_Object::SetString(const ByteString& str) {
   NOTREACHED();
 }
 
-CPDF_Array* CPDF_Object::AsMutableArray() {
+bool CPDF_Object::IsArray() const {
+  return false;
+}
+
+bool CPDF_Object::IsBoolean() const {
+  return false;
+}
+
+bool CPDF_Object::IsDictionary() const {
+  return false;
+}
+
+bool CPDF_Object::IsName() const {
+  return false;
+}
+
+bool CPDF_Object::IsNumber() const {
+  return false;
+}
+
+bool CPDF_Object::IsReference() const {
+  return false;
+}
+
+bool CPDF_Object::IsStream() const {
+  return false;
+}
+
+bool CPDF_Object::IsString() const {
+  return false;
+}
+
+bool CPDF_Object::IsNull() const {
+  return false;
+}
+
+CPDF_Array* CPDF_Object::AsArray() {
   return nullptr;
 }
 
 const CPDF_Array* CPDF_Object::AsArray() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableArray();
+  return nullptr;
 }
 
-CPDF_Boolean* CPDF_Object::AsMutableBoolean() {
+CPDF_Boolean* CPDF_Object::AsBoolean() {
   return nullptr;
 }
 
 const CPDF_Boolean* CPDF_Object::AsBoolean() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableBoolean();
+  return nullptr;
 }
 
-CPDF_Dictionary* CPDF_Object::AsMutableDictionary() {
+CPDF_Dictionary* CPDF_Object::AsDictionary() {
   return nullptr;
 }
 
 const CPDF_Dictionary* CPDF_Object::AsDictionary() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableDictionary();
+  return nullptr;
 }
 
-CPDF_Name* CPDF_Object::AsMutableName() {
+CPDF_Name* CPDF_Object::AsName() {
   return nullptr;
 }
 
 const CPDF_Name* CPDF_Object::AsName() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableName();
-}
-
-CPDF_Null* CPDF_Object::AsMutableNull() {
   return nullptr;
 }
 
-const CPDF_Null* CPDF_Object::AsNull() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableNull();
-}
-
-CPDF_Number* CPDF_Object::AsMutableNumber() {
+CPDF_Number* CPDF_Object::AsNumber() {
   return nullptr;
 }
 
 const CPDF_Number* CPDF_Object::AsNumber() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableNumber();
+  return nullptr;
 }
 
-CPDF_Reference* CPDF_Object::AsMutableReference() {
+CPDF_Reference* CPDF_Object::AsReference() {
   return nullptr;
 }
 
 const CPDF_Reference* CPDF_Object::AsReference() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableReference();
+  return nullptr;
 }
 
-CPDF_Stream* CPDF_Object::AsMutableStream() {
+CPDF_Stream* CPDF_Object::AsStream() {
   return nullptr;
 }
 
 const CPDF_Stream* CPDF_Object::AsStream() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableStream();
+  return nullptr;
 }
 
-CPDF_String* CPDF_Object::AsMutableString() {
+CPDF_String* CPDF_Object::AsString() {
   return nullptr;
 }
 
 const CPDF_String* CPDF_Object::AsString() const {
-  return const_cast<CPDF_Object*>(this)->AsMutableString();
+  return nullptr;
 }
 
-RetainPtr<CPDF_Reference> CPDF_Object::MakeReference(
+RetainPtr<CPDF_Object> CPDF_Object::MakeReference(
     CPDF_IndirectObjectHolder* holder) const {
   if (IsInline()) {
     NOTREACHED();

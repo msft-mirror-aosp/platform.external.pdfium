@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 
 #include "core/fpdfapi/page/cpdf_pattern.h"
 #include "core/fxcrt/fx_coordinates.h"
-#include "core/fxcrt/retain_ptr.h"
+#include "core/fxcrt/fx_system.h"
 
 class CPDF_Document;
 class CPDF_Form;
@@ -20,7 +20,9 @@ class CPDF_PageObject;
 
 class CPDF_TilingPattern final : public CPDF_Pattern {
  public:
-  CONSTRUCT_VIA_MAKE_RETAIN;
+  template <typename T, typename... Args>
+  friend RetainPtr<T> pdfium::MakeRetain(Args&&... args);
+
   ~CPDF_TilingPattern() override;
 
   // CPDF_Pattern:
@@ -35,15 +37,15 @@ class CPDF_TilingPattern final : public CPDF_Pattern {
 
  private:
   CPDF_TilingPattern(CPDF_Document* pDoc,
-                     RetainPtr<CPDF_Object> pPatternObj,
+                     CPDF_Object* pPatternObj,
                      const CFX_Matrix& parentMatrix);
   CPDF_TilingPattern(const CPDF_TilingPattern&) = delete;
   CPDF_TilingPattern& operator=(const CPDF_TilingPattern&) = delete;
 
   bool m_bColored;
   CFX_FloatRect m_BBox;
-  float m_XStep = 0.0f;
-  float m_YStep = 0.0f;
+  float m_XStep;
+  float m_YStep;
 };
 
 #endif  // CORE_FPDFAPI_PAGE_CPDF_TILINGPATTERN_H_

@@ -1,7 +1,7 @@
 //---------------------------------------------------------------------------------
 //
 //  Little Color Management System
-//  Copyright (c) 1998-2023 Marti Maria Saguer
+//  Copyright (c) 1998-2017 Marti Maria Saguer
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the "Software"),
@@ -65,9 +65,10 @@ typedef struct {
 
 
 static
-void cmsMD5_Transform(cmsUInt32Number buf[4], cmsUInt32Number in[16])
+void MD5_Transform(cmsUInt32Number buf[4], cmsUInt32Number in[16])
+
 {
-    CMSREGISTER cmsUInt32Number a, b, c, d;
+    register cmsUInt32Number a, b, c, d;
 
     a = buf[0];
     b = buf[1];
@@ -150,8 +151,8 @@ void cmsMD5_Transform(cmsUInt32Number buf[4], cmsUInt32Number in[16])
 
 
 // Create a MD5 object
-
-cmsHANDLE CMSEXPORT cmsMD5alloc(cmsContext ContextID)
+static
+cmsHANDLE  MD5alloc(cmsContext ContextID)
 {
     _cmsMD5* ctx = (_cmsMD5*) _cmsMallocZero(ContextID, sizeof(_cmsMD5));
     if (ctx == NULL) return NULL;
@@ -169,7 +170,9 @@ cmsHANDLE CMSEXPORT cmsMD5alloc(cmsContext ContextID)
     return (cmsHANDLE) ctx;
 }
 
-void CMSEXPORT cmsMD5add(cmsHANDLE Handle, const cmsUInt8Number* buf, cmsUInt32Number len)
+
+static
+void MD5add(cmsHANDLE Handle, cmsUInt8Number* buf, cmsUInt32Number len)
 {
     _cmsMD5* ctx = (_cmsMD5*) Handle;
     cmsUInt32Number t;
@@ -195,7 +198,7 @@ void CMSEXPORT cmsMD5add(cmsHANDLE Handle, const cmsUInt8Number* buf, cmsUInt32N
         memmove(p, buf, t);
         byteReverse(ctx->in, 16);
 
-        cmsMD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
+        MD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
         buf += t;
         len -= t;
     }
@@ -203,7 +206,7 @@ void CMSEXPORT cmsMD5add(cmsHANDLE Handle, const cmsUInt8Number* buf, cmsUInt32N
     while (len >= 64) {
         memmove(ctx->in, buf, 64);
         byteReverse(ctx->in, 16);
-        cmsMD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
+        MD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
         buf += 64;
         len -= 64;
     }
@@ -212,7 +215,8 @@ void CMSEXPORT cmsMD5add(cmsHANDLE Handle, const cmsUInt8Number* buf, cmsUInt32N
 }
 
 // Destroy the object and return the checksum
-void CMSEXPORT cmsMD5finish(cmsProfileID* ProfileID,  cmsHANDLE Handle)
+static
+void MD5finish(cmsProfileID* ProfileID,  cmsHANDLE Handle)
 {
     _cmsMD5* ctx = (_cmsMD5*) Handle;
     cmsUInt32Number count;
@@ -229,7 +233,7 @@ void CMSEXPORT cmsMD5finish(cmsProfileID* ProfileID,  cmsHANDLE Handle)
 
         memset(p, 0, count);
         byteReverse(ctx->in, 16);
-        cmsMD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
+        MD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
 
         memset(ctx->in, 0, 56);
     } else {
@@ -240,7 +244,7 @@ void CMSEXPORT cmsMD5finish(cmsProfileID* ProfileID,  cmsHANDLE Handle)
     ((cmsUInt32Number *) ctx->in)[14] = ctx->bits[0];
     ((cmsUInt32Number *) ctx->in)[15] = ctx->bits[1];
 
-    cmsMD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
+    MD5_Transform(ctx->buf, (cmsUInt32Number *) ctx->in);
 
     byteReverse((cmsUInt8Number *) ctx->buf, 4);
     memmove(ProfileID ->ID8, ctx->buf, 16);
@@ -286,11 +290,11 @@ cmsBool CMSEXPORT cmsMD5computeID(cmsHPROFILE hProfile)
     if (!cmsSaveProfileToMem(hProfile, Mem, &BytesNeeded)) goto Error;
 
     // Create MD5 object
-    MD5 = cmsMD5alloc(ContextID);
+    MD5 = MD5alloc(ContextID);
     if (MD5 == NULL) goto Error;
 
     // Add all bytes
-    cmsMD5add(MD5, Mem, BytesNeeded);
+    MD5add(MD5, Mem, BytesNeeded);
 
     // Temp storage is no longer needed
     _cmsFree(ContextID, Mem);
@@ -299,7 +303,7 @@ cmsBool CMSEXPORT cmsMD5computeID(cmsHPROFILE hProfile)
     memmove(Icc, &Keep, sizeof(_cmsICCPROFILE));
 
     // And store the ID
-    cmsMD5finish(&Icc ->ProfileID,  MD5);
+    MD5finish(&Icc ->ProfileID,  MD5);
     return TRUE;
 
 Error:

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,27 @@
 #ifndef XFA_FWL_THEME_CFWL_UTILS_H_
 #define XFA_FWL_THEME_CFWL_UTILS_H_
 
-#include <stdint.h>
+#include "core/fxcrt/fx_system.h"
 
-#include "core/fxge/dib/fx_dib.h"
+enum FWLTHEME_EDGE {
+  FWLTHEME_EDGE_Flat = 0,
+  FWLTHEME_EDGE_Raised,
+  FWLTHEME_EDGE_Sunken
+};
 
-// Values matter, used for indexing.
-enum class FWLTHEME_STATE : uint8_t { kNormal = 1, kHover, kPressed, kDisable };
+enum FWLTHEME_STATE {
+  FWLTHEME_STATE_Normal = 1,
+  FWLTHEME_STATE_Hover,
+  FWLTHEME_STATE_Pressed,
+  FWLTHEME_STATE_Disable
+};
 
-enum class FWLTHEME_DIRECTION : uint8_t { kUp = 0, kDown, kLeft, kRight };
+enum FWLTHEME_DIRECTION {
+  FWLTHEME_DIRECTION_Up = 0,
+  FWLTHEME_DIRECTION_Down,
+  FWLTHEME_DIRECTION_Left,
+  FWLTHEME_DIRECTION_Right
+};
 
 #define FWLTHEME_COLOR_EDGERB1 (ArgbEncode(255, 241, 239, 226))
 #define FWLTHEME_COLOR_Background (ArgbEncode(255, 236, 233, 216))

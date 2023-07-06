@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,4 +11,4 @@ CFX_CSSCustomProperty::CFX_CSSCustomProperty(const WideString& name,
 CFX_CSSCustomProperty::CFX_CSSCustomProperty(const CFX_CSSCustomProperty& prop)
     : name_(prop.name_), value_(prop.value_) {}
 
-CFX_CSSCustomProperty::~CFX_CSSCustomProperty() = default;
+CFX_CSSCustomProperty::~CFX_CSSCustomProperty() {}

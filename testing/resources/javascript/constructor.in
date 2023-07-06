@@ -19,7 +19,6 @@ endobj
   /Parent 2 0 R
   /MediaBox [0 0 612 792]
 >>
-endobj
 % OpenAction action
 {{object 10 0}} <<
   /Type /Action
@@ -27,18 +26,34 @@ endobj
   /JS 11 0 R
 >>
 endobj
-% JS program to execute
+% JS program to exexute
 {{object 11 0}} <<
   {{streamlen}}
 >>
 stream
-{{include constructor.js}}
-
-// Global objects
+function testIllegalConstructor(name, allowed) {
+  const constructorString = name + ".constructor";
+  let constructor;
+  try {
+    constructor = eval(constructorString);
+  } catch (e) {
+    app.alert("FAIL: No such " + constructorString);
+    return;
+  }
+  try {
+    constructor();
+    app.alert("FAIL: " + constructorString + "(): returned");
+  } catch (e) {
+    app.alert("PASS: " + constructorString + "(): " + e);
+  }
+  try {
+    new constructor;
+    app.alert("FAIL: new " + constructorString + ": returned");
+  } catch (e) {
+    app.alert("PASS: new " + constructorString + ": " + e);
+  }
+}
 testIllegalConstructor("this");
-testIllegalConstructor("globalThis");
-
-// Static objects
 testIllegalConstructor("app");
 testIllegalConstructor("event");
 testIllegalConstructor("font");
@@ -54,11 +69,6 @@ testIllegalConstructor("highlight");
 testIllegalConstructor("zoomtype");
 testIllegalConstructor("scaleHow");
 testIllegalConstructor("scaleWhen");
-
-// Dynamic objects
-timer1 = app.setTimeOut("var marked = true", 1000);
-testLegalConstructor("timer1");
-
 endstream
 endobj
 {{xref}}

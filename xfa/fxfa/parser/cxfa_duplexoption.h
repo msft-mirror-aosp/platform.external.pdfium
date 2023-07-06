@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,8 @@
 
 class CXFA_DuplexOption final : public CXFA_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
-  ~CXFA_DuplexOption() override;
-
- private:
   CXFA_DuplexOption(CXFA_Document* doc, XFA_PacketType packet);
+  ~CXFA_DuplexOption() override;
 };
 
 #endif  // XFA_FXFA_PARSER_CXFA_DUPLEXOPTION_H_

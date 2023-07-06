@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,10 @@
 #include "fxjs/global_timer.h"
 #include "fxjs/js_define.h"
 
-uint32_t CJS_TimerObj::ObjDefnID = 0;
+int CJS_TimerObj::ObjDefnID = -1;
 
 // static
-uint32_t CJS_TimerObj::GetObjDefnID() {
+int CJS_TimerObj::GetObjDefnID() {
   return ObjDefnID;
 }
 

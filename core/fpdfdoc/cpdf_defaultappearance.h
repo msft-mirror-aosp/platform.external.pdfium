@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,30 +7,32 @@
 #ifndef CORE_FPDFDOC_CPDF_DEFAULTAPPEARANCE_H_
 #define CORE_FPDFDOC_CPDF_DEFAULTAPPEARANCE_H_
 
-#include "core/fxcrt/bytestring.h"
-#include "core/fxge/cfx_color.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <utility>
 
-class CPDF_SimpleParser;
+#include "core/fpdfapi/parser/cpdf_simple_parser.h"
+#include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/fx_system.h"
+#include "core/fxge/cfx_color.h"
+#include "core/fxge/fx_dib.h"
 
 class CPDF_DefaultAppearance {
  public:
-  CPDF_DefaultAppearance();
-  explicit CPDF_DefaultAppearance(const ByteString& csDA);
-  CPDF_DefaultAppearance(const CPDF_DefaultAppearance& cDA);
-  ~CPDF_DefaultAppearance();
+  CPDF_DefaultAppearance() {}
+  explicit CPDF_DefaultAppearance(const ByteString& csDA) : m_csDA(csDA) {}
+  CPDF_DefaultAppearance(const CPDF_DefaultAppearance& cDA)
+      : m_csDA(cDA.m_csDA) {}
 
-  absl::optional<ByteString> GetFont(float* fFontSize) const;
+  Optional<ByteString> GetFont(float* fFontSize);
 
-  absl::optional<CFX_Color> GetColor() const;
-  absl::optional<CFX_Color::TypeAndARGB> GetColorARGB() const;
+  Optional<CFX_Color::Type> GetColor(float fc[4]);
+  std::pair<Optional<CFX_Color::Type>, FX_ARGB> GetColor();
 
-  static bool FindTagParamFromStartForTesting(CPDF_SimpleParser* parser,
-                                              ByteStringView token,
-                                              int nParams);
+  bool FindTagParamFromStartForTesting(CPDF_SimpleParser* parser,
+                                       ByteStringView token,
+                                       int nParams);
 
  private:
-  const ByteString m_csDA;
+  ByteString m_csDA;
 };
 
 #endif  // CORE_FPDFDOC_CPDF_DEFAULTAPPEARANCE_H_

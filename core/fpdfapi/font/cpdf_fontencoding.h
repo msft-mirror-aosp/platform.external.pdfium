@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,29 +7,27 @@
 #ifndef CORE_FPDFAPI_FONT_CPDF_FONTENCODING_H_
 #define CORE_FPDFAPI_FONT_CPDF_FONTENCODING_H_
 
-#include "core/fxcrt/bytestring.h"
-#include "core/fxcrt/retain_ptr.h"
+#include <memory>
+
+#include "core/fxcrt/fx_string.h"
 #include "core/fxcrt/string_pool_template.h"
 #include "core/fxcrt/weak_ptr.h"
 
-enum class FontEncoding {
-  kBuiltin = 0,
-  kWinAnsi = 1,
-  kMacRoman = 2,
-  kMacExpert = 3,
-  kStandard = 4,
-  kAdobeSymbol = 5,
-  kZapfDingbats = 6,
-  kPdfDoc = 7,
-  kMsSymbol = 8,
-};
+#define PDFFONT_ENCODING_BUILTIN 0
+#define PDFFONT_ENCODING_WINANSI 1
+#define PDFFONT_ENCODING_MACROMAN 2
+#define PDFFONT_ENCODING_MACEXPERT 3
+#define PDFFONT_ENCODING_STANDARD 4
+#define PDFFONT_ENCODING_ADOBE_SYMBOL 5
+#define PDFFONT_ENCODING_ZAPFDINGBATS 6
+#define PDFFONT_ENCODING_PDFDOC 7
+#define PDFFONT_ENCODING_MS_SYMBOL 8
 
-uint32_t CharCodeFromUnicodeForFreetypeEncoding(int encoding, wchar_t unicode);
-wchar_t UnicodeFromAppleRomanCharCode(uint8_t charcode);
+uint32_t FT_CharCodeFromUnicode(int encoding, wchar_t unicode);
+wchar_t FT_UnicodeFromCharCode(int encoding, uint32_t charcode);
 
-const uint16_t* UnicodesForPredefinedCharSet(FontEncoding encoding);
-const char* CharNameFromPredefinedCharSet(FontEncoding encoding,
-                                          uint8_t charcode);
+const uint16_t* PDF_UnicodesForPredefinedCharSet(int encoding);
+const char* PDF_CharNameFromPredefinedCharSet(int encoding, uint8_t charcode);
 
 class CPDF_Object;
 
@@ -37,7 +35,7 @@ class CPDF_FontEncoding {
  public:
   static constexpr size_t kEncodingTableSize = 256;
 
-  explicit CPDF_FontEncoding(FontEncoding predefined_encoding);
+  explicit CPDF_FontEncoding(int PredefinedEncoding);
 
   bool IsIdentical(const CPDF_FontEncoding* pAnother) const;
 
@@ -53,7 +51,7 @@ class CPDF_FontEncoding {
   RetainPtr<CPDF_Object> Realize(WeakPtr<ByteStringPool> pPool) const;
 
  private:
-  wchar_t m_Unicodes[kEncodingTableSize] = {};
+  wchar_t m_Unicodes[kEncodingTableSize];
 };
 
 #endif  // CORE_FPDFAPI_FONT_CPDF_FONTENCODING_H_

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@
 #include "fxjs/js_resources.h"
 #include "fxjs/xfa/cfxjse_engine.h"
 #include "fxjs/xfa/cfxjse_value.h"
-#include "v8/include/v8-object.h"
 #include "xfa/fxfa/parser/cxfa_document.h"
 #include "xfa/fxfa/parser/cxfa_node.h"
 #include "xfa/fxfa/parser/cxfa_treelist.h"
@@ -23,7 +22,7 @@ CJX_TreeList::CJX_TreeList(CXFA_TreeList* list) : CJX_List(list) {
   DefineMethods(MethodSpecs);
 }
 
-CJX_TreeList::~CJX_TreeList() = default;
+CJX_TreeList::~CJX_TreeList() {}
 
 bool CJX_TreeList::DynamicTypeIs(TypeTag eType) const {
   return eType == static_type__ || ParentType__::DynamicTypeIs(eType);
@@ -34,7 +33,7 @@ CXFA_TreeList* CJX_TreeList::GetXFATreeList() {
 }
 
 CJS_Result CJX_TreeList::namedItem(
-    CFXJSE_Engine* runtime,
+    CFX_V8* runtime,
     const std::vector<v8::Local<v8::Value>>& params) {
   if (params.size() != 1)
     return CJS_Result::Failure(JSMessage::kParamError);
@@ -44,6 +43,9 @@ CJS_Result CJX_TreeList::namedItem(
   if (!pNode)
     return CJS_Result::Success();
 
+  CFXJSE_Value* value =
+      GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(pNode);
+
   return CJS_Result::Success(
-      GetDocument()->GetScriptContext()->GetOrCreateJSBindingFromMap(pNode));
+      value->DirectGetValue().Get(runtime->GetIsolate()));
 }

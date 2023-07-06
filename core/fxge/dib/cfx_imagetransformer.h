@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,6 +31,23 @@ class CFX_ImageTransformer {
     int row_offset_r;
   };
 
+  struct BicubicData {
+    int res_x;
+    int res_y;
+    int src_col_l;
+    int src_row_l;
+    int src_col_r;
+    int src_row_r;
+    int pos_pixel[8];
+    int u_w[4];
+    int v_w[4];
+  };
+
+  struct DownSampleData {
+    int src_col;
+    int src_row;
+  };
+
   struct CalcData {
     CFX_DIBitmap* bitmap;
     const CFX_Matrix& matrix;
@@ -38,7 +55,7 @@ class CFX_ImageTransformer {
     uint32_t pitch;
   };
 
-  CFX_ImageTransformer(const RetainPtr<const CFX_DIBBase>& pSrc,
+  CFX_ImageTransformer(const RetainPtr<CFX_DIBBase>& pSrc,
                        const CFX_Matrix& matrix,
                        const FXDIB_ResampleOptions& options,
                        const FX_RECT* pClip);
@@ -60,11 +77,15 @@ class CFX_ImageTransformer {
   void ContinueRotate(PauseIndicatorIface* pPause);
   void ContinueOther(PauseIndicatorIface* pPause);
 
-  void CalcAlpha(const CalcData& calc_data);
-  void CalcMono(const CalcData& calc_data);
-  void CalcColor(const CalcData& calc_data, FXDIB_Format format, int Bpp);
+  void CalcMask(const CalcData& cdata);
+  void CalcAlpha(const CalcData& cdata);
+  void CalcMono(const CalcData& cdata, FXDIB_Format format);
+  void CalcColor(const CalcData& cdata, FXDIB_Format format, int Bpp);
 
-  RetainPtr<const CFX_DIBBase> const m_pSrc;
+  bool IsBilinear() const;
+  bool IsBiCubic() const;
+
+  RetainPtr<CFX_DIBBase> const m_pSrc;
   const CFX_Matrix m_matrix;
   FX_RECT m_StretchClip;
   FX_RECT m_result;

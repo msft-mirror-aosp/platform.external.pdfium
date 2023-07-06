@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "public/fpdf_save.h"
 
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -18,17 +19,22 @@
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
 #include "core/fpdfapi/parser/cpdf_string.h"
 #include "core/fxcrt/fx_extension.h"
-#include "core/fxcrt/stl_util.h"
 #include "fpdfsdk/cpdfsdk_filewriteadapter.h"
 #include "fpdfsdk/cpdfsdk_helpers.h"
 #include "public/fpdf_edit.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 
 #ifdef PDF_ENABLE_XFA
 #include "core/fpdfapi/parser/cpdf_stream.h"
 #include "core/fxcrt/cfx_memorystream.h"
 #include "fpdfsdk/fpdfxfa/cpdfxfa_context.h"
 #include "public/fpdf_formfill.h"
+#endif
+
+#if defined(OS_ANDROID)
+#include <time.h>
+#else
+#include <ctime>
 #endif
 
 namespace {
@@ -46,27 +52,27 @@ bool SaveXFADocumentData(CPDFXFA_Context* pContext,
   if (!pPDFDocument)
     return false;
 
-  RetainPtr<CPDF_Dictionary> pRoot = pPDFDocument->GetMutableRoot();
+  CPDF_Dictionary* pRoot = pPDFDocument->GetRoot();
   if (!pRoot)
     return false;
 
-  RetainPtr<CPDF_Dictionary> pAcroForm = pRoot->GetMutableDictFor("AcroForm");
+  CPDF_Dictionary* pAcroForm = pRoot->GetDictFor("AcroForm");
   if (!pAcroForm)
     return false;
 
-  RetainPtr<CPDF_Object> pXFA = pAcroForm->GetMutableObjectFor("XFA");
+  CPDF_Object* pXFA = pAcroForm->GetObjectFor("XFA");
   if (!pXFA)
     return true;
 
-  CPDF_Array* pArray = pXFA->AsMutableArray();
+  CPDF_Array* pArray = pXFA->AsArray();
   if (!pArray)
     return false;
 
-  int size = fxcrt::CollectionSize<int>(*pArray);
+  int size = pArray->size();
   int iFormIndex = -1;
   int iDataSetsIndex = -1;
   for (int i = 0; i < size - 1; i++) {
-    RetainPtr<const CPDF_Object> pPDFObj = pArray->GetObjectAt(i);
+    const CPDF_Object* pPDFObj = pArray->GetObjectAt(i);
     if (!pPDFObj->IsString())
       continue;
     if (pPDFObj->GetString() == "form")
@@ -75,34 +81,32 @@ bool SaveXFADocumentData(CPDFXFA_Context* pContext,
       iDataSetsIndex = i + 1;
   }
 
-  RetainPtr<CPDF_Stream> pFormStream;
+  CPDF_Stream* pFormStream = nullptr;
   if (iFormIndex != -1) {
     // Get form CPDF_Stream
-    RetainPtr<CPDF_Object> pFormPDFObj = pArray->GetMutableObjectAt(iFormIndex);
+    CPDF_Object* pFormPDFObj = pArray->GetObjectAt(iFormIndex);
     if (pFormPDFObj->IsReference()) {
-      RetainPtr<CPDF_Object> pFormDirectObj = pFormPDFObj->GetMutableDirect();
+      CPDF_Object* pFormDirectObj = pFormPDFObj->GetDirect();
       if (pFormDirectObj && pFormDirectObj->IsStream()) {
-        pFormStream.Reset(pFormDirectObj->AsMutableStream());
+        pFormStream = pFormDirectObj->AsStream();
       }
     } else if (pFormPDFObj->IsStream()) {
-      pFormStream.Reset(pFormPDFObj->AsMutableStream());
+      pFormStream = pFormPDFObj->AsStream();
     }
   }
 
-  RetainPtr<CPDF_Stream> pDataSetsStream;
+  CPDF_Stream* pDataSetsStream = nullptr;
   if (iDataSetsIndex != -1) {
     // Get datasets CPDF_Stream
-    RetainPtr<CPDF_Object> pDataSetsPDFObj =
-        pArray->GetMutableObjectAt(iDataSetsIndex);
+    CPDF_Object* pDataSetsPDFObj = pArray->GetObjectAt(iDataSetsIndex);
     if (pDataSetsPDFObj->IsReference()) {
-      CPDF_Reference* pDataSetsRefObj = pDataSetsPDFObj->AsMutableReference();
-      RetainPtr<CPDF_Object> pDataSetsDirectObj =
-          pDataSetsRefObj->GetMutableDirect();
+      CPDF_Reference* pDataSetsRefObj = pDataSetsPDFObj->AsReference();
+      CPDF_Object* pDataSetsDirectObj = pDataSetsRefObj->GetDirect();
       if (pDataSetsDirectObj && pDataSetsDirectObj->IsStream()) {
-        pDataSetsStream.Reset(pDataSetsDirectObj->AsMutableStream());
+        pDataSetsStream = pDataSetsDirectObj->AsStream();
       }
     } else if (pDataSetsPDFObj->IsStream()) {
-      pDataSetsStream.Reset(pDataSetsPDFObj->AsMutableStream());
+      pDataSetsStream = pDataSetsPDFObj->AsStream();
     }
   }
   // L"datasets"
@@ -117,9 +121,9 @@ bool SaveXFADocumentData(CPDFXFA_Context* pContext,
           pDataSetsStream->InitStreamFromFile(pFileWrite, std::move(pDataDict));
         }
       } else {
-        auto pData = pPDFDocument->NewIndirect<CPDF_Stream>();
+        CPDF_Stream* pData = pPDFDocument->NewIndirect<CPDF_Stream>();
         pData->InitStreamFromFile(pFileWrite, std::move(pDataDict));
-        int iLast = fxcrt::CollectionSize<int>(*pArray) - 2;
+        int iLast = pArray->size() - 2;
         pArray->InsertNewAt<CPDF_String>(iLast, "datasets", false);
         pArray->InsertNewAt<CPDF_Reference>(iLast + 1, pPDFDocument,
                                             pData->GetObjNum());
@@ -137,9 +141,9 @@ bool SaveXFADocumentData(CPDFXFA_Context* pContext,
         if (pFormStream)
           pFormStream->InitStreamFromFile(pFileWrite, std::move(pDataDict));
       } else {
-        auto pData = pPDFDocument->NewIndirect<CPDF_Stream>();
+        CPDF_Stream* pData = pPDFDocument->NewIndirect<CPDF_Stream>();
         pData->InitStreamFromFile(pFileWrite, std::move(pDataDict));
-        int iLast = fxcrt::CollectionSize<int>(*pArray) - 2;
+        int iLast = pArray->size() - 2;
         pArray->InsertNewAt<CPDF_String>(iLast, "form", false);
         pArray->InsertNewAt<CPDF_Reference>(iLast + 1, pPDFDocument,
                                             pData->GetObjNum());
@@ -154,10 +158,10 @@ bool SaveXFADocumentData(CPDFXFA_Context* pContext,
 bool DoDocSave(FPDF_DOCUMENT document,
                FPDF_FILEWRITE* pFileWrite,
                FPDF_DWORD flags,
-               absl::optional<int> version) {
+               Optional<int> version) {
   CPDF_Document* pPDFDoc = CPDFDocumentFromFPDFDocument(document);
   if (!pPDFDoc)
-    return false;
+    return 0;
 
 #ifdef PDF_ENABLE_XFA
   auto* pContext = static_cast<CPDFXFA_Context*>(pPDFDoc->GetExtension());
@@ -180,7 +184,7 @@ bool DoDocSave(FPDF_DOCUMENT document,
     fileMaker.RemoveSecurity();
   }
 
-  bool bRet = fileMaker.Create(static_cast<uint32_t>(flags));
+  bool bRet = fileMaker.Create(flags);
 
 #ifdef PDF_ENABLE_XFA
   if (pContext)

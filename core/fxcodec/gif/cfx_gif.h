@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,12 @@
 #ifndef CORE_FXCODEC_GIF_CFX_GIF_H_
 #define CORE_FXCODEC_GIF_CFX_GIF_H_
 
-#include <stdint.h>
-
 #include <memory>
 #include <vector>
 
-#include "core/fxcrt/data_vector.h"
+#include "core/fxcrt/fx_memory_wrappers.h"
+
+class CFX_GifContext;
 
 extern const char kGifSignature87[];
 extern const char kGifSignature89[];
@@ -64,7 +64,7 @@ struct CFX_GifLocalScreenDescriptor {
   uint8_t pixel_aspect;
 };
 
-struct CFX_GifImageInfo {
+struct CFX_CFX_GifImageInfo {
   uint16_t left;
   uint16_t top;
   uint16_t width;
@@ -111,15 +111,22 @@ struct CFX_GifPalette {
 };
 #pragma pack()
 
+enum class CFX_GifDecodeStatus {
+  Error,
+  Success,
+  Unfinished,
+  InsufficientDestSize,  // Only used internally by CGifLZWDecoder::Decode()
+};
+
 struct CFX_GifImage {
   CFX_GifImage();
   ~CFX_GifImage();
 
   std::unique_ptr<CFX_GifGraphicControlExtension> image_GCE;
   std::vector<CFX_GifPalette> local_palettes;
-  DataVector<uint8_t> row_buffer;
-  CFX_GifImageInfo image_info;
-  uint8_t local_palette_exp;
+  std::vector<uint8_t, FxAllocAllocator<uint8_t>> row_buffer;
+  CFX_CFX_GifImageInfo image_info;
+  uint8_t local_pallette_exp;
   uint8_t code_exp;
   uint32_t data_pos;
   int32_t row_num;

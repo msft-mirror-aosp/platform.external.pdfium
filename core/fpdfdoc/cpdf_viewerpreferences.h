@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,12 +7,10 @@
 #ifndef CORE_FPDFDOC_CPDF_VIEWERPREFERENCES_H_
 #define CORE_FPDFDOC_CPDF_VIEWERPREFERENCES_H_
 
-#include <stdint.h>
-
-#include "core/fxcrt/bytestring.h"
-#include "core/fxcrt/retain_ptr.h"
+#include "core/fxcrt/fx_string.h"
+#include "core/fxcrt/fx_system.h"
 #include "core/fxcrt/unowned_ptr.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 
 class CPDF_Array;
 class CPDF_Dictionary;
@@ -26,14 +24,14 @@ class CPDF_ViewerPreferences {
   bool IsDirectionR2L() const;
   bool PrintScaling() const;
   int32_t NumCopies() const;
-  RetainPtr<const CPDF_Array> PrintPageRange() const;
+  CPDF_Array* PrintPageRange() const;
   ByteString Duplex() const;
 
   // Gets the entry for |bsKey|.
-  absl::optional<ByteString> GenericName(const ByteString& bsKey) const;
+  Optional<ByteString> GenericName(const ByteString& bsKey) const;
 
  private:
-  RetainPtr<const CPDF_Dictionary> GetViewerPreferences() const;
+  CPDF_Dictionary* GetViewerPreferences() const;
 
   UnownedPtr<const CPDF_Document> const m_pDoc;
 };

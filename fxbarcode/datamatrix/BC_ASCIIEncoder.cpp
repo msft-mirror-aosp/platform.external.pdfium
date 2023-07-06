@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,15 +27,15 @@
 #include "fxbarcode/datamatrix/BC_EncoderContext.h"
 #include "fxbarcode/datamatrix/BC_HighLevelEncoder.h"
 #include "fxbarcode/datamatrix/BC_SymbolInfo.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 
 namespace {
 
-absl::optional<wchar_t> EncodeASCIIDigits(wchar_t digit1, wchar_t digit2) {
+Optional<wchar_t> EncodeASCIIDigits(wchar_t digit1, wchar_t digit2) {
   if (!FXSYS_IsDecimalDigit(digit1) || !FXSYS_IsDecimalDigit(digit2)) {
     // This could potentially return 0 as a sentinel value. Then this function
-    // can just return wchar_t instead of absl::optional<wchar_t>.
-    return absl::nullopt;
+    // can just return wchar_t instead of Optional<wchar_t>.
+    return {};
   }
   return static_cast<wchar_t>((digit1 - 48) * 10 + (digit2 - 48) + 130);
 }
@@ -67,12 +67,12 @@ CBC_HighLevelEncoder::Encoding CBC_ASCIIEncoder::GetEncodingMode() {
 bool CBC_ASCIIEncoder::Encode(CBC_EncoderContext* context) {
   size_t n = DetermineConsecutiveDigitCount(context->m_msg, context->m_pos);
   if (n >= 2) {
-    absl::optional<wchar_t> code = EncodeASCIIDigits(
+    Optional<wchar_t> code = EncodeASCIIDigits(
         context->m_msg[context->m_pos], context->m_msg[context->m_pos + 1]);
-    if (!code.has_value())
+    if (!code)
       return false;
 
-    context->writeCodeword(code.value());
+    context->writeCodeword(*code);
     context->m_pos += 2;
     return true;
   }

@@ -1,10 +1,7 @@
-// Copyright 2015 The PDFium Authors
+// Copyright 2015 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <math.h>
-
-#include <iterator>
 #include <limits>
 
 #include "build/build_config.h"
@@ -15,7 +12,7 @@
 // Unit test covering cases where PDFium replaces well-known library
 // functionality on any given platformn.
 
-#if !BUILDFLAG(IS_WIN)
+#if !defined(OS_WIN)
 
 namespace {
 
@@ -263,7 +260,7 @@ TEST(fxcrt, FXSYS_i64toa) {
       "111111111111111111111111111111111111111111111111111111111111111");
 }
 
-#endif  // !BUILDFLAG(IS_WIN)
+#endif  // !defined(OS_WIN)
 
 TEST(fxcrt, FXSYS_wcsftime) {
   struct tm good_time = {};
@@ -275,7 +272,7 @@ TEST(fxcrt, FXSYS_wcsftime) {
   good_time.tm_sec = 59;
 
   wchar_t buf[100] = {};
-  EXPECT_EQ(19u, FXSYS_wcsftime(buf, std::size(buf), L"%Y-%m-%dT%H:%M:%S",
+  EXPECT_EQ(19u, FXSYS_wcsftime(buf, FX_ArraySize(buf), L"%Y-%m-%dT%H:%M:%S",
                                 &good_time));
   EXPECT_STREQ(L"1974-08-09T11:59:59", buf);
 
@@ -290,7 +287,7 @@ TEST(fxcrt, FXSYS_wcsftime) {
   for (int year = -2500; year <= 8500; ++year) {
     year_time.tm_year = year;
     wchar_t year_buf[100] = {};
-    FXSYS_wcsftime(year_buf, std::size(year_buf), L"%Y-%m-%dT%H:%M:%S",
+    FXSYS_wcsftime(year_buf, FX_ArraySize(year_buf), L"%Y-%m-%dT%H:%M:%S",
                    &year_time);
   }
 
@@ -303,7 +300,7 @@ TEST(fxcrt, FXSYS_wcsftime) {
   bad_time.tm_min = -1;
   bad_time.tm_sec = -1;
 
-  FXSYS_wcsftime(buf, std::size(buf), L"%y-%m-%dT%H:%M:%S", &bad_time);
+  FXSYS_wcsftime(buf, FX_ArraySize(buf), L"%y-%m-%dT%H:%M:%S", &bad_time);
 
   // Ensure wcsftime handles bad-ish day without crashing (Feb 30).
   struct tm feb_time = {};
@@ -314,7 +311,7 @@ TEST(fxcrt, FXSYS_wcsftime) {
   feb_time.tm_min = 00;
   feb_time.tm_sec = 00;
 
-  FXSYS_wcsftime(buf, std::size(buf), L"%y-%m-%dT%H:%M:%S", &feb_time);
+  FXSYS_wcsftime(buf, FX_ArraySize(buf), L"%y-%m-%dT%H:%M:%S", &feb_time);
 }
 
 TEST(fxcrt, FXSYS_atoi) {

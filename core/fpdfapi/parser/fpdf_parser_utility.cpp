@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,10 @@
 
 #include "core/fpdfapi/parser/fpdf_parser_utility.h"
 
-#include <ostream>
-#include <utility>
-
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_boolean.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
+#include "core/fpdfapi/parser/cpdf_name.h"
 #include "core/fpdfapi/parser/cpdf_number.h"
 #include "core/fpdfapi/parser/cpdf_reference.h"
 #include "core/fpdfapi/parser/cpdf_stream.h"
@@ -20,8 +18,7 @@
 #include "core/fpdfapi/parser/fpdf_parser_decode.h"
 #include "core/fxcrt/fx_extension.h"
 #include "core/fxcrt/fx_stream.h"
-#include "third_party/base/check.h"
-#include "third_party/base/notreached.h"
+#include "third_party/base/logging.h"
 
 // Indexed by 8-bit character code, contains either:
 //   'W' - for whitespace: NUL, TAB, CR, LF, FF, SPACE, 0x80, 0xff
@@ -75,21 +72,29 @@ const char PDF_CharType[256] = {
     'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R',
     'R', 'R', 'R', 'R', 'R', 'R', 'R', 'W'};
 
-absl::optional<FX_FILESIZE> GetHeaderOffset(
+Optional<FX_FILESIZE> GetHeaderOffset(
     const RetainPtr<IFX_SeekableReadStream>& pFile) {
   static constexpr size_t kBufSize = 4;
   uint8_t buf[kBufSize];
   for (FX_FILESIZE offset = 0; offset <= 1024; ++offset) {
-    if (!pFile->ReadBlockAtOffset(buf, offset))
-      return absl::nullopt;
+    if (!pFile->ReadBlockAtOffset(buf, offset, kBufSize))
+      return {};
 
     if (memcmp(buf, "%PDF", 4) == 0)
       return offset;
   }
-  return absl::nullopt;
+  return {};
+}
+
+int32_t GetDirectInteger(const CPDF_Dictionary* pDict, const ByteString& key) {
+  const CPDF_Number* pObj = ToNumber(pDict->GetObjectFor(key));
+  return pObj ? pObj->GetInteger() : 0;
 }
 
 ByteString PDF_NameDecode(ByteStringView orig) {
+  if (!orig.Contains('#'))
+    return ByteString(orig);
+
   size_t src_size = orig.GetLength();
   size_t out_index = 0;
   ByteString result;
@@ -150,29 +155,30 @@ ByteString PDF_NameEncode(const ByteString& orig) {
 
 std::vector<float> ReadArrayElementsToVector(const CPDF_Array* pArray,
                                              size_t nCount) {
-  DCHECK(pArray);
-  DCHECK(pArray->size() >= nCount);
+  ASSERT(pArray);
+  ASSERT(pArray->size() >= nCount);
   std::vector<float> ret(nCount);
   for (size_t i = 0; i < nCount; ++i)
-    ret[i] = pArray->GetFloatAt(i);
+    ret[i] = pArray->GetNumberAt(i);
   return ret;
 }
 
-bool ValidateDictType(const CPDF_Dictionary* dict, ByteStringView type) {
-  DCHECK(!type.IsEmpty());
-  return dict && dict->GetNameFor("Type") == type;
+bool ValidateDictType(const CPDF_Dictionary* dict, const ByteString& type) {
+  ASSERT(dict);
+  ASSERT(!type.IsEmpty());
+  const CPDF_Name* name_obj = ToName(dict->GetObjectFor("Type"));
+  return name_obj && name_obj->GetString() == type;
 }
 
 bool ValidateDictAllResourcesOfType(const CPDF_Dictionary* dict,
-                                    ByteStringView type) {
+                                    const ByteString& type) {
   if (!dict)
     return false;
 
   CPDF_DictionaryLocker locker(dict);
   for (const auto& it : locker) {
-    RetainPtr<const CPDF_Dictionary> entry =
-        ToDictionary(it.second->GetDirect());
-    if (!ValidateDictType(entry.Get(), type))
+    const CPDF_Dictionary* entry = ToDictionary(it.second.Get()->GetDirect());
+    if (!entry || !ValidateDictType(entry, type))
       return false;
   }
   return true;
@@ -180,12 +186,6 @@ bool ValidateDictAllResourcesOfType(const CPDF_Dictionary* dict,
 
 bool ValidateFontResourceDict(const CPDF_Dictionary* dict) {
   return ValidateDictAllResourcesOfType(dict, "Font");
-}
-
-bool ValidateDictOptionalType(const CPDF_Dictionary* dict,
-                              ByteStringView type) {
-  DCHECK(!type.IsEmpty());
-  return dict && (!dict->KeyExist("Type") || dict->GetNameFor("Type") == type);
 }
 
 std::ostream& operator<<(std::ostream& buf, const CPDF_Object* pObj) {
@@ -202,7 +202,7 @@ std::ostream& operator<<(std::ostream& buf, const CPDF_Object* pObj) {
       buf << " " << pObj->GetString();
       break;
     case CPDF_Object::kString:
-      buf << pObj->AsString()->EncodeString();
+      buf << PDF_EncodeString(pObj->GetString(), pObj->AsString()->IsHex());
       break;
     case CPDF_Object::kName: {
       ByteString str = pObj->GetString();
@@ -217,11 +217,11 @@ std::ostream& operator<<(std::ostream& buf, const CPDF_Object* pObj) {
       const CPDF_Array* p = pObj->AsArray();
       buf << "[";
       for (size_t i = 0; i < p->size(); i++) {
-        RetainPtr<const CPDF_Object> pElement = p->GetObjectAt(i);
-        if (!pElement->IsInline()) {
+        const CPDF_Object* pElement = p->GetObjectAt(i);
+        if (pElement && !pElement->IsInline()) {
           buf << " " << pElement->GetObjNum() << " 0 R";
         } else {
-          buf << pElement.Get();
+          buf << pElement;
         }
       }
       buf << "]";
@@ -232,9 +232,9 @@ std::ostream& operator<<(std::ostream& buf, const CPDF_Object* pObj) {
       buf << "<<";
       for (const auto& it : locker) {
         const ByteString& key = it.first;
-        const RetainPtr<CPDF_Object>& pValue = it.second;
+        CPDF_Object* pValue = it.second.Get();
         buf << "/" << PDF_NameEncode(key);
-        if (!pValue->IsInline()) {
+        if (pValue && !pValue->IsInline()) {
           buf << " " << pValue->GetObjNum() << " 0 R ";
         } else {
           buf << pValue;
@@ -244,12 +244,12 @@ std::ostream& operator<<(std::ostream& buf, const CPDF_Object* pObj) {
       break;
     }
     case CPDF_Object::kStream: {
-      RetainPtr<const CPDF_Stream> p(pObj->AsStream());
-      buf << p->GetDict().Get() << "stream\r\n";
-      auto pAcc = pdfium::MakeRetain<CPDF_StreamAcc>(std::move(p));
+      const CPDF_Stream* p = pObj->AsStream();
+      buf << p->GetDict() << "stream\r\n";
+      auto pAcc = pdfium::MakeRetain<CPDF_StreamAcc>(p);
       pAcc->LoadAllDataRaw();
-      pdfium::span<const uint8_t> span = pAcc->GetSpan();
-      buf.write(reinterpret_cast<const char*>(span.data()), span.size());
+      buf.write(reinterpret_cast<const char*>(pAcc->GetData()),
+                pAcc->GetSize());
       buf << "\r\nendstream";
       break;
     }

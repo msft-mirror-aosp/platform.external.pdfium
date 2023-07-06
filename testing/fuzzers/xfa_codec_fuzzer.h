@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 The PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,14 +6,12 @@
 #define TESTING_FUZZERS_XFA_CODEC_FUZZER_H_
 
 #include <memory>
-#include <utility>
 
 #include "core/fxcodec/fx_codec.h"
-#include "core/fxcodec/progressive_decoder.h"
-#include "core/fxcrt/cfx_read_only_span_stream.h"
-#include "core/fxcrt/fx_safe_types.h"
-#include "core/fxcrt/retain_ptr.h"
+#include "core/fxcodec/progressivedecoder.h"
+#include "core/fxcrt/cfx_readonlymemorystream.h"
 #include "core/fxge/dib/cfx_dibitmap.h"
+#include "third_party/base/ptr_util.h"
 #include "third_party/base/span.h"
 
 // Support up to 64 MB. This prevents trivial OOM when MSAN is on and
@@ -23,13 +21,14 @@ const int kXFACodecFuzzerPixelLimit = 64000000;
 class XFACodecFuzzer {
  public:
   static int Fuzz(const uint8_t* data, size_t size, FXCODEC_IMAGE_TYPE type) {
-    auto decoder = std::make_unique<ProgressiveDecoder>();
-    auto source = pdfium::MakeRetain<CFX_ReadOnlySpanStream>(
+    auto* mgr = fxcodec::ModuleMgr::GetInstance();
+    std::unique_ptr<ProgressiveDecoder> decoder =
+        mgr->CreateProgressiveDecoder();
+    auto source = pdfium::MakeRetain<CFX_ReadOnlyMemoryStream>(
         pdfium::make_span(data, size));
     CFX_DIBAttribute attr;
-    FXCODEC_STATUS status =
-        decoder->LoadImageInfo(std::move(source), type, &attr, true);
-    if (status != FXCODEC_STATUS::kFrameReady)
+    FXCODEC_STATUS status = decoder->LoadImageInfo(source, type, &attr, true);
+    if (status != FXCODEC_STATUS_FRAME_READY)
       return 0;
 
     // Skipping very large images, since they will take a long time and may lead
@@ -43,17 +42,16 @@ class XFACodecFuzzer {
     }
 
     auto bitmap = pdfium::MakeRetain<CFX_DIBitmap>();
-    bitmap->Create(decoder->GetWidth(), decoder->GetHeight(),
-                   FXDIB_Format::kArgb);
+    bitmap->Create(decoder->GetWidth(), decoder->GetHeight(), FXDIB_Argb);
 
     size_t frames;
     std::tie(status, frames) = decoder->GetFrames();
-    if (status != FXCODEC_STATUS::kDecodeReady || frames == 0)
+    if (status != FXCODEC_STATUS_DECODE_READY || frames == 0)
       return 0;
 
     status = decoder->StartDecode(bitmap, 0, 0, bitmap->GetWidth(),
                                   bitmap->GetHeight());
-    while (status == FXCODEC_STATUS::kDecodeToBeContinued)
+    while (status == FXCODEC_STATUS_DECODE_TOBECONTINUE)
       status = decoder->ContinueDecode();
 
     return 0;

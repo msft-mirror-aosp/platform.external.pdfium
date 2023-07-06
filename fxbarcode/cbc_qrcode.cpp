@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,14 +21,13 @@
 
 #include "fxbarcode/cbc_qrcode.h"
 
-#include <stdint.h>
+#include <vector>
 
-#include <memory>
-
-#include "core/fxcrt/data_vector.h"
 #include "fxbarcode/qrcode/BC_QRCodeWriter.h"
+#include "third_party/base/ptr_util.h"
 
-CBC_QRCode::CBC_QRCode() : CBC_CodeBase(std::make_unique<CBC_QRCodeWriter>()) {}
+CBC_QRCode::CBC_QRCode()
+    : CBC_CodeBase(pdfium::MakeUnique<CBC_QRCodeWriter>()) {}
 
 CBC_QRCode::~CBC_QRCode() = default;
 
@@ -36,19 +35,19 @@ bool CBC_QRCode::Encode(WideStringView contents) {
   int32_t width;
   int32_t height;
   CBC_QRCodeWriter* pWriter = GetQRCodeWriter();
-  DataVector<uint8_t> data = pWriter->Encode(
+  std::vector<uint8_t> data = pWriter->Encode(
       contents, pWriter->error_correction_level(), &width, &height);
   return pWriter->RenderResult(data, width, height);
 }
 
 bool CBC_QRCode::RenderDevice(CFX_RenderDevice* device,
-                              const CFX_Matrix& matrix) {
+                              const CFX_Matrix* matrix) {
   GetQRCodeWriter()->RenderDeviceResult(device, matrix);
   return true;
 }
 
 BC_TYPE CBC_QRCode::GetType() {
-  return BC_TYPE::kQRCode;
+  return BC_QR_CODE;
 }
 
 CBC_QRCodeWriter* CBC_QRCode::GetQRCodeWriter() {
