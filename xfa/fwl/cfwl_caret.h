@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,20 +10,24 @@
 #include <memory>
 
 #include "core/fxcrt/cfx_timer.h"
-#include "xfa/fgas/graphics/cfgas_gecolor.h"
 #include "xfa/fwl/cfwl_widget.h"
+#include "xfa/fxgraphics/cxfa_gecolor.h"
+
+class CFWL_WidgetProperties;
+class CFWL_Widget;
 
 class CFWL_Caret final : public CFWL_Widget, public CFX_Timer::CallbackIface {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  CFWL_Caret(const CFWL_App* app,
+             std::unique_ptr<CFWL_WidgetProperties> properties,
+             CFWL_Widget* pOuter);
   ~CFWL_Caret() override;
 
   // CFWL_Widget:
   FWL_Type GetClassID() const override;
-  void DrawWidget(CFGAS_GEGraphics* pGraphics,
-                  const CFX_Matrix& matrix) override;
+  void DrawWidget(CXFA_Graphics* pGraphics, const CFX_Matrix& matrix) override;
   void OnProcessMessage(CFWL_Message* pMessage) override;
-  void OnDrawWidget(CFGAS_GEGraphics* pGraphics,
+  void OnDrawWidget(CXFA_Graphics* pGraphics,
                     const CFX_Matrix& matrix) override;
   void Update() override;
 
@@ -34,9 +38,9 @@ class CFWL_Caret final : public CFWL_Widget, public CFX_Timer::CallbackIface {
   void HideCaret();
 
  private:
-  CFWL_Caret(CFWL_App* app, const Properties& properties, CFWL_Widget* pOuter);
-
-  void DrawCaretBK(CFGAS_GEGraphics* pGraphics, const CFX_Matrix& mtMatrix);
+  void DrawCaretBK(CXFA_Graphics* pGraphics,
+                   IFWL_ThemeProvider* pTheme,
+                   const CFX_Matrix* pMatrix);
 
   std::unique_ptr<CFX_Timer> m_pTimer;
 };

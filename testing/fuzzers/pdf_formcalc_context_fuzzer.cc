@@ -1,10 +1,8 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 The PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <stdint.h>
-
-#include <memory>
 
 #include "core/fxcrt/fx_string.h"
 #include "fpdfsdk/cpdfsdk_helpers.h"
@@ -13,6 +11,7 @@
 #include "fxjs/xfa/cfxjse_value.h"
 #include "public/fpdf_formfill.h"
 #include "testing/fuzzers/pdfium_fuzzer_helper.h"
+#include "v8/include/v8.h"
 #include "xfa/fxfa/cxfa_eventparam.h"
 
 namespace {
@@ -523,14 +522,15 @@ class PDFiumFormCalcContextFuzzer : public PDFiumFuzzerHelper {
 
     CXFA_EventParam params;
     params.m_bCancelAction = false;
-    CFXJSE_Engine::EventParamScope param_scope(script_context, nullptr,
-                                               &params);
+    script_context->SetEventParam(&params);
     ByteStringView data_view(data_, size_);
 
-    auto value = std::make_unique<CFXJSE_Value>();
+    auto value = pdfium::MakeUnique<CFXJSE_Value>(script_context->GetIsolate());
     script_context->RunScript(CXFA_Script::Type::Formcalc,
                               WideString::FromUTF8(data_view).AsStringView(),
                               value.get(), xfa_document->GetRoot());
+
+    script_context->SetEventParam(nullptr);
   }
 
  private:

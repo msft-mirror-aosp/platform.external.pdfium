@@ -1,16 +1,19 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "testing/fuzzers/pdfium_fuzzer_helper.h"
 
 #include <assert.h>
+#include <limits.h>
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <memory>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -20,7 +23,6 @@
 #include "public/fpdf_dataavail.h"
 #include "public/fpdf_ext.h"
 #include "public/fpdf_text.h"
-#include "third_party/base/notreached.h"
 #include "third_party/base/span.h"
 
 namespace {
@@ -93,7 +95,7 @@ void Add_Segment(FX_DOWNLOADHINTS* pThis, size_t offset, size_t size) {}
 std::pair<int, int> GetRenderingAndFormFlagFromData(const char* data,
                                                     size_t len) {
   std::string data_str = std::string(data, len);
-  size_t data_hash = std::hash<std::string>()(data_str);
+  std::size_t data_hash = std::hash<std::string>()(data_str);
 
   // The largest flag value is 0x4FFF, so just take 16 bits from |data_hash| at
   // a time.
@@ -215,8 +217,6 @@ bool PDFiumFuzzerHelper::RenderPage(FPDF_DOCUMENT doc,
   ScopedFPDFTextPage text_page(FPDFText_LoadPage(page.get()));
   FORM_OnAfterLoadPage(page.get(), form);
   FORM_DoPageAAction(page.get(), form, FPDFPAGE_AACTION_OPEN);
-
-  FormActionHandler(form, doc, page.get());
 
   const double scale = 1.0;
   int width = static_cast<int>(FPDF_GetPageWidthF(page.get()) * scale);

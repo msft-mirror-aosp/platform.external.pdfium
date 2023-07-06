@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,11 +8,13 @@
 #define CORE_FPDFAPI_FONT_CPDF_TRUETYPEFONT_H_
 
 #include "core/fpdfapi/font/cpdf_simplefont.h"
-#include "core/fxcrt/retain_ptr.h"
+#include "core/fxcrt/fx_system.h"
 
 class CPDF_TrueTypeFont final : public CPDF_SimpleFont {
  public:
-  CONSTRUCT_VIA_MAKE_RETAIN;
+  template <typename T, typename... Args>
+  friend RetainPtr<T> pdfium::MakeRetain(Args&&... args);
+
   ~CPDF_TrueTypeFont() override;
 
   // CPDF_Font:
@@ -21,21 +23,13 @@ class CPDF_TrueTypeFont final : public CPDF_SimpleFont {
   CPDF_TrueTypeFont* AsTrueTypeFont() override;
 
  private:
-  enum class CharmapType { kMSUnicode, kMSSymbol, kMacRoman, kOther };
-
-  CPDF_TrueTypeFont(CPDF_Document* pDocument,
-                    RetainPtr<CPDF_Dictionary> pFontDict);
+  CPDF_TrueTypeFont(CPDF_Document* pDocument, CPDF_Dictionary* pFontDict);
 
   // CPDF_Font:
   bool Load() override;
 
   // CPDF_SimpleFont:
   void LoadGlyphMap() override;
-
-  bool HasAnyGlyphIndex() const;
-  CharmapType DetermineCharmapType() const;
-  FontEncoding DetermineEncoding() const;
-  void SetGlyphIndicesFromFirstChar();
 };
 
 #endif  // CORE_FPDFAPI_FONT_CPDF_TRUETYPEFONT_H_

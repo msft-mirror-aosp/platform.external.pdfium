@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,14 @@
 #include "xfa/fxfa/parser/cxfa_signature.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kSignaturePropertyData[] = {
-    {XFA_Element::Margin, 1, {}}, {XFA_Element::Filter, 1, {}},
-    {XFA_Element::Border, 1, {}}, {XFA_Element::Manifest, 1, {}},
-    {XFA_Element::Extras, 1, {}},
+    {XFA_Element::Margin, 1, 0}, {XFA_Element::Filter, 1, 0},
+    {XFA_Element::Border, 1, 0}, {XFA_Element::Manifest, 1, 0},
+    {XFA_Element::Extras, 1, 0},
 };
 
 const CXFA_Node::AttributeData kSignatureAttributeData[] = {
@@ -30,14 +30,12 @@ const CXFA_Node::AttributeData kSignatureAttributeData[] = {
 CXFA_Signature::CXFA_Signature(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::Node,
                 XFA_Element::Signature,
                 kSignaturePropertyData,
                 kSignatureAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Signature::~CXFA_Signature() = default;
 

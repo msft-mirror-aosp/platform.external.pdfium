@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,20 +7,20 @@
 #include "xfa/fxfa/parser/cxfa_field.h"
 
 #include "fxjs/xfa/cjx_field.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kFieldPropertyData[] = {
-    {XFA_Element::Ui, 1, {}},        {XFA_Element::Margin, 1, {}},
-    {XFA_Element::Para, 1, {}},      {XFA_Element::Format, 1, {}},
-    {XFA_Element::Border, 1, {}},    {XFA_Element::Assist, 1, {}},
-    {XFA_Element::Traversal, 1, {}}, {XFA_Element::Keep, 1, {}},
-    {XFA_Element::Validate, 1, {}},  {XFA_Element::Caption, 1, {}},
-    {XFA_Element::Bind, 1, {}},      {XFA_Element::Desc, 1, {}},
-    {XFA_Element::Font, 1, {}},      {XFA_Element::Value, 1, {}},
-    {XFA_Element::Calculate, 1, {}}, {XFA_Element::Extras, 1, {}},
-    {XFA_Element::Items, 2, {}},
+    {XFA_Element::Ui, 1, 0},        {XFA_Element::Margin, 1, 0},
+    {XFA_Element::Para, 1, 0},      {XFA_Element::Format, 1, 0},
+    {XFA_Element::Border, 1, 0},    {XFA_Element::Assist, 1, 0},
+    {XFA_Element::Traversal, 1, 0}, {XFA_Element::Keep, 1, 0},
+    {XFA_Element::Validate, 1, 0},  {XFA_Element::Caption, 1, 0},
+    {XFA_Element::Bind, 1, 0},      {XFA_Element::Desc, 1, 0},
+    {XFA_Element::Font, 1, 0},      {XFA_Element::Value, 1, 0},
+    {XFA_Element::Calculate, 1, 0}, {XFA_Element::Extras, 1, 0},
+    {XFA_Element::Items, 2, 0},
 };
 
 const CXFA_Node::AttributeData kFieldAttributeData[] = {
@@ -58,13 +58,11 @@ const CXFA_Node::AttributeData kFieldAttributeData[] = {
 CXFA_Field::CXFA_Field(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                {XFA_XDPPACKET::kTemplate, XFA_XDPPACKET::kForm},
+                (XFA_XDPPACKET_Template | XFA_XDPPACKET_Form),
                 XFA_ObjectType::ContainerNode,
                 XFA_Element::Field,
                 kFieldPropertyData,
                 kFieldAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Field>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Field>(this)) {}
 
 CXFA_Field::~CXFA_Field() = default;

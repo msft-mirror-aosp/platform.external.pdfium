@@ -1,4 +1,4 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,26 +8,23 @@
 namespace pdfium {
 namespace annotation {
 
-extern const char kType[];
-extern const char kSubtype[];
-extern const char kRect[];
-extern const char kContents[];
-extern const char kP[];
-extern const char kNM[];
-extern const char kM[];
-extern const char kF[];
-extern const char kAP[];
-extern const char kAS[];
-extern const char kBorder[];
-extern const char kC[];
-extern const char kStructParent[];
-extern const char kOC[];
+// PDF 1.7 spec, table 8.15.
+// Entries common to all annotation dictionaries.
 
-extern const char kVertices[];
-
-extern const char kInkList[];
-
-extern const char kL[];
+constexpr char kType[] = "Type";
+constexpr char kSubtype[] = "Subtype";
+constexpr char kRect[] = "Rect";
+constexpr char kContents[] = "Contents";
+constexpr char kP[] = "P";
+constexpr char kNM[] = "NM";
+constexpr char kM[] = "M";
+constexpr char kF[] = "F";
+constexpr char kAP[] = "AP";
+constexpr char kAS[] = "AS";
+constexpr char kBorder[] = "Border";
+constexpr char kC[] = "C";
+constexpr char kStructParent[] = "StructParent";
+constexpr char kOC[] = "OC";
 
 }  // namespace annotation
 }  // namespace pdfium

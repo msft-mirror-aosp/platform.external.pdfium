@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,7 +24,6 @@
 
 #include <utility>
 
-#include "core/fxcrt/fx_string.h"
 #include "fxbarcode/common/BC_CommonBitMatrix.h"
 #include "fxbarcode/datamatrix/BC_Encoder.h"
 #include "fxbarcode/datamatrix/BC_SymbolInfo.h"
@@ -91,7 +90,7 @@ bool CBC_EncoderContext::UpdateSymbolInfo() {
 }
 
 bool CBC_EncoderContext::UpdateSymbolInfo(size_t len) {
-  if (!m_symbolInfo || len > m_symbolInfo->data_capacity()) {
+  if (!m_symbolInfo || len > m_symbolInfo->dataCapacity()) {
     m_symbolInfo = CBC_SymbolInfo::Lookup(len, m_bAllowRectangular);
     if (!m_symbolInfo)
       return false;

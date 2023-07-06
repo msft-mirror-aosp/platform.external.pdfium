@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,7 +53,7 @@ TEST(SharedCopyOnWrite, Null) {
   Observer observer;
   {
     SharedCopyOnWrite<Object> ptr;
-    EXPECT_FALSE(ptr.GetObject());
+    EXPECT_EQ(nullptr, ptr.GetObject());
   }
 }
 
@@ -112,16 +112,16 @@ TEST(SharedCopyOnWrite, GetModify) {
   Observer observer;
   {
     SharedCopyOnWrite<Object> ptr;
-    EXPECT_TRUE(ptr.GetPrivateCopy(&observer, std::string("one")));
+    EXPECT_NE(nullptr, ptr.GetPrivateCopy(&observer, std::string("one")));
     EXPECT_EQ(1, observer.GetConstructionCount("one"));
     EXPECT_EQ(0, observer.GetDestructionCount("one"));
 
-    EXPECT_TRUE(ptr.GetPrivateCopy(&observer, std::string("one")));
+    EXPECT_NE(nullptr, ptr.GetPrivateCopy(&observer, std::string("one")));
     EXPECT_EQ(1, observer.GetConstructionCount("one"));
     EXPECT_EQ(0, observer.GetDestructionCount("one"));
     {
       SharedCopyOnWrite<Object> other(ptr);
-      EXPECT_TRUE(ptr.GetPrivateCopy(&observer, std::string("one")));
+      EXPECT_NE(nullptr, ptr.GetPrivateCopy(&observer, std::string("one")));
       EXPECT_EQ(2, observer.GetConstructionCount("one"));
       EXPECT_EQ(0, observer.GetDestructionCount("one"));
     }

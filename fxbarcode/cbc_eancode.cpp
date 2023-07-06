@@ -1,4 +1,4 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 
 #include <utility>
 
-#include "fxbarcode/BC_Library.h"
+#include "core/fxcrt/fx_memory_wrappers.h"
 #include "fxbarcode/oned/BC_OnedEANWriter.h"
 
 CBC_EANCode::CBC_EANCode(std::unique_ptr<CBC_OneDimEANWriter> pWriter)
@@ -21,19 +21,24 @@ CBC_OneDimEANWriter* CBC_EANCode::GetOneDimEANWriter() {
 }
 
 bool CBC_EANCode::Encode(WideStringView contents) {
-  auto* pWriter = GetOneDimEANWriter();
-  if (!pWriter->CheckContentValidity(contents))
+  if (contents.IsEmpty() || contents.GetLength() > kMaxInputLengthBytes)
     return false;
 
+  BCFORMAT format = GetFormat();
+  int32_t out_width = 0;
+  int32_t out_height = 0;
   m_renderContents = Preprocess(contents);
   ByteString str = m_renderContents.ToUTF8();
+  auto* pWriter = GetOneDimEANWriter();
   pWriter->InitEANWriter();
-  return pWriter->RenderResult(m_renderContents.AsStringView(),
-                               pWriter->Encode(str));
+  std::unique_ptr<uint8_t, FxFreeDeleter> data(
+      pWriter->Encode(str, format, out_width, out_height));
+  return data && pWriter->RenderResult(m_renderContents.AsStringView(),
+                                       data.get(), out_width);
 }
 
 bool CBC_EANCode::RenderDevice(CFX_RenderDevice* device,
-                               const CFX_Matrix& matrix) {
+                               const CFX_Matrix* matrix) {
   return GetOneDimEANWriter()->RenderDeviceResult(
       device, matrix, m_renderContents.AsStringView());
 }

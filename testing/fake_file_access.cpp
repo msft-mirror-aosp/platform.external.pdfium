@@ -1,13 +1,16 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "testing/fake_file_access.h"
 
+#include <algorithm>
+#include <set>
 #include <utility>
+#include <vector>
 
 #include "core/fxcrt/fx_system.h"
-#include "third_party/base/check.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -73,13 +76,13 @@ class DownloadHintsImpl final : public FX_DOWNLOADHINTS {
 
 FakeFileAccess::FakeFileAccess(FPDF_FILEACCESS* file_access)
     : file_access_(file_access),
-      file_access_wrapper_(std::make_unique<FileAccessWrapper>(this)),
-      file_avail_(std::make_unique<FileAvailImpl>(this)),
-      download_hints_(std::make_unique<DownloadHintsImpl>(this)) {
-  DCHECK(file_access_);
+      file_access_wrapper_(pdfium::MakeUnique<FileAccessWrapper>(this)),
+      file_avail_(pdfium::MakeUnique<FileAvailImpl>(this)),
+      download_hints_(pdfium::MakeUnique<DownloadHintsImpl>(this)) {
+  ASSERT(file_access_);
 }
 
-FakeFileAccess::~FakeFileAccess() = default;
+FakeFileAccess::~FakeFileAccess() {}
 
 FPDF_BOOL FakeFileAccess::IsDataAvail(size_t offset, size_t size) const {
   return available_data_.Contains(RangeSet::Range(offset, offset + size));

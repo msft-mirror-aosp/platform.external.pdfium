@@ -1,4 +1,4 @@
-# Copyright 2018 The PDFium Authors
+# Copyright 2018 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -11,6 +11,7 @@ source_set("fxcodec") {
     "basic/basicmodule.h",
     "cfx_codec_memory.cpp",
     "cfx_codec_memory.h",
+    "codec_module_iface.h",
     "fax/faxmodule.cpp",
     "fax/faxmodule.h",
     "flate/flatemodule.cpp",
@@ -18,8 +19,8 @@ source_set("fxcodec") {
     "fx_codec.cpp",
     "fx_codec.h",
     "fx_codec_def.h",
-    "icc/icc_transform.cpp",
-    "icc/icc_transform.h",
+    "icc/iccmodule.cpp",
+    "icc/iccmodule.h",
     "jbig2/JBig2_ArithDecoder.cpp",
     "jbig2/JBig2_ArithDecoder.h",
     "jbig2/JBig2_ArithIntDecoder.cpp",
@@ -56,23 +57,20 @@ source_set("fxcodec") {
     "jbig2/JBig2_SymbolDict.h",
     "jbig2/JBig2_TrdProc.cpp",
     "jbig2/JBig2_TrdProc.h",
-    "jbig2/jbig2_decoder.cpp",
-    "jbig2/jbig2_decoder.h",
-    "jpeg/jpeg_common.cpp",
-    "jpeg/jpeg_common.h",
+    "jbig2/jbig2module.cpp",
+    "jbig2/jbig2module.h",
     "jpeg/jpegmodule.cpp",
     "jpeg/jpegmodule.h",
     "jpx/cjpx_decoder.cpp",
     "jpx/cjpx_decoder.h",
     "jpx/jpx_decode_utils.cpp",
     "jpx/jpx_decode_utils.h",
+    "jpx/jpxmodule.cpp",
+    "jpx/jpxmodule.h",
     "scanlinedecoder.cpp",
     "scanlinedecoder.h",
   ]
-  configs += [
-    "../../:pdfium_strict_config",
-    "../../:pdfium_noshorten_config",
-  ]
+  configs += [ "../../:pdfium_core_config" ]
   include_dirs = []
   deps = [
     "../../third_party:lcms2",
@@ -85,18 +83,13 @@ source_set("fxcodec") {
 
   if (pdf_enable_xfa) {
     sources += [
-      "jpeg/jpeg_progressive_decoder.cpp",
-      "jpeg/jpeg_progressive_decoder.h",
-      "progressive_decoder.cpp",
-      "progressive_decoder.h",
-      "progressive_decoder_iface.h",
+      "progressivedecoder.cpp",
+      "progressivedecoder.h",
     ]
     if (pdf_enable_xfa_bmp) {
       sources += [
-        "bmp/bmp_decoder.cpp",
-        "bmp/bmp_decoder.h",
-        "bmp/bmp_progressive_decoder.cpp",
-        "bmp/bmp_progressive_decoder.h",
+        "bmp/bmpmodule.cpp",
+        "bmp/bmpmodule.h",
         "bmp/cfx_bmpcontext.cpp",
         "bmp/cfx_bmpcontext.h",
         "bmp/cfx_bmpdecompressor.cpp",
@@ -110,27 +103,25 @@ source_set("fxcodec") {
         "gif/cfx_gif.h",
         "gif/cfx_gifcontext.cpp",
         "gif/cfx_gifcontext.h",
-        "gif/gif_decoder.cpp",
-        "gif/gif_decoder.h",
-        "gif/gif_progressive_decoder.cpp",
-        "gif/gif_progressive_decoder.h",
-        "gif/lzw_decompressor.cpp",
-        "gif/lzw_decompressor.h",
+        "gif/cfx_lzwdecompressor.cpp",
+        "gif/cfx_lzwdecompressor.h",
+        "gif/gifmodule.cpp",
+        "gif/gifmodule.h",
       ]
     }
     if (pdf_enable_xfa_png) {
       sources += [
-        "png/png_decoder.cpp",
-        "png/png_decoder.h",
+        "png/pngmodule.cpp",
+        "png/pngmodule.h",
       ]
       deps += [ "../../third_party:png" ]
     }
     if (pdf_enable_xfa_tiff) {
       sources += [
-        "tiff/tiff_decoder.cpp",
-        "tiff/tiff_decoder.h",
+        "tiff/tiffmodule.cpp",
+        "tiff/tiffmodule.h",
       ]
-      deps += [ "../../third_party:tiff" ]
+      deps += [ "../../third_party:fx_tiff" ]
     }
   }
 
@@ -147,18 +138,17 @@ pdfium_unittest_source_set("unittests") {
   ]
   deps = [
     ":fxcodec",
-    "../../third_party:libopenjpeg2",
     "../fpdfapi/parser",
   ]
   pdfium_root_dir = "../../"
 
   if (pdf_enable_xfa) {
-    sources += [ "progressive_decoder_unittest.cpp" ]
+    sources += [ "progressivedecoder_unittest.cpp" ]
     deps += [ "../fxge" ]
     if (pdf_enable_xfa_gif) {
       sources += [
         "gif/cfx_gifcontext_unittest.cpp",
-        "gif/lzw_decompressor_unittest.cpp",
+        "gif/cfx_lzwdecompressor_unittest.cpp",
       ]
     }
   }

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "fxjs/cjs_event.h"
 
 #include "fxjs/cjs_event_context.h"
+#include "fxjs/cjs_eventrecorder.h"
 #include "fxjs/cjs_field.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/js_define.h"
@@ -33,11 +34,11 @@ const JSPropertySpec CJS_Event::PropertySpecs[] = {
     {"value", get_value_static, set_value_static},
     {"willCommit", get_will_commit_static, set_will_commit_static}};
 
-uint32_t CJS_Event::ObjDefnID = 0;
+int CJS_Event::ObjDefnID = -1;
 const char CJS_Event::kName[] = "event";
 
 // static
-uint32_t CJS_Event::GetObjDefnID() {
+int CJS_Event::GetObjDefnID() {
   return ObjDefnID;
 }
 
@@ -54,22 +55,27 @@ CJS_Event::CJS_Event(v8::Local<v8::Object> pObject, CJS_Runtime* pRuntime)
 CJS_Event::~CJS_Event() = default;
 
 CJS_Result CJS_Event::get_change(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(
       pRuntime->NewString(pEvent->Change().AsStringView()));
 }
 
 CJS_Result CJS_Event::set_change(CJS_Runtime* pRuntime,
                                  v8::Local<v8::Value> vp) {
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
+
   if (vp->IsString()) {
-    CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
-    pEvent->Change() = pRuntime->ToWideString(vp);
+    WideString& wChange = pEvent->Change();
+    wChange = pRuntime->ToWideString(vp);
   }
   return CJS_Result::Success();
 }
 
 CJS_Result CJS_Event::get_change_ex(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(
       pRuntime->NewString(pEvent->ChangeEx().AsStringView()));
 }
@@ -80,7 +86,8 @@ CJS_Result CJS_Event::set_change_ex(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_commit_key(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewNumber(pEvent->CommitKey()));
 }
 
@@ -90,7 +97,8 @@ CJS_Result CJS_Event::set_commit_key(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_field_full(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Name() != "Keystroke")
     return CJS_Result::Failure(L"unrecognized event");
 
@@ -103,7 +111,8 @@ CJS_Result CJS_Event::set_field_full(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_key_down(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewBoolean(pEvent->KeyDown()));
 }
 
@@ -113,7 +122,8 @@ CJS_Result CJS_Event::set_key_down(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_modifier(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewBoolean(pEvent->Modifier()));
 }
 
@@ -123,7 +133,8 @@ CJS_Result CJS_Event::set_modifier(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_name(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewString(pEvent->Name()));
 }
 
@@ -132,12 +143,14 @@ CJS_Result CJS_Event::set_name(CJS_Runtime* pRuntime, v8::Local<v8::Value> vp) {
 }
 
 CJS_Result CJS_Event::get_rc(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewBoolean(pEvent->Rc()));
 }
 
 CJS_Result CJS_Event::set_rc(CJS_Runtime* pRuntime, v8::Local<v8::Value> vp) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   pEvent->Rc() = pRuntime->ToBoolean(vp);
   return CJS_Result::Success();
 }
@@ -170,7 +183,8 @@ CJS_Result CJS_Event::set_rich_value(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_sel_end(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Name() != "Keystroke")
     return CJS_Result::Success();
 
@@ -179,7 +193,8 @@ CJS_Result CJS_Event::get_sel_end(CJS_Runtime* pRuntime) {
 
 CJS_Result CJS_Event::set_sel_end(CJS_Runtime* pRuntime,
                                   v8::Local<v8::Value> vp) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Name() == "Keystroke")
     pEvent->SetSelEnd(pRuntime->ToInt32(vp));
 
@@ -187,7 +202,8 @@ CJS_Result CJS_Event::set_sel_end(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_sel_start(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Name() != "Keystroke")
     return CJS_Result::Success();
 
@@ -196,7 +212,8 @@ CJS_Result CJS_Event::get_sel_start(CJS_Runtime* pRuntime) {
 
 CJS_Result CJS_Event::set_sel_start(CJS_Runtime* pRuntime,
                                     v8::Local<v8::Value> vp) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Name() == "Keystroke")
     pEvent->SetSelStart(pRuntime->ToInt32(vp));
 
@@ -204,7 +221,8 @@ CJS_Result CJS_Event::set_sel_start(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_shift(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewBoolean(pEvent->Shift()));
 }
 
@@ -238,7 +256,8 @@ CJS_Result CJS_Event::set_target(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_target_name(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(
       pRuntime->NewString(pEvent->TargetName().AsStringView()));
 }
@@ -249,7 +268,8 @@ CJS_Result CJS_Event::set_target_name(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_type(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   return CJS_Result::Success(pRuntime->NewString(pEvent->Type()));
 }
 
@@ -258,7 +278,8 @@ CJS_Result CJS_Event::set_type(CJS_Runtime* pRuntime, v8::Local<v8::Value> vp) {
 }
 
 CJS_Result CJS_Event::get_value(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Type() != "Field")
     return CJS_Result::Failure(L"Bad event type.");
 
@@ -271,7 +292,8 @@ CJS_Result CJS_Event::get_value(CJS_Runtime* pRuntime) {
 
 CJS_Result CJS_Event::set_value(CJS_Runtime* pRuntime,
                                 v8::Local<v8::Value> vp) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
   if (pEvent->Type() != "Field")
     return CJS_Result::Failure(L"Bad event type.");
 
@@ -289,7 +311,8 @@ CJS_Result CJS_Event::set_value(CJS_Runtime* pRuntime,
 }
 
 CJS_Result CJS_Event::get_will_commit(CJS_Runtime* pRuntime) {
-  CJS_EventContext* pEvent = pRuntime->GetCurrentEventContext();
+  CJS_EventRecorder* pEvent =
+      pRuntime->GetCurrentEventContext()->GetEventRecorder();
 
   return CJS_Result::Success(pRuntime->NewBoolean(pEvent->WillCommit()));
 }

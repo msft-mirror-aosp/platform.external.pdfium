@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "xfa/fxfa/parser/cxfa_rename.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
@@ -21,13 +21,11 @@ const CXFA_Node::AttributeData kRenameAttributeData[] = {
 CXFA_Rename::CXFA_Rename(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                XFA_XDPPACKET::kConfig,
+                XFA_XDPPACKET_Config,
                 XFA_ObjectType::NodeV,
                 XFA_Element::Rename,
                 {},
                 kRenameAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Rename::~CXFA_Rename() = default;

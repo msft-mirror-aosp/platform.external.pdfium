@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,7 +32,7 @@ class JBig2ArithCtx {
   unsigned int I() const { return m_I; }
 
  private:
-  bool m_MPS = false;
+  bool m_MPS = 0;
   unsigned int m_I = 0;
 };
 

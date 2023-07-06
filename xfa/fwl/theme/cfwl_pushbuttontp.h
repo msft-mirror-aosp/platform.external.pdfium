@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,16 +9,14 @@
 
 #include <memory>
 
-#include "fxjs/gc/heap.h"
-#include "xfa/fwl/cfwl_themepart.h"
 #include "xfa/fwl/theme/cfwl_widgettp.h"
 
 class CFWL_PushButtonTP final : public CFWL_WidgetTP {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  CFWL_PushButtonTP();
   ~CFWL_PushButtonTP() override;
 
-  // CFWL_WidgetTP:
+  // CFWL_WidgetTP
   void DrawBackground(const CFWL_ThemeBackground& pParams) override;
 
  private:
@@ -29,9 +27,14 @@ class CFWL_PushButtonTP final : public CFWL_WidgetTP {
     FX_ARGB clrFill[5];
   };
 
-  CFWL_PushButtonTP();
-
-  int32_t GetColorID(Mask<CFWL_PartState> dwStates) const;
+  void SetTopLineColor(uint32_t* pData);
+  void SetLeftLineColor(uint32_t* pData);
+  void SetRightLineColor(uint32_t* pData);
+  void SetBottomLineColor(uint32_t* pData);
+  void SetBackgroudColor(uint32_t* pData);
+  void SetCaptionColor(uint32_t* pData);
+  void SetCornerColor(uint32_t* pData);
+  int32_t GetColorID(uint32_t dwStates) const;
   void SetThemeData();
 
   std::unique_ptr<PBThemeData> m_pThemeData;

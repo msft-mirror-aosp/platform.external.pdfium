@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,17 +7,15 @@
 #ifndef CORE_FPDFDOC_CPVT_WORD_H_
 #define CORE_FPDFDOC_CPVT_WORD_H_
 
-#include <stdint.h>
-
 #include "core/fpdfdoc/cpvt_wordplace.h"
-#include "core/fxcrt/fx_codepage.h"
+#include "core/fxcrt/fx_system.h"
 
 class CPVT_Word {
  public:
   CPVT_Word();
 
   uint16_t Word;
-  FX_Charset nCharset;
+  int32_t nCharset;
   CPVT_WordPlace WordPlace;
   CFX_PointF ptWord;
   float fAscent;
@@ -29,7 +27,7 @@ class CPVT_Word {
 
 inline CPVT_Word::CPVT_Word()
     : Word(0),
-      nCharset(FX_Charset::kANSI),
+      nCharset(0),
       fAscent(0.0f),
       fDescent(0.0f),
       fWidth(0.0f),

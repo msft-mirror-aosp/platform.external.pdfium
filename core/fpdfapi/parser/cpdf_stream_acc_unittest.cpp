@@ -1,10 +1,8 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "core/fpdfapi/parser/cpdf_stream_acc.h"
-
-#include <utility>
 
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 #include "core/fpdfapi/parser/cpdf_stream.h"
@@ -12,24 +10,13 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/invalid_seekable_read_stream.h"
 
-TEST(StreamAccTest, ReadRawDataFailed) {
+TEST(CPDF_StreamAccTest, ReadRawDataFailed) {
   auto stream = pdfium::MakeRetain<CPDF_Stream>();
   stream->InitStreamFromFile(
       pdfium::MakeRetain<InvalidSeekableReadStream>(1024),
       pdfium::MakeRetain<CPDF_Dictionary>());
-  auto stream_acc = pdfium::MakeRetain<CPDF_StreamAcc>(std::move(stream));
+  auto stream_acc = pdfium::MakeRetain<CPDF_StreamAcc>(stream.Get());
   stream_acc->LoadAllDataRaw();
-  EXPECT_TRUE(stream_acc->GetSpan().empty());
-}
-
-// Regression test for crbug.com/1361849. Should not trigger
-// ProbeForLowSeverityLifetimeIssue() failure.
-TEST(StreamAccTest, DataStreamLifeTime) {
-  constexpr uint8_t kData[] = {'a', 'b', 'c'};
-  auto stream = pdfium::MakeRetain<CPDF_Stream>();
-  stream->SetData(kData);
-  auto stream_acc = pdfium::MakeRetain<CPDF_StreamAcc>(stream);
-  stream_acc->LoadAllDataRaw();
-  stream.Reset();
-  EXPECT_EQ(pdfium::make_span(kData), stream_acc->GetSpan());
+  EXPECT_EQ(0u, stream_acc->GetSize());
+  EXPECT_FALSE(stream_acc->GetData());
 }

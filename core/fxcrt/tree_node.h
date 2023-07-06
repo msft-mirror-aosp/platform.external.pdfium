@@ -1,42 +1,30 @@
-// Copyright 2019 The PDFium Authors
+// Copyright 2019 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CORE_FXCRT_TREE_NODE_H_
 #define CORE_FXCRT_TREE_NODE_H_
 
-#include <stdint.h>
-
-#include "third_party/base/check.h"
+#include "core/fxcrt/fx_system.h"
+#include "third_party/base/logging.h"
 
 namespace fxcrt {
 
-// Implements the usual DOM/XML-ish trees allowing for a variety of
-// pointer types with which to connect the nodes. Public methods maintain
-// the invariants of the tree.
-
+// Implements the usual DOM/XML-ish trees.
 template <typename T>
-class TreeNodeBase {
+class TreeNode {
  public:
-  TreeNodeBase() = default;
-  virtual ~TreeNodeBase() = default;
+  TreeNode() = default;
+  virtual ~TreeNode() = default;
 
-  inline T* GetParent() const { return static_cast<const T*>(this)->m_pParent; }
-  inline T* GetFirstChild() const {
-    return static_cast<const T*>(this)->m_pFirstChild;
-  }
-  inline T* GetLastChild() const {
-    return static_cast<const T*>(this)->m_pLastChild;
-  }
-  inline T* GetNextSibling() const {
-    return static_cast<const T*>(this)->m_pNextSibling;
-  }
-  inline T* GetPrevSibling() const {
-    return static_cast<const T*>(this)->m_pPrevSibling;
-  }
+  T* GetParent() const { return m_pParent; }
+  T* GetFirstChild() const { return m_pFirstChild; }
+  T* GetLastChild() const { return m_pLastChild; }
+  T* GetNextSibling() const { return m_pNextSibling; }
+  T* GetPrevSibling() const { return m_pPrevSibling; }
 
   bool HasChild(const T* child) const {
-    return child != this && child->GetParent() == this;
+    return child != this && child->m_pParent == this;
   }
 
   T* GetNthChild(int32_t n) {
@@ -51,29 +39,29 @@ class TreeNodeBase {
 
   void AppendFirstChild(T* child) {
     BecomeParent(child);
-    if (GetFirstChild()) {
-      CHECK(GetLastChild());
-      GetFirstChild()->SetPrevSibling(child);
-      child->SetNextSibling(GetFirstChild());
-      SetFirstChild(child);
+    if (m_pFirstChild) {
+      CHECK(m_pLastChild);
+      m_pFirstChild->m_pPrevSibling = child;
+      child->m_pNextSibling = m_pFirstChild;
+      m_pFirstChild = child;
     } else {
-      CHECK(!GetLastChild());
-      SetFirstChild(child);
-      SetLastChild(child);
+      CHECK(!m_pLastChild);
+      m_pFirstChild = child;
+      m_pLastChild = child;
     }
   }
 
   void AppendLastChild(T* child) {
     BecomeParent(child);
-    if (GetLastChild()) {
-      CHECK(GetFirstChild());
-      GetLastChild()->SetNextSibling(child);
-      child->SetPrevSibling(GetLastChild());
-      SetLastChild(child);
+    if (m_pLastChild) {
+      CHECK(m_pFirstChild);
+      m_pLastChild->m_pNextSibling = child;
+      child->m_pPrevSibling = m_pLastChild;
+      m_pLastChild = child;
     } else {
-      CHECK(!GetFirstChild());
-      SetFirstChild(child);
-      SetLastChild(child);
+      CHECK(!m_pFirstChild);
+      m_pFirstChild = child;
+      m_pLastChild = child;
     }
   }
 
@@ -84,13 +72,13 @@ class TreeNodeBase {
     }
     BecomeParent(child);
     CHECK(HasChild(other));
-    child->SetNextSibling(other);
-    child->SetPrevSibling(other->GetPrevSibling());
-    if (GetFirstChild() == other) {
-      CHECK(!other->GetPrevSibling());
-      SetFirstChild(child);
+    child->m_pNextSibling = other;
+    child->m_pPrevSibling = other->m_pPrevSibling;
+    if (m_pFirstChild == other) {
+      CHECK(!other->m_pPrevSibling);
+      m_pFirstChild = child;
     } else {
-      other->GetPrevSibling()->SetNextSibling(child);
+      other->m_pPrevSibling->m_pNextSibling = child;
     }
     other->m_pPrevSibling = child;
   }
@@ -102,34 +90,34 @@ class TreeNodeBase {
     }
     BecomeParent(child);
     CHECK(HasChild(other));
-    child->SetNextSibling(other->GetNextSibling());
-    child->SetPrevSibling(other);
-    if (GetLastChild() == other) {
-      CHECK(!other->GetNextSibling());
-      SetLastChild(child);
+    child->m_pNextSibling = other->m_pNextSibling;
+    child->m_pPrevSibling = other;
+    if (m_pLastChild == other) {
+      CHECK(!other->m_pNextSibling);
+      m_pLastChild = child;
     } else {
-      other->GetNextSibling()->SetPrevSibling(child);
+      other->m_pNextSibling->m_pPrevSibling = child;
     }
-    other->SetNextSibling(child);
+    other->m_pNextSibling = child;
   }
 
   void RemoveChild(T* child) {
     CHECK(HasChild(child));
-    if (GetLastChild() == child) {
-      CHECK(!child->GetNextSibling());
-      SetLastChild(child->GetPrevSibling());
+    if (m_pLastChild == child) {
+      CHECK(!child->m_pNextSibling);
+      m_pLastChild = child->m_pPrevSibling;
     } else {
-      child->GetNextSibling()->SetPrevSibling(child->GetPrevSibling());
+      child->m_pNextSibling->m_pPrevSibling = child->m_pPrevSibling;
     }
-    if (GetFirstChild() == child) {
-      CHECK(!child->GetPrevSibling());
-      SetFirstChild(child->GetNextSibling());
+    if (m_pFirstChild == child) {
+      CHECK(!child->m_pPrevSibling);
+      m_pFirstChild = child->m_pNextSibling;
     } else {
-      child->GetPrevSibling()->SetNextSibling(child->GetNextSibling());
+      child->m_pPrevSibling->m_pNextSibling = child->m_pNextSibling;
     }
-    child->SetParent(nullptr);
-    child->SetPrevSibling(nullptr);
-    child->SetNextSibling(nullptr);
+    child->m_pParent = nullptr;
+    child->m_pPrevSibling = nullptr;
+    child->m_pNextSibling = nullptr;
   }
 
   void RemoveAllChildren() {
@@ -143,44 +131,15 @@ class TreeNodeBase {
   }
 
  private:
-  // These are private because they may leave the tree in an invalid state
-  // until subsequent operations restore it.
-  inline void SetParent(T* pParent) {
-    static_cast<T*>(this)->m_pParent = pParent;
-  }
-  inline void SetFirstChild(T* pChild) {
-    static_cast<T*>(this)->m_pFirstChild = pChild;
-  }
-  inline void SetLastChild(T* pChild) {
-    static_cast<T*>(this)->m_pLastChild = pChild;
-  }
-  inline void SetNextSibling(T* pSibling) {
-    static_cast<T*>(this)->m_pNextSibling = pSibling;
-  }
-  inline void SetPrevSibling(T* pSibling) {
-    static_cast<T*>(this)->m_pPrevSibling = pSibling;
-  }
-
   // Child left in state where sibling members need subsequent adjustment.
   void BecomeParent(T* child) {
     CHECK(child != this);  // Detect attempts at self-insertion.
     if (child->m_pParent)
-      child->m_pParent->TreeNodeBase<T>::RemoveChild(child);
+      child->m_pParent->TreeNode<T>::RemoveChild(child);
     child->m_pParent = static_cast<T*>(this);
     CHECK(!child->m_pNextSibling);
     CHECK(!child->m_pPrevSibling);
   }
-};
-
-// Tree connected using C-style pointers.
-template <typename T>
-class TreeNode : public TreeNodeBase<T> {
- public:
-  TreeNode() = default;
-  virtual ~TreeNode() = default;
-
- private:
-  friend class TreeNodeBase<T>;
 
   T* m_pParent = nullptr;       // Raw, intra-tree pointer.
   T* m_pFirstChild = nullptr;   // Raw, intra-tree pointer.

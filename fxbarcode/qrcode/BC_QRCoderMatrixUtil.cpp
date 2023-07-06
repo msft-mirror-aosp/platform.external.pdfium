@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,15 +22,12 @@
 
 #include "fxbarcode/qrcode/BC_QRCoderMatrixUtil.h"
 
-#include <iterator>
-
+#include "core/fxcrt/fx_memory.h"
 #include "fxbarcode/common/BC_CommonByteMatrix.h"
 #include "fxbarcode/qrcode/BC_QRCoder.h"
 #include "fxbarcode/qrcode/BC_QRCoderBitVector.h"
 #include "fxbarcode/qrcode/BC_QRCoderErrorCorrectionLevel.h"
 #include "fxbarcode/qrcode/BC_QRCoderMaskUtil.h"
-#include "third_party/base/check.h"
-#include "third_party/base/check_op.h"
 
 namespace {
 
@@ -107,7 +104,7 @@ bool EmbedDataBits(CBC_QRCoderBitVector* dataBits,
     if (x == 6)
       x -= 1;
 
-    while (y >= 0 && y < static_cast<int32_t>(matrix->GetHeight())) {
+    while (y >= 0 && y < matrix->GetHeight()) {
       if (y == 6) {
         y += direction;
         continue;
@@ -124,7 +121,7 @@ bool EmbedDataBits(CBC_QRCoderBitVector* dataBits,
         } else {
           bit = 0;
         }
-        DCHECK(CBC_QRCoder::IsValidMaskPattern(maskPattern));
+        ASSERT(CBC_QRCoder::IsValidMaskPattern(maskPattern));
         if (CBC_QRCoderMaskUtil::GetDataMaskBit(maskPattern, xx, y))
           bit ^= 0x01;
         matrix->Set(xx, y, bit);
@@ -162,7 +159,7 @@ bool MakeTypeInfoBits(const CBC_QRCoderErrorCorrectionLevel* ecLevel,
   if (!bits->XOR(&maskBits))
     return false;
 
-  DCHECK_EQ(bits->Size(), 15);
+  ASSERT(bits->Size() == 15);
   return true;
 }
 
@@ -170,7 +167,7 @@ void MakeVersionInfoBits(int32_t version, CBC_QRCoderBitVector* bits) {
   bits->AppendBits(version, 6);
   int32_t bchCode = CalculateBCHCode(version, VERSION_INFO_POLY);
   bits->AppendBits(bchCode, 12);
-  DCHECK_EQ(bits->Size(), 18);
+  ASSERT(bits->Size() == 18);
 }
 
 bool EmbedTypeInfo(const CBC_QRCoderErrorCorrectionLevel* ecLevel,
@@ -216,8 +213,8 @@ void MaybeEmbedVersionInfo(int32_t version, CBC_CommonByteMatrix* matrix) {
 }
 
 bool EmbedTimingPatterns(CBC_CommonByteMatrix* matrix) {
-  for (size_t i = 8; i + 8 < matrix->GetWidth(); i++) {
-    const uint8_t bit = static_cast<uint8_t>((i + 1) % 2);
+  for (int32_t i = 8; i < matrix->GetWidth() - 8; i++) {
+    int32_t bit = (i + 1) % 2;
     if (!IsValidValue(matrix->Get(i, 6)))
       return false;
 
@@ -334,7 +331,7 @@ bool MaybeEmbedPositionAdjustmentPatterns(int32_t version,
     return true;
 
   const size_t index = version - 2;
-  if (index >= std::size(kPositionAdjustmentPatternCoordinates))
+  if (index >= FX_ArraySize(kPositionAdjustmentPatternCoordinates))
     return false;
 
   const auto* coordinates = &kPositionAdjustmentPatternCoordinates[index][0];
@@ -379,7 +376,7 @@ bool CBC_QRCoderMatrixUtil::BuildMatrix(
   if (!dataBits || !matrix)
     return false;
 
-  matrix->Fill(0xff);
+  matrix->clear(0xff);
 
   if (!EmbedBasicPatterns(version, matrix))
     return false;

@@ -1,13 +1,10 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 The PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <vector>
 
-#include "core/fxcodec/gif/lzw_decompressor.h"
+#include "core/fxcodec/gif/cfx_lzwdecompressor.h"
 #include "third_party/base/numerics/safe_conversions.h"
 
 // Between 2x and 5x is a standard range for LZW according to a quick
@@ -15,14 +12,12 @@
 constexpr uint32_t kMinCompressionRatio = 2;
 constexpr uint32_t kMaxCompressionRatio = 10;
 
-static constexpr size_t kMaxFuzzBytes = 1024 * 1024 * 1024;  // 1 GB.
-
 void LZWFuzz(const uint8_t* src_buf,
-             uint32_t src_size,
+             size_t src_size,
              uint8_t color_exp,
              uint8_t code_exp) {
-  std::unique_ptr<LZWDecompressor> decompressor =
-      LZWDecompressor::Create(color_exp, code_exp);
+  std::unique_ptr<CFX_LZWDecompressor> decompressor =
+      CFX_LZWDecompressor::Create(color_exp, code_exp);
   if (!decompressor)
     return;
 
@@ -32,9 +27,8 @@ void LZWFuzz(const uint8_t* src_buf,
     // This cast should be safe since the caller is checking for overflow on
     // the initial data.
     uint32_t dest_size = static_cast<uint32_t>(dest_buf.size());
-    decompressor->SetSource(src_buf, src_size);
-    if (LZWDecompressor::Status::kInsufficientDestSize !=
-        decompressor->Decode(dest_buf.data(), &dest_size)) {
+    if (CFX_GifDecodeStatus::InsufficientDestSize !=
+        decompressor->Decode(src_buf, src_size, dest_buf.data(), &dest_size)) {
       return;
     }
   }
@@ -42,7 +36,7 @@ void LZWFuzz(const uint8_t* src_buf,
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Need at least 3 bytes to do anything.
-  if (size < 3 || size > kMaxFuzzBytes)
+  if (size < 3)
     return 0;
 
   // Normally the GIF would provide the code and color sizes, instead, going

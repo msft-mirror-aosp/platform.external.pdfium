@@ -1,14 +1,15 @@
-# Copyright 2017 The PDFium Authors
+# Copyright 2017 The PDFium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 """Classes for dealing with git."""
 
 import subprocess
 
+# pylint: disable=relative-import
 from common import RunCommandPropagateErr
 
 
-class GitHelper:
+class GitHelper(object):
   """Issues git commands. Stateful."""
 
   def __init__(self):
@@ -19,8 +20,8 @@ class GitHelper:
     RunCommandPropagateErr(['git', 'checkout', branch], exit_status_on_error=1)
 
   def FetchOriginMaster(self):
-    """Fetches new changes on origin/main."""
-    RunCommandPropagateErr(['git', 'fetch', 'origin', 'main'],
+    """Fetches new changes on origin/master."""
+    RunCommandPropagateErr(['git', 'fetch', 'origin', 'master'],
                            exit_status_on_error=1)
 
   def StashPush(self):

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,20 +10,22 @@
 #include <memory>
 #include <vector>
 
-#include "core/fxcrt/binary_buffer.h"
+#include "core/fxcrt/cfx_binarybuf.h"
 #include "core/fxcrt/unowned_ptr.h"
 #include "fxjs/cfx_keyvalue.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/base/optional.h"
 #include "third_party/base/span.h"
+
+class CPDFSDK_FormFillEnvironment;
 
 class CFX_GlobalData {
  public:
   class Delegate {
    public:
-    virtual ~Delegate() = default;
+    virtual ~Delegate() {}
 
     virtual bool StoreBuffer(pdfium::span<const uint8_t> pBuffer) = 0;
-    virtual absl::optional<pdfium::span<uint8_t>> LoadBuffer() = 0;
+    virtual Optional<pdfium::span<uint8_t>> LoadBuffer() = 0;
     virtual void BufferDone() = 0;
   };
 
@@ -33,7 +35,7 @@ class CFX_GlobalData {
     ~Element();
 
     CFX_KeyValue data;
-    bool bPersistent = false;
+    bool bPersistent;
   };
 
   static CFX_GlobalData* GetRetainedInstance(Delegate* pDelegate);
@@ -64,7 +66,15 @@ class CFX_GlobalData {
   bool LoadGlobalPersistentVariables();
   bool LoadGlobalPersistentVariablesFromBuffer(pdfium::span<uint8_t> buffer);
   bool SaveGlobalPersisitentVariables();
+
   iterator FindGlobalVariable(const ByteString& sPropname);
+
+  void LoadFileBuffer(const wchar_t* sFilePath,
+                      uint8_t*& pBuffer,
+                      int32_t& nLength);
+  void WriteFileBuffer(const wchar_t* sFilePath,
+                       const char* pBuffer,
+                       int32_t nLength);
 
   size_t m_RefCount = 0;
   UnownedPtr<Delegate> const m_pDelegate;

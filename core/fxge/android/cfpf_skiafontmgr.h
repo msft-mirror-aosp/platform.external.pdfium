@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,11 +11,10 @@
 #include <memory>
 #include <vector>
 
-#include "core/fxcrt/bytestring.h"
-#include "core/fxcrt/fx_codepage_forward.h"
+#include "core/fxcrt/fx_string.h"
 #include "core/fxcrt/retain_ptr.h"
 #include "core/fxge/cfx_face.h"
-#include "core/fxge/freetype/fx_freetype.h"
+#include "core/fxge/fx_freetype.h"
 
 class CFPF_SkiaFont;
 class CFPF_SkiaPathFont;
@@ -27,7 +26,7 @@ class CFPF_SkiaFontMgr {
 
   void LoadSystemFonts();
   CFPF_SkiaFont* CreateFont(ByteStringView bsFamilyname,
-                            FX_Charset uCharset,
+                            uint8_t uCharset,
                             uint32_t dwStyle);
 
   bool InitFTLibrary();

@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,15 @@
 #include "xfa/fxfa/parser/cxfa_command.h"
 
 #include "fxjs/xfa/cjx_node.h"
-#include "xfa/fxfa/parser/cxfa_document.h"
+#include "third_party/base/ptr_util.h"
 
 namespace {
 
 const CXFA_Node::PropertyData kCommandPropertyData[] = {
-    {XFA_Element::Query, 1, {}},
-    {XFA_Element::Insert, 1, {}},
-    {XFA_Element::Update, 1, {}},
-    {XFA_Element::Delete, 1, {}},
+    {XFA_Element::Query, 1, 0},
+    {XFA_Element::Insert, 1, 0},
+    {XFA_Element::Update, 1, 0},
+    {XFA_Element::Delete, 1, 0},
 };
 
 const CXFA_Node::AttributeData kCommandAttributeData[] = {
@@ -31,13 +31,11 @@ const CXFA_Node::AttributeData kCommandAttributeData[] = {
 CXFA_Command::CXFA_Command(CXFA_Document* doc, XFA_PacketType packet)
     : CXFA_Node(doc,
                 packet,
-                XFA_XDPPACKET::kSourceSet,
+                XFA_XDPPACKET_SourceSet,
                 XFA_ObjectType::Node,
                 XFA_Element::Command,
                 kCommandPropertyData,
                 kCommandAttributeData,
-                cppgc::MakeGarbageCollected<CJX_Node>(
-                    doc->GetHeap()->GetAllocationHandle(),
-                    this)) {}
+                pdfium::MakeUnique<CJX_Node>(this)) {}
 
 CXFA_Command::~CXFA_Command() = default;

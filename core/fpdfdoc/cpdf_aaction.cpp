@@ -1,13 +1,10 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "core/fpdfdoc/cpdf_aaction.h"
-
-#include <iterator>
-#include <utility>
 
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
 
@@ -39,13 +36,12 @@ constexpr const char* kAATypes[] = {
 
 // |kAATypes| should have one less element than enum AActionType due to
 // |kDocumentOpen|, which is an artificial type.
-static_assert(std::size(kAATypes) == CPDF_AAction::kNumberOfActions - 1,
+static_assert(FX_ArraySize(kAATypes) == CPDF_AAction::kNumberOfActions - 1,
               "kAATypes count mismatch");
 
 }  // namespace
 
-CPDF_AAction::CPDF_AAction(RetainPtr<const CPDF_Dictionary> pDict)
-    : m_pDict(std::move(pDict)) {}
+CPDF_AAction::CPDF_AAction(const CPDF_Dictionary* pDict) : m_pDict(pDict) {}
 
 CPDF_AAction::CPDF_AAction(const CPDF_AAction& that) = default;
 
@@ -60,11 +56,10 @@ CPDF_Action CPDF_AAction::GetAction(AActionType eType) const {
 }
 
 // static
-bool CPDF_AAction::IsUserInput(AActionType type) {
-  switch (type) {
+bool CPDF_AAction::IsUserClick(AActionType eType) {
+  switch (eType) {
     case kButtonUp:
     case kButtonDown:
-    case kKeyStroke:
       return true;
     default:
       return false;

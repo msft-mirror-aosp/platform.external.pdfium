@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,13 +12,13 @@
 CJBig2_HuffmanDecoder::CJBig2_HuffmanDecoder(CJBig2_BitStream* pStream)
     : m_pStream(pStream) {}
 
-CJBig2_HuffmanDecoder::~CJBig2_HuffmanDecoder() = default;
+CJBig2_HuffmanDecoder::~CJBig2_HuffmanDecoder() {}
 
 int CJBig2_HuffmanDecoder::DecodeAValue(const CJBig2_HuffmanTable* pTable,
                                         int* nResult) {
   FX_SAFE_INT32 nSafeVal = 0;
   int nBits = 0;
-  while (true) {
+  while (1) {
     uint32_t nTmp;
     if (m_pStream->read1Bit(&nTmp) == -1)
       break;
@@ -36,7 +36,7 @@ int CJBig2_HuffmanDecoder::DecodeAValue(const CJBig2_HuffmanTable* pTable,
         continue;
 
       if (pTable->IsHTOOB() && i == pTable->Size() - 1)
-        return kJBig2OOB;
+        return JBIG2_OOB;
 
       if (m_pStream->readNBits(pTable->GetRANGELEN()[i], &nTmp) == -1)
         return -1;

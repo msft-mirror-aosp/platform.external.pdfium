@@ -1,12 +1,10 @@
-// Copyright 2018 The PDFium Authors
+// Copyright 2018 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Original code copyright 2014 Foxit Software Inc. http://www.foxitsoftware.com
 
 #include "core/fxcrt/fx_number.h"
-
-#include <ctype.h>
 
 #include <limits>
 
@@ -15,22 +13,22 @@
 #include "core/fxcrt/fx_string.h"
 
 FX_Number::FX_Number()
-    : m_bIsInteger(true), m_bIsSigned(false), m_UnsignedValue(0) {}
+    : m_bInteger(true), m_bSigned(false), m_UnsignedValue(0) {}
 
 FX_Number::FX_Number(int32_t value)
-    : m_bIsInteger(true), m_bIsSigned(true), m_SignedValue(value) {}
+    : m_bInteger(true), m_bSigned(true), m_SignedValue(value) {}
 
 FX_Number::FX_Number(float value)
-    : m_bIsInteger(false), m_bIsSigned(true), m_FloatValue(value) {}
+    : m_bInteger(false), m_bSigned(true), m_FloatValue(value) {}
 
 FX_Number::FX_Number(ByteStringView strc)
-    : m_bIsInteger(true), m_bIsSigned(false), m_UnsignedValue(0) {
+    : m_bInteger(true), m_bSigned(false), m_UnsignedValue(0) {
   if (strc.IsEmpty())
     return;
 
   if (strc.Contains('.')) {
-    m_bIsInteger = false;
-    m_bIsSigned = true;
+    m_bInteger = false;
+    m_bSigned = true;
     m_FloatValue = StringToFloat(strc);
     return;
   }
@@ -45,22 +43,22 @@ FX_Number::FX_Number(ByteStringView strc)
   size_t cc = 0;
   if (strc[0] == '+') {
     cc++;
-    m_bIsSigned = true;
+    m_bSigned = true;
   } else if (strc[0] == '-') {
     bNegative = true;
-    m_bIsSigned = true;
+    m_bSigned = true;
     cc++;
   }
 
-  for (; cc < strc.GetLength() && isdigit(strc[cc]); ++cc) {
-    // Deliberately not using FXSYS_DecimalCharToInt() in a tight loop to avoid
-    // a duplicate isdigit() call. Note that the order of operation is
-    // important to avoid unintentional overflows.
-    unsigned_val = unsigned_val * 10 + (strc[cc] - '0');
+  while (cc < strc.GetLength() && std::isdigit(strc[cc])) {
+    unsigned_val = unsigned_val * 10 + FXSYS_DecimalCharToInt(strc.CharAt(cc));
+    if (!unsigned_val.IsValid())
+      break;
+    cc++;
   }
 
   uint32_t uValue = unsigned_val.ValueOrDefault(0);
-  if (!m_bIsSigned) {
+  if (!m_bSigned) {
     m_UnsignedValue = uValue;
     return;
   }
@@ -88,13 +86,13 @@ FX_Number::FX_Number(ByteStringView strc)
 }
 
 int32_t FX_Number::GetSigned() const {
-  return m_bIsInteger ? m_SignedValue : static_cast<int32_t>(m_FloatValue);
+  return m_bInteger ? m_SignedValue : static_cast<int32_t>(m_FloatValue);
 }
 
 float FX_Number::GetFloat() const {
-  if (!m_bIsInteger)
+  if (!m_bInteger)
     return m_FloatValue;
 
-  return m_bIsSigned ? static_cast<float>(m_SignedValue)
-                     : static_cast<float>(m_UnsignedValue);
+  return m_bSigned ? static_cast<float>(m_SignedValue)
+                   : static_cast<float>(m_UnsignedValue);
 }

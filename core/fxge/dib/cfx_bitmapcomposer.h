@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,18 +7,17 @@
 #ifndef CORE_FXGE_DIB_CFX_BITMAPCOMPOSER_H_
 #define CORE_FXGE_DIB_CFX_BITMAPCOMPOSER_H_
 
-#include <stdint.h>
+#include <vector>
 
-#include "core/fxcrt/data_vector.h"
+#include "core/fxcrt/fx_coordinates.h"
 #include "core/fxcrt/retain_ptr.h"
 #include "core/fxcrt/unowned_ptr.h"
 #include "core/fxge/dib/cfx_scanlinecompositor.h"
-#include "core/fxge/dib/fx_dib.h"
 #include "core/fxge/dib/scanlinecomposer_iface.h"
+#include "core/fxge/fx_dib.h"
 
 class CFX_ClipRgn;
 class CFX_DIBitmap;
-struct FX_RECT;
 
 class CFX_BitmapComposer final : public ScanlineComposerIface {
  public:
@@ -34,21 +33,28 @@ class CFX_BitmapComposer final : public ScanlineComposerIface {
                bool bFlipX,
                bool bFlipY,
                bool bRgbByteOrder,
-               BlendMode blend_mode);
+               BlendMode blend_type);
 
-  // ScanlineComposerIface:
+  // ScanlineComposerIface
   bool SetInfo(int width,
                int height,
                FXDIB_Format src_format,
-               pdfium::span<const uint32_t> src_palette) override;
-  void ComposeScanline(int line, pdfium::span<const uint8_t> scanline) override;
+               uint32_t* pSrcPalette) override;
+
+  void ComposeScanline(int line,
+                       const uint8_t* scanline,
+                       const uint8_t* scan_extra_alpha) override;
 
  private:
-  void DoCompose(pdfium::span<uint8_t> dest_scan,
-                 pdfium::span<const uint8_t> src_scan,
+  void DoCompose(uint8_t* dest_scan,
+                 const uint8_t* src_scan,
                  int dest_width,
-                 pdfium::span<const uint8_t> clip_scan);
-  void ComposeScanlineV(int line, pdfium::span<const uint8_t> scanline);
+                 const uint8_t* clip_scan,
+                 const uint8_t* src_extra_alpha,
+                 uint8_t* dst_extra_alpha);
+  void ComposeScanlineV(int line,
+                        const uint8_t* scanline,
+                        const uint8_t* scan_extra_alpha);
 
   RetainPtr<CFX_DIBitmap> m_pBitmap;
   UnownedPtr<const CFX_ClipRgn> m_pClipRgn;
@@ -65,10 +71,11 @@ class CFX_BitmapComposer final : public ScanlineComposerIface {
   bool m_bFlipX;
   bool m_bFlipY;
   bool m_bRgbByteOrder = false;
-  BlendMode m_BlendMode = BlendMode::kNormal;
-  DataVector<uint8_t> m_pScanlineV;
-  DataVector<uint8_t> m_pClipScanV;
-  DataVector<uint8_t> m_pAddClipScan;
+  BlendMode m_BlendType = BlendMode::kNormal;
+  std::vector<uint8_t> m_pScanlineV;
+  std::vector<uint8_t> m_pClipScanV;
+  std::vector<uint8_t> m_pAddClipScan;
+  std::vector<uint8_t> m_pScanlineAlphaV;
 };
 
 #endif  // CORE_FXGE_DIB_CFX_BITMAPCOMPOSER_H_

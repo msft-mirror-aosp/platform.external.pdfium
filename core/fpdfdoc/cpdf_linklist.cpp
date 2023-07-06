@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,43 +6,15 @@
 
 #include "core/fpdfdoc/cpdf_linklist.h"
 
-#include <utility>
-
 #include "core/fpdfapi/page/cpdf_page.h"
 #include "core/fpdfapi/parser/cpdf_array.h"
 #include "core/fpdfapi/parser/cpdf_dictionary.h"
-#include "third_party/base/numerics/safe_conversions.h"
 
 CPDF_LinkList::CPDF_LinkList() = default;
 
 CPDF_LinkList::~CPDF_LinkList() = default;
 
-CPDF_Link CPDF_LinkList::GetLinkAtPoint(CPDF_Page* pPage,
-                                        const CFX_PointF& point,
-                                        int* z_order) {
-  const std::vector<RetainPtr<CPDF_Dictionary>>* pPageLinkList =
-      GetPageLinks(pPage);
-  if (!pPageLinkList)
-    return CPDF_Link();
-
-  for (size_t i = pPageLinkList->size(); i > 0; --i) {
-    size_t annot_index = i - 1;
-    RetainPtr<CPDF_Dictionary> pAnnot = (*pPageLinkList)[annot_index];
-    if (!pAnnot)
-      continue;
-
-    CPDF_Link link(std::move(pAnnot));
-    if (!link.GetRect().Contains(point))
-      continue;
-
-    if (z_order)
-      *z_order = pdfium::base::checked_cast<int32_t>(annot_index);
-    return link;
-  }
-  return CPDF_Link();
-}
-
-const std::vector<RetainPtr<CPDF_Dictionary>>* CPDF_LinkList::GetPageLinks(
+const std::vector<CPDF_Dictionary*>* CPDF_LinkList::GetPageLinks(
     CPDF_Page* pPage) {
   uint32_t objnum = pPage->GetDict()->GetObjNum();
   if (objnum == 0)
@@ -53,16 +25,45 @@ const std::vector<RetainPtr<CPDF_Dictionary>>* CPDF_LinkList::GetPageLinks(
     return &it->second;
 
   // std::map::operator[] forces the creation of a map entry.
-  auto* page_link_list = &m_PageMap[objnum];
-  RetainPtr<CPDF_Array> pAnnotList = pPage->GetMutableAnnotsArray();
+  std::vector<CPDF_Dictionary*>& page_link_list = m_PageMap[objnum];
+  LoadPageLinks(pPage, &page_link_list);
+  return &page_link_list;
+}
+
+CPDF_Link CPDF_LinkList::GetLinkAtPoint(CPDF_Page* pPage,
+                                        const CFX_PointF& point,
+                                        int* z_order) {
+  const std::vector<CPDF_Dictionary*>* pPageLinkList = GetPageLinks(pPage);
+  if (!pPageLinkList)
+    return CPDF_Link();
+
+  for (size_t i = pPageLinkList->size(); i > 0; --i) {
+    size_t annot_index = i - 1;
+    CPDF_Dictionary* pAnnot = (*pPageLinkList)[annot_index];
+    if (!pAnnot)
+      continue;
+
+    CPDF_Link link(pAnnot);
+    if (!link.GetRect().Contains(point))
+      continue;
+
+    if (z_order)
+      *z_order = annot_index;
+    return link;
+  }
+  return CPDF_Link();
+}
+
+void CPDF_LinkList::LoadPageLinks(CPDF_Page* pPage,
+                                  std::vector<CPDF_Dictionary*>* pList) {
+  CPDF_Array* pAnnotList = pPage->GetDict()->GetArrayFor("Annots");
   if (!pAnnotList)
-    return page_link_list;
+    return;
 
   for (size_t i = 0; i < pAnnotList->size(); ++i) {
-    RetainPtr<CPDF_Dictionary> pAnnot = pAnnotList->GetMutableDictAt(i);
-    bool add_link = (pAnnot && pAnnot->GetByteStringFor("Subtype") == "Link");
+    CPDF_Dictionary* pAnnot = pAnnotList->GetDictAt(i);
+    bool add_link = (pAnnot && pAnnot->GetStringFor("Subtype") == "Link");
     // Add non-links as nullptrs to preserve z-order.
-    page_link_list->emplace_back(add_link ? pAnnot : nullptr);
+    pList->push_back(add_link ? pAnnot : nullptr);
   }
-  return page_link_list;
 }

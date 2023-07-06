@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 
 class CJS_Icon final : public CJS_Object {
  public:
-  static uint32_t GetObjDefnID();
+  static int GetObjDefnID();
   static void DefineJSObjects(CFXJS_Engine* pEngine);
 
   CJS_Icon(v8::Local<v8::Object> pObject, CJS_Runtime* pRuntime);
@@ -24,7 +24,7 @@ class CJS_Icon final : public CJS_Object {
   JS_STATIC_PROP(name, name, CJS_Icon)
 
  private:
-  static uint32_t ObjDefnID;
+  static int ObjDefnID;
   static const char kName[];
   static const JSPropertySpec PropertySpecs[];
 

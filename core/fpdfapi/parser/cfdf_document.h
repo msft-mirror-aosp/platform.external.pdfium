@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,8 +26,7 @@ class CFDF_Document final : public CPDF_IndirectObjectHolder {
   ~CFDF_Document() override;
 
   ByteString WriteToString() const;
-  const CPDF_Dictionary* GetRoot() const { return m_pRootDict.Get(); }
-  RetainPtr<CPDF_Dictionary> GetMutableRoot() const { return m_pRootDict; }
+  CPDF_Dictionary* GetRoot() const { return m_pRootDict.Get(); }
 
  private:
   void ParseStream(RetainPtr<IFX_SeekableReadStream> pFile);

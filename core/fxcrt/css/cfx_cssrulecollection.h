@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "core/fxcrt/widestring.h"
+#include "core/fxcrt/fx_string.h"
 
 class CFX_CSSDeclaration;
 class CFX_CSSSelector;
@@ -31,15 +31,19 @@ class CFX_CSSRuleCollection {
   CFX_CSSRuleCollection();
   ~CFX_CSSRuleCollection();
 
-  void SetRulesFromSheet(const CFX_CSSStyleSheet* sheet);
+  void AddRulesFrom(const CFX_CSSStyleSheet* sheet);
+  void Clear();
+  int32_t CountSelectors() const { return m_iSelectors; }
 
   const std::vector<std::unique_ptr<Data>>* GetTagRuleData(
       const WideString& tagname) const;
 
  private:
-  void AddRule(CFX_CSSStyleRule* pRule);
+  void AddRulesFrom(const CFX_CSSStyleSheet* pStyleSheet,
+                    CFX_CSSStyleRule* pRule);
 
   std::map<uint32_t, std::vector<std::unique_ptr<Data>>> m_TagRules;
+  int32_t m_iSelectors;
 };
 
 #endif  // CORE_FXCRT_CSS_CFX_CSSRULECOLLECTION_H_

@@ -1,4 +1,4 @@
-// Copyright 2014 The PDFium Authors
+// Copyright 2014 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,26 +11,15 @@
 #include <memory>
 #include <vector>
 
-#include "core/fxcrt/unowned_ptr.h"
 #include "fxjs/cfx_keyvalue.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/cjs_result.h"
 
 class CFX_GlobalData;
 
-// The CJS_Global object is not the V8 global object (i.e. it is not |this|
-// in JavaScript outside of a bound function call). It is a facility for
-// sharing data amongst documents and persisting data within a document
-// between sessions. It is only partially implemented due to security and
-// privacy concerns. It provides access via properties in the usual manner,
-// execpt that these are stored on the C++ side rather than in V8 itself.
-// It is a static object that is available as "global" property of the V8
-// global object and can be manipulated from JavaScript as |global['foo']|
-// for example.
-
 class CJS_Global final : public CJS_Object {
  public:
-  static uint32_t GetObjDefnID();
+  static int GetObjDefnID();
   static void DefineJSObjects(CFXJS_Engine* pEngine);
   static void DefineAllProperties(CFXJS_Engine* pEngine);
 
@@ -44,13 +33,22 @@ class CJS_Global final : public CJS_Object {
                              const v8::PropertyCallbackInfo<v8::Value>& info);
   static void delprop_static(v8::Local<v8::Name> property,
                              const v8::PropertyCallbackInfo<v8::Boolean>& info);
-  static void enumprop_static(const v8::PropertyCallbackInfo<v8::Array>& info);
 
   static void setPersistent_static(
       const v8::FunctionCallbackInfo<v8::Value>& info);
 
   CJS_Global(v8::Local<v8::Object> pObject, CJS_Runtime* pRuntime);
   ~CJS_Global() override;
+
+  CJS_Result DelProperty(CJS_Runtime* pRuntime, const wchar_t* propname);
+
+  CJS_Result setPersistent(CJS_Runtime* pRuntime,
+                           const std::vector<v8::Local<v8::Value>>& params);
+  CJS_Result QueryProperty(const wchar_t* propname);
+  CJS_Result GetProperty(CJS_Runtime* pRuntime, const wchar_t* propname);
+  CJS_Result SetProperty(CJS_Runtime* pRuntime,
+                         const wchar_t* propname,
+                         v8::Local<v8::Value> vp);
 
  private:
   struct JSGlobalData : public CFX_Value {
@@ -63,12 +61,11 @@ class CJS_Global final : public CJS_Object {
     bool bDeleted = false;
   };
 
-  static uint32_t ObjDefnID;
+  static int ObjDefnID;
   static const JSMethodSpec MethodSpecs[];
 
   void UpdateGlobalPersistentVariables();
-  // TODO(crbug.com/pdfium/926): This method is never called.
-  void CommitGlobalPersisitentVariables();
+  void CommitGlobalPersisitentVariables(CJS_Runtime* pRuntime);
   void DestroyGlobalPersisitentVariables();
   CJS_Result SetGlobalVariables(const ByteString& propname,
                                 CFX_Value::DataType nType,
@@ -77,23 +74,15 @@ class CJS_Global final : public CJS_Object {
                                 const ByteString& sData,
                                 v8::Local<v8::Object> pData,
                                 bool bDefaultPersistent);
-  std::vector<std::unique_ptr<CFX_KeyValue>> ObjectToArray(
-      CJS_Runtime* pRuntime,
-      v8::Local<v8::Object> pObj);
+  void ObjectToArray(CJS_Runtime* pRuntime,
+                     v8::Local<v8::Object> pObj,
+                     std::vector<std::unique_ptr<CFX_KeyValue>>* pArray);
   void PutObjectProperty(v8::Local<v8::Object> obj, CFX_KeyValue* pData);
-  CJS_Result setPersistent(CJS_Runtime* pRuntime,
-                           const std::vector<v8::Local<v8::Value>>& params);
-  bool HasProperty(const ByteString& propname);
-  bool DelProperty(const ByteString& propname);
-  CJS_Result GetProperty(CJS_Runtime* pRuntime, const ByteString& propname);
-  CJS_Result SetProperty(CJS_Runtime* pRuntime,
-                         const ByteString& propname,
-                         v8::Local<v8::Value> vp);
-  void EnumProperties(CJS_Runtime* pRuntime,
-                      const v8::PropertyCallbackInfo<v8::Array>& info);
 
   std::map<ByteString, std::unique_ptr<JSGlobalData>> m_MapGlobal;
-  UnownedPtr<CFX_GlobalData> m_pGlobalData;
+  WideString m_sFilePath;
+  CFX_GlobalData* m_pGlobalData;
+  ObservedPtr<CPDFSDK_FormFillEnvironment> m_pFormFillEnv;
 };
 
 #endif  // FXJS_CJS_GLOBAL_H_

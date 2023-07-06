@@ -1,4 +1,4 @@
-// Copyright 2017 The PDFium Authors
+// Copyright 2017 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ class CXFA_ExclGroup;
 
 class CJX_ExclGroup final : public CJX_Node {
  public:
-  CONSTRUCT_VIA_MAKE_GARBAGE_COLLECTED;
+  explicit CJX_ExclGroup(CXFA_ExclGroup* group);
   ~CJX_ExclGroup() override;
 
   // CJX_Object:
@@ -32,8 +32,6 @@ class CJX_ExclGroup final : public CJX_Node {
   JSE_PROP(transient);
 
  private:
-  explicit CJX_ExclGroup(CXFA_ExclGroup* group);
-
   using Type__ = CJX_ExclGroup;
   using ParentType__ = CJX_Node;
 

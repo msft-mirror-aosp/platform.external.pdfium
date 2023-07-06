@@ -1,4 +1,4 @@
-// Copyright 2016 The PDFium Authors
+// Copyright 2016 PDFium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,13 +7,14 @@
 #ifndef FXJS_CJS_ANNOT_H_
 #define FXJS_CJS_ANNOT_H_
 
-#include "fpdfsdk/cpdfsdk_baannot.h"
 #include "fxjs/cjs_object.h"
 #include "fxjs/js_define.h"
 
+class CPDFSDK_BAAnnot;
+
 class CJS_Annot final : public CJS_Object {
  public:
-  static uint32_t GetObjDefnID();
+  static int GetObjDefnID();
   static void DefineJSObjects(CFXJS_Engine* pEngine);
 
   CJS_Annot(v8::Local<v8::Object> pObject, CJS_Runtime* pRuntime);
@@ -26,7 +27,7 @@ class CJS_Annot final : public CJS_Object {
   JS_STATIC_PROP(type, type, CJS_Annot)
 
  private:
-  static uint32_t ObjDefnID;
+  static int ObjDefnID;
   static const char kName[];
   static const JSPropertySpec PropertySpecs[];
 
@@ -39,7 +40,7 @@ class CJS_Annot final : public CJS_Object {
   CJS_Result get_type(CJS_Runtime* pRuntime);
   CJS_Result set_type(CJS_Runtime* pRuntime, v8::Local<v8::Value> vp);
 
-  ObservedPtr<CPDFSDK_BAAnnot> m_pAnnot;
+  ObservedPtr<CPDFSDK_Annot> m_pAnnot;
 };
 
 #endif  // FXJS_CJS_ANNOT_H_
