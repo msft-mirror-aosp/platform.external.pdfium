@@ -1,4 +1,4 @@
-// Copyright 2014 PDFium Authors. All rights reserved.
+// Copyright 2014 The PDFium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,12 @@
 #ifndef CORE_FXCRT_FX_EXTENSION_H_
 #define CORE_FXCRT_FX_EXTENSION_H_
 
+#include <ctype.h>
+#include <math.h>
 #include <time.h>
+#include <wctype.h>
 
-#include <cctype>
-#include <cmath>
-#include <cwctype>
-#include <memory>
-
-#include "core/fxcrt/fx_string.h"
+#include "build/build_config.h"
 
 #if defined(USE_SYSTEM_ICUUC)
 #include <unicode/uchar.h>
@@ -24,44 +22,57 @@
 
 #define FX_INVALID_OFFSET static_cast<uint32_t>(-1)
 
-#ifdef PDF_ENABLE_XFA
 #define FX_IsOdd(a) ((a)&1)
-#endif  // PDF_ENABLE_XFA
 
-float FXSYS_wcstof(const wchar_t* pwsStr, int32_t iLength, int32_t* pUsedLen);
+float FXSYS_wcstof(const wchar_t* pwsStr, size_t nLength, size_t* pUsedLen);
 wchar_t* FXSYS_wcsncpy(wchar_t* dstStr, const wchar_t* srcStr, size_t count);
 int32_t FXSYS_wcsnicmp(const wchar_t* s1, const wchar_t* s2, size_t count);
 
 inline bool FXSYS_iswlower(int32_t c) {
-  return u_islower(c);
+  if (__builtin_available(android 31, *)) return u_islower(c);
+  else return iswlower(c);
 }
 
 inline bool FXSYS_iswupper(int32_t c) {
-  return u_isupper(c);
+  if (__builtin_available(android 31, *)) return u_isupper(c);
+  else return iswupper(c);
 }
 
 inline int32_t FXSYS_towlower(wchar_t c) {
-  return u_tolower(c);
+  if (__builtin_available(android 31, *)) return u_tolower(c);
+  else return towlower(c);
 }
 
 inline int32_t FXSYS_towupper(wchar_t c) {
-  return u_toupper(c);
+  if (__builtin_available(android 31, *)) return u_toupper(c);
+  else return towupper(c);
+}
+
+inline bool FXSYS_IsLowerASCII(int32_t c) {
+  return c >= 'a' && c <= 'z';
+}
+
+inline bool FXSYS_IsUpperASCII(int32_t c) {
+  return c >= 'A' && c <= 'Z';
 }
 
 inline char FXSYS_ToUpperASCII(char c) {
-  return (c >= 'a' && c <= 'z') ? (c + ('A' - 'a')) : c;
+  return FXSYS_IsLowerASCII(c) ? (c + ('A' - 'a')) : c;
 }
 
 inline bool FXSYS_iswalpha(wchar_t c) {
-  return u_isalpha(c);
+  if (__builtin_available(android 31, *)) return u_isalpha(c);
+  else return iswalpha(c);
 }
 
 inline bool FXSYS_iswalnum(wchar_t c) {
-  return u_isalnum(c);
+  if (__builtin_available(android 31, *)) return u_isalnum(c);
+  else return iswalnum(c);
 }
 
 inline bool FXSYS_iswspace(wchar_t c) {
-  return u_isspace(c);
+  if (__builtin_available(android 31, *)) return u_isspace(c);
+  else return iswspace(c);
 }
 
 inline bool FXSYS_IsOctalDigit(char c) {
@@ -69,11 +80,11 @@ inline bool FXSYS_IsOctalDigit(char c) {
 }
 
 inline bool FXSYS_IsHexDigit(char c) {
-  return !((c & 0x80) || !std::isxdigit(c));
+  return !((c & 0x80) || !isxdigit(c));
 }
 
 inline bool FXSYS_IsWideHexDigit(wchar_t c) {
-  return !((c & 0xFFFFFF80) || !std::isxdigit(c));
+  return !((c & 0xFFFFFF80) || !isxdigit(c));
 }
 
 inline int FXSYS_HexCharToInt(char c) {
@@ -86,16 +97,16 @@ inline int FXSYS_HexCharToInt(char c) {
 inline int FXSYS_WideHexCharToInt(wchar_t c) {
   if (!FXSYS_IsWideHexDigit(c))
     return 0;
-  char upchar = std::toupper(static_cast<char>(c));
+  char upchar = toupper(static_cast<char>(c));
   return upchar > '9' ? upchar - 'A' + 10 : upchar - '0';
 }
 
 inline bool FXSYS_IsDecimalDigit(char c) {
-  return !((c & 0x80) || !std::isdigit(c));
+  return !((c & 0x80) || !isdigit(c));
 }
 
 inline bool FXSYS_IsDecimalDigit(wchar_t c) {
-  return !((c & 0xFFFFFF80) || !std::iswdigit(c));
+  return !((c & 0xFFFFFF80) || !iswdigit(c));
 }
 
 inline int FXSYS_DecimalCharToInt(char c) {
@@ -112,18 +123,19 @@ void FXSYS_IntToFourHexChars(uint16_t n, char* buf);
 size_t FXSYS_ToUTF16BE(uint32_t unicode, char* buf);
 
 // Strict order over floating types where NaNs may be present.
+// All NaNs are treated as equal to each other and greater than infinity.
 template <typename T>
 bool FXSYS_SafeEQ(const T& lhs, const T& rhs) {
-  return (std::isnan(lhs) && std::isnan(rhs)) ||
-         (!std::isnan(lhs) && !std::isnan(rhs) && lhs == rhs);
+  return (isnan(lhs) && isnan(rhs)) ||
+         (!isnan(lhs) && !isnan(rhs) && lhs == rhs);
 }
 
 template <typename T>
 bool FXSYS_SafeLT(const T& lhs, const T& rhs) {
-  if (std::isnan(lhs) && std::isnan(rhs))
+  if (isnan(lhs) && isnan(rhs))
     return false;
-  if (std::isnan(lhs) || std::isnan(rhs))
-    return std::isnan(lhs) < std::isnan(rhs);
+  if (isnan(lhs) || isnan(rhs))
+    return isnan(lhs) < isnan(rhs);
   return lhs < rhs;
 }
 
