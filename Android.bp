@@ -92,26 +92,41 @@ cc_defaults {
         "**/*_unittest.cpp",
         "**/*_embeddertest.cpp",
     ],
+    sdk_version: "current",
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "com.android.mediaprovider",
+        "//apex_available:platform"
+    ],
+    stl: "c++_static",
 }
 
 
 cc_library_headers {
     name: "pdfium-headers",
     export_include_dirs: ["."],
+    sdk_version: "current",
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "com.android.mediaprovider",
+        "//apex_available:platform"
+    ],
 }
 
 cc_library_headers {
     name: "pdfium-third-party-headers",
     export_include_dirs: ["third_party"],
+    sdk_version: "current",
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "com.android.mediaprovider",
+        "//apex_available:platform"
+    ],
 }
 
 cc_library_shared {
     name: "libpdfium",
     defaults: ["pdfium-core"],
-
-    header_libs: [
-        "libpdfium-constants",
-    ],
 
     whole_static_libs: [
         "libpdfium-fpdfsdk",
@@ -122,6 +137,7 @@ cc_library_shared {
     static_libs: [
         "libpdfium-agg",
         "libpdfium-cmaps",
+        "libpdfium-constants",
         "libpdfium-edit",
         "libpdfium-fdrm",
         "libpdfium-font",
@@ -156,7 +172,6 @@ cc_library_shared {
     ],
 
     export_include_dirs: ["public"],
-
 }
 
 subdirs = ["third_party"]

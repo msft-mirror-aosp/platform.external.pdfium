@@ -1,4 +1,4 @@
-// Copyright 2018 PDFium Authors. All rights reserved.
+// Copyright 2018 The PDFium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "public/cpp/fpdf_deleters.h"
+#include "fpdf_deleters.h"
 
 // Versions of FPDF types that clean up the object at scope exit.
 
